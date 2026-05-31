@@ -93,6 +93,7 @@ flowchart LR
 ├── packages/
 │   ├── core/         # Shared domain typings and L2 depth-walk math calculators
 │   ├── config/       # Environment schemas and static exchange fee parameters
+│   ├── sdk/          # Standalone typed REST/WebSocket client for the bot API (with unit tests)
 │   └── testing/      # Synthetic book fixtures and mock market data templates
 └── apps/
     ├── bot/          # Express API, CEX WebSocket streams, and execution simulator

@@ -139,7 +139,7 @@ pnpm dev
 - `API_KEY`: Authorization secret for protected actions
 - `SUPABASE_URL`: Supabase project URL
 - `SUPABASE_SERVICE_ROLE_KEY`: Supabase service role key
-- `ENGINE_USDT_USD_BASIS_BPS`: Cost (bps) charged on legs that cross USD↔USDT, modelling the stablecoin conversion needed to realize a Coinbase/Kraken (USD) vs Binance/OKX/Bybit (USDT) spread. Default `8`; set `0` to treat USD≈USDT 1:1.
+- `ENGINE_USDT_USD_BASIS_BPS`: Cost (bps) charged on legs that cross USD↔USDT, modelling the stablecoin conversion needed to realize a Coinbase/Kraken (USD) vs Binance/OKX/Bybit (USDT) spread. Default `3` (≈ realistic USDC/USDT conversion cost); set `0` to treat USD≈USDT 1:1.
 
 ### Web console (`apps/web/.env.local`)
 
@@ -167,7 +167,28 @@ Potential integration points include:
 - live event streaming for opportunities and executions,
 - and persistence-backed trade history export flows.
 
-## 13. Demo notes
+## 13. Design decisions & market-efficiency findings
+
+A core finding drove the design: **naive top-of-book arbitrage between major BTC venues is almost always net-negative after costs.** The big spot venues are brutally efficient — same-quote (USDT) books on Binance/OKX/Bybit rarely diverge beyond the combined ~9-10 bps taker fees, and the one persistent dislocation (the **Coinbase USD premium** vs USDT venues) collapses once you charge the real USD↔USDT conversion (basis) cost. Aurex is built to _prove_ this rather than hide it:
+
+- **It rejects, transparently.** Every gross-positive-but-net-negative window is logged as `SKIPPED` with the exact reason and figures, so the cost model is auditable — not a black box that quietly never trades.
+- **It only executes genuine edge.** A trade fires only when net profit clears `minNetProfitUSD` after fees + withdrawal + slippage + latency + cross-quote basis.
+- **It quantifies conviction.** A rolling per-pair spread z-score separates a statistically anomalous (mean-reverting) dislocation from a coincidentally-marginal one.
+
+This is the honest version of the challenge's own example: a $250 gross spread looks like free money until you net it — and our feed shows you exactly when it isn't.
+
+### Evaluation-criteria mapping
+
+| Criterion                       | Where it lives                                                                                                                                                                                                                                |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Speed / latency**             | Real WS L2 feeds (Binance diff-depth, Kraken book-10, OKX books5, Bybit orderbook.50, Coinbase level2); latency measured from each venue's own event stamp → evaluation (`detectionLatencyMs`, `p99LatencyMs`, `evalsPerSecond`).             |
+| **Net-profitability precision** | `calculateNetSpread` deducts taker fees, withdrawal, slippage, latency buffer and the USD↔USDT basis; the L2 depth-walk prices real slippage; rejected windows are logged with reasons.                                                       |
+| **Robustness**                  | Order-book sequence/checksum validation, partial-fill depth-walking, circuit breakers (consecutive loss, volatility spike, exposure caps), settlement-style inventory rebalancing, and a bootstrap that binds even if a venue is unreachable. |
+| **Strategy / intelligence**     | Ranks every simultaneous directed pair by net profit, with a statistical z-score tiebreaker (statistical-arbitrage signal).                                                                                                                   |
+| **Architecture / code quality** | Typed `pnpm` monorepo, shared `@arbitrage/*` packages, Zod validation, Pino structured logging, Vitest unit + integration suites, and GitHub Actions CI.                                                                                      |
+| **Web presentation**            | Real-time terminal: live books, ranked opportunities (with z-score), executed-trade ledger, cumulative P&L/equity curve, risk panel, and event feed — deployed publicly.                                                                      |
+
+## 14. Demo notes
 
 - **Coinbase Premium Route:** Use Coinbase Advanced → Binance to observe the real USD vs USDT dislocation. Note that Aurex charges a stablecoin **basis cost** on this route (`ENGINE_USDT_USD_BASIS_BPS`), so a wide gross premium is only executed when it survives the conversion cost — by design, marginal cross-quote windows show up as transparently SKIPPED rather than as phantom profit.
 - **Statistical Confidence:** The Opportunities table shows a per-window z-score (σ); higher values flag dislocations that are unusually wide versus their own recent history.
@@ -176,6 +197,6 @@ Potential integration points include:
 - **Trade Ledger:** Export simulated executions through the ledger controls.
 - **Evaluation Focus:** The main reviewer path is live market state → opportunities → executed trades → cumulative P&L.
 
-## 14. License
+## 15. License
 
 MIT License. Provided for evaluation, research, and educational simulation purposes.

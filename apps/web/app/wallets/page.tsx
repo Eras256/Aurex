@@ -2,7 +2,6 @@
 
 import React from 'react';
 
-
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
@@ -27,7 +26,7 @@ export default function WalletsPage() {
     bybit: 'Bybit Spot',
   };
 
-  const venueIds = Object.keys(wallets).length > 0 ? Object.keys(wallets) : ['binance', 'kraken'];
+  const venueIds = ['binance', 'kraken', 'coinbase', 'okx', 'bybit'];
 
   const aggregateBtc = venueIds.reduce((sum, id) => sum + (wallets[id]?.BTC?.free || 0), 0);
   const aggregateUsdt = venueIds.reduce((sum, id) => sum + (wallets[id]?.USDT?.free || 0), 0);
@@ -46,16 +45,16 @@ export default function WalletsPage() {
     const usdtPct = Math.min((usdtTotal / maxQuote) * 100, 100);
 
     return (
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-3">
-          <CardTitle className="text-xs">{name} {t('wallets.pool_title')}</CardTitle>
-          <Badge variant="secondary">{t('wallets.active_reserve')}</Badge>
+      <Card key={exchangeId} className="border border-white/5 bg-slate-950/20 backdrop-blur-md hover:border-white/10 transition-all duration-300">
+        <CardHeader className="flex flex-row items-center justify-between pb-3 border-b border-white/5 bg-slate-950/10">
+          <CardTitle className="text-xs font-mono font-bold text-white uppercase tracking-wider">{name} {t('wallets.pool_title')}</CardTitle>
+          <Badge variant="secondary" className="font-mono text-[9px] uppercase tracking-wider">{t('wallets.active_reserve')}</Badge>
         </CardHeader>
-        <CardContent className="space-y-6 pt-4">
+        <CardContent className="space-y-6 pt-5">
           {/* BTC ASSET BAR */}
           <div className="space-y-2">
             <div className="flex justify-between text-xs font-mono">
-              <span className="text-slate-300 font-semibold">Bitcoin (BTC)</span>
+              <span className="text-slate-400 font-medium">Bitcoin (BTC)</span>
               <span className="text-amber-500 font-bold">{btcTotal.toFixed(4)} BTC</span>
             </div>
             <div className="h-2 bg-slate-950/40 rounded-full overflow-hidden border border-white/5">
@@ -70,7 +69,7 @@ export default function WalletsPage() {
           {/* USDT ASSET BAR */}
           <div className="space-y-2">
             <div className="flex justify-between text-xs font-mono">
-              <span className="text-slate-300 font-semibold">Tether USD (USDT)</span>
+              <span className="text-slate-400 font-medium">Tether USD (USDT)</span>
               <span className="text-emerald-400 font-bold">${usdtTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
             </div>
             <div className="h-2 bg-slate-950/40 rounded-full overflow-hidden border border-white/5">
@@ -87,41 +86,37 @@ export default function WalletsPage() {
   };
 
   return (
-    <div className="space-y-8 animate-fadeIn">
+    <div className="space-y-8 animate-fadeIn max-w-[1400px] mx-auto pb-10">
       {/* HEADER */}
       <div className="pb-6 border-b border-white/5">
-        <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+        <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl font-mono uppercase">
           {t('wallets.title_header')}
         </h2>
-        <p className="mt-2 text-sm text-slate-400">
+        <p className="mt-2 text-sm text-slate-400 font-sans">
           {t('wallets.subtitle_header')}
         </p>
       </div>
 
       {/* BALANCES GRID — one pool per live venue */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {venueIds.map((id) => (
-          <React.Fragment key={id}>
-            {renderExchangeBalances(id, venueNames[id] ?? id.toUpperCase())}
-          </React.Fragment>
-        ))}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {venueIds.map((id) => renderExchangeBalances(id, venueNames[id] ?? id.toUpperCase()))}
       </div>
 
       {/* EXPOSURES CARD */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xs">{t('wallets.oversight_title')}</CardTitle>
+      <Card className="border border-white/5 bg-slate-950/15 backdrop-blur-md">
+        <CardHeader className="border-b border-white/5 bg-slate-950/10">
+          <CardTitle className="text-xs font-mono font-bold text-white uppercase tracking-wider">{t('wallets.oversight_title')}</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs font-mono pt-2">
-          <div className="space-y-1.5">
-            <span className="text-slate-500">{t('wallets.agg_btc')}</span>
-            <p className="text-lg font-bold text-amber-500">
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs font-mono pt-5 pb-5">
+          <div className="space-y-2 p-4 bg-slate-950/20 border border-white/5 rounded-xl">
+            <span className="text-slate-500 uppercase tracking-widest text-[9px]">{t('wallets.agg_btc')}</span>
+            <p className="text-2xl font-bold text-amber-500 glow-text-gold">
               {aggregateBtc.toFixed(4)} BTC
             </p>
           </div>
-          <div className="space-y-1.5">
-            <span className="text-slate-500">{t('wallets.agg_quote')}</span>
-            <p className="text-lg font-bold text-emerald-400">
+          <div className="space-y-2 p-4 bg-slate-950/20 border border-white/5 rounded-xl">
+            <span className="text-slate-500 uppercase tracking-widest text-[9px]">{t('wallets.agg_quote')}</span>
+            <p className="text-2xl font-bold text-emerald-400 glow-text-green">
               ${aggregateUsdt.toLocaleString('en-US', { minimumFractionDigits: 2 })} USDT
             </p>
           </div>

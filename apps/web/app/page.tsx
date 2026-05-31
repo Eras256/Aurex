@@ -97,7 +97,7 @@ export default function OverviewPage() {
           <div className="space-y-4">
             <div>
               <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
-                Institutional Terminal
+                {t('home.terminal_badge')}
               </span>
               <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white mt-3">
                 Aurex

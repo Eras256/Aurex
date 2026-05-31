@@ -31,6 +31,8 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
   // Read backend endpoints from environment presets
   const backendHost = env.NEXT_PUBLIC_BACKEND_URL;
   const wsHost = backendHost.replace(/^http/, 'ws');
+  // Demo control key (configurable per-deploy; gates /config and /engine/reset only).
+  const apiKey = env.NEXT_PUBLIC_API_KEY;
 
   useEffect(() => {
     let socket: WebSocket | null = null;
@@ -112,7 +114,7 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': 'dev-api-key-12345',
+          'x-api-key': apiKey,
         },
       });
       const data = await res.json();
@@ -129,7 +131,7 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': 'dev-api-key-12345',
+          'x-api-key': apiKey,
         },
         body: JSON.stringify(newConfig),
       });

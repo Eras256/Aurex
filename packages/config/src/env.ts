@@ -25,6 +25,10 @@ export const EnvSchema = z.object({
   API_KEY: z.string().default('dev-api-key-12345'),
   ALLOWED_ORIGINS: z.string().default('http://localhost:3000,http://localhost:3001'),
   NEXT_PUBLIC_BACKEND_URL: z.string().url().default('http://localhost:3001'),
+  // Demo control key sent as `x-api-key` from the dashboard to guard /config and
+  // /engine/reset. Configurable per-deploy instead of hardcoded; it is inherently
+  // visible client-side (it gates demo controls only), so it is not a real secret.
+  NEXT_PUBLIC_API_KEY: z.string().default('dev-api-key-12345'),
   // Optional Engine Overrides
   ENGINE_MIN_NET_PROFIT_USD: z.preprocess((val) => (val === undefined || val === '' ? undefined : Number(val)), z.number().optional()),
   ENGINE_MAX_POSITION_BTC_PER_EXCHANGE: z.preprocess((val) => (val === undefined || val === '' ? undefined : Number(val)), z.number().optional()),
@@ -56,6 +60,7 @@ const getEnv = (): Env => {
     API_KEY: typeof process !== 'undefined' ? process.env.API_KEY : undefined,
     ALLOWED_ORIGINS: typeof process !== 'undefined' ? process.env.ALLOWED_ORIGINS : undefined,
     NEXT_PUBLIC_BACKEND_URL: typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_BACKEND_URL : undefined,
+    NEXT_PUBLIC_API_KEY: typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_API_KEY : undefined,
     ENGINE_MIN_NET_PROFIT_USD: typeof process !== 'undefined' ? process.env.ENGINE_MIN_NET_PROFIT_USD : undefined,
     ENGINE_MAX_POSITION_BTC_PER_EXCHANGE: typeof process !== 'undefined' ? process.env.ENGINE_MAX_POSITION_BTC_PER_EXCHANGE : undefined,
     ENGINE_MAX_POSITION_QUOTE_PER_EXCHANGE: typeof process !== 'undefined' ? process.env.ENGINE_MAX_POSITION_QUOTE_PER_EXCHANGE : undefined,

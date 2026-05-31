@@ -13,9 +13,11 @@ export const EngineConfigSchema = z.object({
   slippageSafetyBps: z.number().nonnegative().default(0),
   // Cost (bps of notional) charged when an arbitrage leg crosses quote currencies
   // (USD↔USDT). Realising a Coinbase/Kraken (USD) vs Binance/OKX/Bybit (USDT) spread
-  // requires a stablecoin conversion that trades a few bps off peg plus a conversion
-  // fee; 8 bps is a conservative blended estimate. Set 0 to treat USD≈USDT 1:1.
-  usdtUsdBasisBps: z.number().nonnegative().default(8),
+  // requires a stablecoin conversion. Coinbase lets you settle USDC↔USD 1:1 and USDC↔USDT
+  // trades within ~1-3 bps of peg, so 3 bps is a realistic blended conversion cost — wide
+  // enough to reject marginal cross-quote windows, tight enough that a genuine Coinbase
+  // premium still clears. Set 0 to treat USD≈USDT 1:1.
+  usdtUsdBasisBps: z.number().nonnegative().default(3),
   maxTradesPerMinute: z.number().positive().default(30),
   enabledExchanges: z.array(z.string()).default(['binance', 'kraken', 'coinbase', 'okx', 'bybit']),
   enabledPairs: z.array(z.string()).default(['BTCUSDT']),
@@ -30,7 +32,7 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = EngineConfigSchema.parse({
   maxPositionQuotePerExchange: env.ENGINE_MAX_POSITION_QUOTE_PER_EXCHANGE !== undefined ? env.ENGINE_MAX_POSITION_QUOTE_PER_EXCHANGE : 100000,
   latencySafetyBps: env.ENGINE_LATENCY_SAFETY_BPS !== undefined ? env.ENGINE_LATENCY_SAFETY_BPS : 1,
   slippageSafetyBps: env.ENGINE_SLIPPAGE_SAFETY_BPS !== undefined ? env.ENGINE_SLIPPAGE_SAFETY_BPS : 0,
-  usdtUsdBasisBps: env.ENGINE_USDT_USD_BASIS_BPS !== undefined ? env.ENGINE_USDT_USD_BASIS_BPS : 8,
+  usdtUsdBasisBps: env.ENGINE_USDT_USD_BASIS_BPS !== undefined ? env.ENGINE_USDT_USD_BASIS_BPS : 3,
   maxTradesPerMinute: env.ENGINE_MAX_TRADES_PER_MINUTE !== undefined ? env.ENGINE_MAX_TRADES_PER_MINUTE : 30,
   enabledExchanges: ['binance', 'kraken', 'coinbase', 'okx', 'bybit'],
   enabledPairs: ['BTCUSDT'],

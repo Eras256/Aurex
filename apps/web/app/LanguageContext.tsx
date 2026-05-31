@@ -358,6 +358,20 @@ const translations: Record<Language, Record<string, string>> = {
     'docs.sec5_modes_title': 'Storage modes',
     'docs.sec5_p2_1': 'Local mode: fast in-memory state plus db.json backup persistence across restarts.',
     'docs.sec5_p3': 'Supabase mode: transaction history and state persisted to Postgres tables.',
+    
+    // New 5-Exchange Comparative Grid translations
+    'markets.cex_grid_title': '5-Exchange Spot Tickers',
+    'markets.cex_grid_desc': 'Real-time L1 pricing, midpoints, and depth across all five connected exchanges.',
+    'markets.spread_matrix_title': 'Cross-Venue 5x5 Net Spread Matrix',
+    'markets.spread_matrix_desc': 'Real-time expected net spread net of VIP taker fees, slippage safety buffers, and stablecoin basis costs.',
+    'markets.exchange_short': 'Venue',
+    'markets.bid_short': 'Bid',
+    'markets.ask_short': 'Ask',
+    'markets.spread_short': 'Spread',
+    'markets.mid_short': 'Mid',
+    'markets.depth_short': 'Depth',
+    'markets.profitable': 'Profitable',
+    'home.terminal_badge': 'Institutional Terminal',
   },
   es: {
     // Navigation Sidebar
@@ -695,6 +709,20 @@ const translations: Record<Language, Record<string, string>> = {
     'docs.sec5_modes_title': 'Modos de almacenamiento',
     'docs.sec5_p2_1': 'Modo Local: estado rápido en memoria y persistencia de copias de seguridad en el archivo db.json.',
     'docs.sec5_p3': 'Modo Supabase: historial de transacciones y estado persistidos directamente en tablas PostgreSQL de Supabase.',
+    
+    // New 5-Exchange Comparative Grid translations
+    'markets.cex_grid_title': 'Precios Spot de los 5 Exchanges',
+    'markets.cex_grid_desc': 'Precios L1 en tiempo real, puntos medios y profundidad en las cinco plataformas conectadas.',
+    'markets.spread_matrix_title': 'Matriz de Spreads Netos 5x5 entre Exchanges',
+    'markets.spread_matrix_desc': 'Spreads netos esperados en tiempo real descontando comisiones taker VIP, colchón de deslizamiento y comisiones de paridad de establecoin.',
+    'markets.exchange_short': 'Exchange',
+    'markets.bid_short': 'Bid',
+    'markets.ask_short': 'Ask',
+    'markets.spread_short': 'Spread',
+    'markets.mid_short': 'Medio',
+    'markets.depth_short': 'Profundidad',
+    'markets.profitable': 'Rentable',
+    'home.terminal_badge': 'Terminal Institucional',
   }
 };
 

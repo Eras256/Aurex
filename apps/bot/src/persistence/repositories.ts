@@ -54,7 +54,7 @@ export async function initializeDatabase() {
   try {
     const data = await fs.readFile(DB_FILE, 'utf-8');
     const parsed = JSON.parse(data);
-    
+
     // Safety check & merge to keep the structure fully valid
     dbState = {
       opportunities: parsed.opportunities || [],
@@ -64,7 +64,7 @@ export async function initializeDatabase() {
       config: parsed.config || DEFAULT_ENGINE_CONFIG,
       pnlHistory: parsed.pnlHistory || [{ timestamp: Date.now(), value: 100000 }],
     };
-    
+
     logger.info('💾 Loaded local persistent database from disk.');
   } catch (error: any) {
     if (error.code === 'ENOENT') {
@@ -73,6 +73,83 @@ export async function initializeDatabase() {
     } else {
       logger.error('Failed to read local persistent database file', error);
     }
+  }
+
+  // When the Supabase driver is active, rehydrate the in-memory state from Postgres so the
+  // trade ledger and P&L survive a container restart/redeploy (the Fly filesystem — and
+  // thus db.json — is ephemeral). Read paths serve dbState, so this is what actually makes
+  // the cloud persistence visible in the dashboard. Fully guarded: any failure (e.g. a
+  // missing table) falls back to whatever local/seed state we already have.
+  if (supabase) {
+    await hydrateFromSupabase();
+  }
+}
+
+/**
+ * Rehydrates the live in-memory ledger from Supabase at boot. Trades are restored at full
+ * fidelity; the P&L equity curve is taken from `pnl_snapshots` when present, otherwise it
+ * is reconstructed chronologically from the restored trades so the cumulative P&L is
+ * correct even without that table. Opportunities are intentionally not restored — they
+ * regenerate live within seconds and the persisted rows omit top-of-book prices.
+ */
+async function hydrateFromSupabase(): Promise<void> {
+  if (!supabase) return;
+  try {
+    const { data: trades, error: tradesErr } = await supabase
+      .from('simulated_trades')
+      .select('*')
+      .order('executed_at', { ascending: false })
+      .limit(500);
+
+    if (tradesErr) {
+      logger.warn('Supabase hydration: could not load trades (' + tradesErr.message + '). Using local state.');
+      return;
+    }
+
+    if (trades && trades.length > 0) {
+      dbState.trades = trades.map((r: any) => ({
+        id: r.id,
+        opportunityId: r.opportunity_id ?? '',
+        timestamp: new Date(r.executed_at).getTime(),
+        buyExchange: r.buy_exchange,
+        sellExchange: r.sell_exchange,
+        symbol: r.symbol,
+        buyPrice: Number(r.buy_price),
+        sellPrice: Number(r.sell_price),
+        volume: Number(r.volume),
+        grossProfit: Number(r.gross_profit_usd),
+        netProfit: Number(r.net_profit_usd),
+        feesPaid: Number(r.fees_paid_usd),
+        slippagePaid: Number(r.slippage_paid_usd),
+      }));
+
+      // Prefer a persisted equity curve; otherwise reconstruct it from the trade series.
+      const { data: pnl } = await supabase
+        .from('pnl_snapshots')
+        .select('*')
+        .order('timestamp', { ascending: true })
+        .limit(1000);
+
+      if (pnl && pnl.length > 0) {
+        dbState.pnlHistory = pnl.map((r: any) => ({
+          timestamp: new Date(r.timestamp).getTime(),
+          value: Number(r.value),
+        }));
+      } else {
+        const chrono = [...dbState.trades].sort((a, b) => a.timestamp - b.timestamp);
+        let equity = 100000;
+        const history = [{ timestamp: chrono[0].timestamp, value: equity }];
+        for (const t of chrono) {
+          equity += t.netProfit;
+          history.push({ timestamp: t.timestamp, value: equity });
+        }
+        dbState.pnlHistory = history;
+      }
+
+      logger.info(`💾 Hydrated ${dbState.trades.length} trades from Supabase (ledger + P&L restored).`);
+    }
+  } catch (err) {
+    logger.error('Supabase hydration failed; continuing with local state.', err);
   }
 }
 

@@ -54,9 +54,17 @@ async function bootstrap() {
     adapter.subscribeOrderBook('BTCUSDT', (book) => orderBookStore.updateBook(book));
   }
 
-  // 6. Connect exchange sockets
+  // 6. Connect exchange sockets. Each connect() is raced against a timeout: an adapter
+  // whose socket never reaches 'open' (e.g. a venue geo-blocking the host region) would
+  // otherwise leave its promise pending forever and stall bootstrap before the HTTP
+  // server binds. Bounding each connect guarantees the server always comes up and the
+  // engine trades on whatever venues are reachable (it only needs >=2). Unreachable
+  // venues keep retrying in the background via their own reconnect cycles.
+  const CONNECT_TIMEOUT_MS = 8000;
+  const withTimeout = (p: Promise<void>) =>
+    Promise.race([p, new Promise<void>((resolve) => setTimeout(resolve, CONNECT_TIMEOUT_MS))]);
   try {
-    await Promise.allSettled(Object.values(exchanges).map((a) => a.connect()));
+    await Promise.allSettled(Object.values(exchanges).map((a) => withTimeout(a.connect())));
     logger.info('🔌 Exchange WebSocket feed connections initiated.');
   } catch (error) {
     logger.error('Failed to establish connections to some exchanges, starting engine fallback...', error);
