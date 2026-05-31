@@ -45,9 +45,9 @@ export default function SystemHealthPage() {
 
     return (
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-3">
+        <CardHeader className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 pb-3">
           <span className="text-[10px] text-slate-500 font-mono tracking-wider uppercase">{exName} Feed</span>
-          <Badge variant={stateObj.connected ? 'success' : 'destructive'}>
+          <Badge variant={stateObj.connected ? 'success' : 'destructive'} className="self-start xs:self-auto">
             {stateObj.connected ? 'CONNECTED' : 'DISCONNECTED'}
           </Badge>
         </CardHeader>
