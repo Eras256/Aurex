@@ -29,15 +29,43 @@ export const Navigation: React.FC = () => {
       {/* 1. MOBILE HEADER BAR */}
       <div className="md:hidden w-full h-16 bg-darkCard border-b border-white/5 px-4 flex items-center justify-between shrink-0 backdrop-blur-xl sticky top-0 z-50">
         <AurexLogo variant="full" size="sm" />
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="w-10 h-10 flex flex-col justify-center items-center gap-1.5 focus:outline-none hover:bg-white/5 rounded-lg transition-all"
-          aria-label="Toggle Menu"
-        >
-          <span className={`w-5 h-0.5 bg-slate-300 transition-all ${isOpen ? 'rotate-45 translate-y-[5px]' : ''}`} />
-          <span className={`w-5 h-0.5 bg-slate-300 transition-all ${isOpen ? 'opacity-0' : ''}`} />
-          <span className={`w-5 h-0.5 bg-slate-300 transition-all ${isOpen ? '-rotate-45 -translate-y-[5px]' : ''}`} />
-        </button>
+        
+        <div className="flex items-center gap-3">
+          {/* Mobile Language Toggle */}
+          <div className="flex items-center bg-white/5 rounded-lg p-0.5 border border-white/5 text-[10px]">
+            <button
+              onClick={() => setLanguage('en')}
+              className={`px-2.5 py-1 rounded font-mono transition-all ${
+                language === 'en'
+                  ? 'bg-gold text-darkBg font-bold'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              EN
+            </button>
+            <button
+              onClick={() => setLanguage('es')}
+              className={`px-2.5 py-1 rounded font-mono transition-all ${
+                language === 'es'
+                  ? 'bg-gold text-darkBg font-bold'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              ES
+            </button>
+          </div>
+
+          {/* Hamburger Menu button */}
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="w-10 h-10 flex flex-col justify-center items-center gap-1.5 focus:outline-none hover:bg-white/5 rounded-lg transition-all"
+            aria-label="Toggle Menu"
+          >
+            <span className={`w-5 h-0.5 bg-slate-300 transition-all ${isOpen ? 'rotate-45 translate-y-[5px]' : ''}`} />
+            <span className={`w-5 h-0.5 bg-slate-300 transition-all ${isOpen ? 'opacity-0' : ''}`} />
+            <span className={`w-5 h-0.5 bg-slate-300 transition-all ${isOpen ? '-rotate-45 -translate-y-[5px]' : ''}`} />
+          </button>
+        </div>
       </div>
 
       {/* 2. MOBILE DRAWER OVERLAY */}
