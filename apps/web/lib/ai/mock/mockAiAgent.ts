@@ -468,24 +468,46 @@ export class MockAiAgent {
   private static inMemoryAudits: AuditLogEntry[] = [];
 
   public static async getAuditLogs(): Promise<AuditLogEntry[]> {
-    return this.inMemoryAudits;
+    try {
+      const res = await fetch('/api/copilot/audits');
+      if (!res.ok) throw new Error('Failed to fetch audits');
+      const data = await res.json();
+      return data;
+    } catch (err) {
+      console.warn('Supabase audit fetch failed, falling back to local simulation state:', err);
+      return this.inMemoryAudits;
+    }
   }
 
   public static async insertAuditLog(
     entry: Omit<AuditLogEntry, 'id' | 'created_at'>
   ): Promise<{ success: boolean; id: string }> {
-    // Artificial write delay to mimic Supabase INSERT
-    await new Promise((resolve) => setTimeout(resolve, 220));
-    
-    const id = Math.random().toString(36).substring(2, 15);
-    const newEntry: AuditLogEntry = {
-      ...entry,
-      id,
-      created_at: new Date().toISOString(),
-    };
-
-    this.inMemoryAudits.unshift(newEntry);
-    return { success: true, id };
+    try {
+      const res = await fetch('/api/copilot/audits', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(entry)
+      });
+      if (!res.ok) throw new Error('Failed to insert audit log');
+      const data = await res.json();
+      if (data.success && data.log) {
+        this.inMemoryAudits.unshift(data.log);
+        return { success: true, id: data.log.id };
+      }
+      throw new Error('Invalid response structure');
+    } catch (err) {
+      console.warn('Supabase audit insert failed, falling back to local simulation state:', err);
+      const id = Math.random().toString(36).substring(2, 15);
+      const newEntry: AuditLogEntry = {
+        ...entry,
+        id,
+        created_at: new Date().toISOString(),
+      };
+      this.inMemoryAudits.unshift(newEntry);
+      return { success: true, id };
+    }
   }
 
   public static async streamScenarioResponse(

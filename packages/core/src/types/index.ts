@@ -163,3 +163,22 @@ export interface StatePayload {
   /** Live single-venue triangular arbitrage cycle (omitted when the venue feeds are absent). */
   triangular?: TriangularState;
 }
+
+export interface AuditLogEntry {
+  id: string;
+  created_at: string;
+  session_id: string;
+  operator_id: string;
+  widget_source: string;
+  scenario_key: string;
+  prompt_version: string;
+  prompt_language: string;
+  user_query: string;
+  model_identifier: string;
+  model_latency_ms: number;
+  confidence_percentage: number;
+  explainability_payload: Record<string, any>;
+  applied_parameters: Record<string, any> | null;
+  operator_action: 'REVIEWED' | 'APPLIED_SUGGESTION' | 'REJECTED';
+  final_system_decision: 'ACCEPTED' | 'REJECTED' | 'BYPASSED';
+}

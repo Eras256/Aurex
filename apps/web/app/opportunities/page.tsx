@@ -1,7 +1,7 @@
 'use client';
 
+import { env } from '@arbitrage/config';
 import React, { useState, useEffect } from 'react';
-
 
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -14,9 +14,55 @@ import { useLanguage } from '../LanguageContext';
 import { useWebSocket } from '../WebSocketContext';
 
 export default function OpportunitiesPage() {
-  const { state } = useWebSocket();
+  const { state, backendUrl } = useWebSocket();
   const { t, language } = useLanguage();
   const [filter, setFilter] = useState<'ALL' | 'EXECUTED' | 'SKIPPED'>('ALL');
+
+  // Real Telemetry WebSocket state
+  const [telemetryData, setTelemetryData] = useState<any>(null);
+
+  useEffect(() => {
+    if (!backendUrl) return;
+
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: NodeJS.Timeout | null = null;
+
+    const connectTelemetry = () => {
+      try {
+        const wsUrl = `${backendUrl.replace(/^http/, 'ws')}/api/v1/telemetry/logs?token=${env.NEXT_PUBLIC_API_KEY}`;
+        ws = new WebSocket(wsUrl);
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            setTelemetryData(data);
+          } catch (err) {
+            console.error('Failed to parse telemetry WS frame:', err);
+          }
+        };
+
+        ws.onerror = (err) => {
+          console.warn('Telemetry WS connection error in Opportunities page.');
+        };
+
+        ws.onclose = () => {
+          reconnectTimeout = setTimeout(connectTelemetry, 5000);
+        };
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    connectTelemetry();
+
+    return () => {
+      if (ws) {
+        ws.onclose = null;
+        ws.close();
+      }
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+    };
+  }, [backendUrl]);
 
   const opportunities = state?.opportunities || [];
 

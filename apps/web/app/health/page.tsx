@@ -1,7 +1,7 @@
 'use client';
 
+import { env } from '@arbitrage/config';
 import React, { useState, useEffect } from 'react';
-
 
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
@@ -13,7 +13,7 @@ import { useLanguage } from '../LanguageContext';
 import { useWebSocket } from '../WebSocketContext';
 
 export default function SystemHealthPage() {
-  const { state, connected } = useWebSocket();
+  const { state, connected, backendUrl } = useWebSocket();
   const { t, language } = useLanguage();
 
   const conn = state?.connections || {
@@ -24,11 +24,68 @@ export default function SystemHealthPage() {
 
   const metrics = state?.metrics;
 
-  // AI Diagnostics State (Phase 1)
+  // Real Telemetry WebSocket state
+  const [telemetryData, setTelemetryData] = useState<any>(null);
+
+  // AI Diagnostics State (Phase 1 to live)
   const [aiDiag, setAiDiag] = useState<HealthAIOutput | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
+    if (!backendUrl) return;
+
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: NodeJS.Timeout | null = null;
+
+    const connectTelemetry = () => {
+      try {
+        const wsUrl = `${backendUrl.replace(/^http/, 'ws')}/api/v1/telemetry/logs?token=${env.NEXT_PUBLIC_API_KEY}`;
+        ws = new WebSocket(wsUrl);
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            setTelemetryData(data);
+          } catch (err) {
+            console.error('Failed to parse telemetry WS frame:', err);
+          }
+        };
+
+        ws.onerror = (err) => {
+          console.warn('Telemetry WS connection error, falling back to simulated diagnostics.');
+        };
+
+        ws.onclose = () => {
+          reconnectTimeout = setTimeout(connectTelemetry, 5000);
+        };
+      } catch (err) {
+        console.error('Telemetry WS initialization error:', err);
+      }
+    };
+
+    connectTelemetry();
+
+    return () => {
+      if (ws) {
+        ws.onclose = null;
+        ws.close();
+      }
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+    };
+  }, [backendUrl]);
+
+  useEffect(() => {
+    if (telemetryData) {
+      setAiDiag({
+        healthRating: telemetryData.warnings.length > 0 ? 'DEGRADED' : 'NOMINAL',
+        telemetryAnalysis: {
+          en: `Compute Speed: ${telemetryData.computeLatencyMs.toFixed(2)}ms (Detection wire latency: ${telemetryData.engineLatencyMs.toFixed(2)}ms). Exchange connection lag: Binance (${(telemetryData.exchangeLag.binance/1000).toFixed(1)}s), Kraken (${(telemetryData.exchangeLag.kraken/1000).toFixed(1)}s), Coinbase (${(telemetryData.exchangeLag.coinbase/1000).toFixed(1)}s). Active warnings: ${telemetryData.warnings.join(', ') || 'None'}.`,
+          es: `Velocidad de Cómputo: ${telemetryData.computeLatencyMs.toFixed(2)}ms (Latencia de detección: ${telemetryData.engineLatencyMs.toFixed(2)}ms). Retraso en conexión: Binance (${(telemetryData.exchangeLag.binance/1000).toFixed(1)}s), Kraken (${(telemetryData.exchangeLag.kraken/1000).toFixed(1)}s), Coinbase (${(telemetryData.exchangeLag.coinbase/1000).toFixed(1)}s). Alertas activas: ${telemetryData.warnings.join(', ') || 'Ninguna'}.`
+        }
+      });
+      return;
+    }
+
     const fetchDiagnostics = async () => {
       setAiLoading(true);
       try {
@@ -48,7 +105,7 @@ export default function SystemHealthPage() {
       }
     };
     fetchDiagnostics();
-  }, [metrics?.detectionLatencyMs]);
+  }, [metrics?.detectionLatencyMs, telemetryData]);
 
   // Uptime formatting helper
   const formatUptime = (totalSeconds: number) => {

@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import fs from 'fs/promises';
 
 import { INITIAL_WALLET_BALANCES, DEFAULT_ENGINE_CONFIG } from '@arbitrage/config';
-import { ArbitrageOpportunity, SimulatedTrade, EngineEvent, EngineConfig } from '@arbitrage/core';
+import { ArbitrageOpportunity, SimulatedTrade, EngineEvent, EngineConfig, AuditLogEntry } from '@arbitrage/core';
 
 import { logger } from '../logging.js';
 
@@ -29,6 +29,7 @@ interface LocalDBState {
   balances: Record<string, Record<string, { free: number; locked: number }>>;
   config: EngineConfig;
   pnlHistory: { timestamp: number; value: number }[];
+  copilotAudits: AuditLogEntry[];
 }
 
 let dbState: LocalDBState = {
@@ -38,6 +39,7 @@ let dbState: LocalDBState = {
   balances: INITIAL_WALLET_BALANCES,
   config: DEFAULT_ENGINE_CONFIG,
   pnlHistory: [{ timestamp: Date.now(), value: 100000 }], // Starting with 100,000 USD portfolio value
+  copilotAudits: [],
 };
 
 // Asynchronously flushes local database state to disk (db.json)
@@ -63,6 +65,7 @@ export async function initializeDatabase() {
       balances: parsed.balances || JSON.parse(JSON.stringify(INITIAL_WALLET_BALANCES)),
       config: parsed.config || DEFAULT_ENGINE_CONFIG,
       pnlHistory: parsed.pnlHistory || [{ timestamp: Date.now(), value: 100000 }],
+      copilotAudits: parsed.copilotAudits || [],
     };
 
     logger.info('💾 Loaded local persistent database from disk.');
@@ -367,3 +370,71 @@ export async function resetSimulation(): Promise<void> {
 
   logger.info('🔄 Database reset completed: all histories purged, wallet funding restored to defaults.');
 }
+
+export async function saveCopilotAuditLog(log: Omit<AuditLogEntry, 'id' | 'created_at'>): Promise<AuditLogEntry> {
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.from('copilot_audit_trail').insert({
+        session_id: log.session_id,
+        operator_id: log.operator_id,
+        widget_source: log.widget_source,
+        scenario_key: log.scenario_key,
+        prompt_version: log.prompt_version,
+        prompt_language: log.prompt_language,
+        user_query: log.user_query,
+        model_identifier: log.model_identifier,
+        model_latency_ms: log.model_latency_ms,
+        confidence_percentage: log.confidence_percentage,
+        explainability_payload: log.explainability_payload,
+        applied_parameters: log.applied_parameters,
+        operator_action: log.operator_action,
+        final_system_decision: log.final_system_decision,
+      }).select().single();
+
+      if (error) {
+        logger.error('Supabase saveCopilotAuditLog error:', error.message);
+        throw error;
+      }
+      dbState.copilotAudits.unshift(data);
+      if (dbState.copilotAudits.length > 500) dbState.copilotAudits.pop();
+      await flushToDisk();
+      return data;
+    } catch (err) {
+      logger.error('Failed to write to Supabase copilot_audit_trail, falling back to disk', err);
+    }
+  }
+
+  // Local JSON fallback
+  const localLog: AuditLogEntry = {
+    ...log,
+    id: crypto.randomUUID(),
+    created_at: new Date().toISOString(),
+  };
+  dbState.copilotAudits.unshift(localLog);
+  if (dbState.copilotAudits.length > 500) dbState.copilotAudits.pop();
+  await flushToDisk();
+  return localLog;
+}
+
+export async function getCopilotAuditLogs(limit = 100): Promise<AuditLogEntry[]> {
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('copilot_audit_trail')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        logger.error('Supabase getCopilotAuditLogs error:', error.message);
+      } else if (data) {
+        dbState.copilotAudits = data;
+        return data;
+      }
+    } catch (err) {
+      logger.error('Failed to read from Supabase copilot_audit_trail, falling back to disk', err);
+    }
+  }
+  return dbState.copilotAudits.slice(0, limit);
+}
+

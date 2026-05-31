@@ -1,7 +1,9 @@
 import 'dotenv/config';
 import { createServer } from 'http';
+import url from 'url';
 
 import { DEFAULT_ENGINE_CONFIG } from '@arbitrage/config';
+import { WebSocketServer } from 'ws';
 
 import { config } from './config.js';
 import { ArbitrageEngine } from './engine/ArbitrageEngine.js';
@@ -17,7 +19,7 @@ import { logger } from './logging.js';
 import { orderBookStore } from './orderbooks/normalizedOrderBookStore.js';
 import { initializeDatabase } from './persistence/repositories.js';
 import { createHttpServer } from './server/httpServer.js';
-import { DashboardWebSocketServer } from './server/websocketServer.js';
+import { DashboardWebSocketServer, TelemetryWebSocketServer } from './server/websocketServer.js';
 
 async function bootstrap() {
   logger.info('🚀 Starting Bitcoin Cross-Exchange Arbitrage Simulator...');
@@ -41,8 +43,36 @@ async function bootstrap() {
   const expressApp = createHttpServer(engine, exchanges);
   const httpServer = createServer(expressApp);
 
-  // Dashboard WS Server
-  const wsServer = new DashboardWebSocketServer(httpServer, engine, exchanges);
+  // Instantiating standard WS servers with noServer: true
+  const dashboardWss = new WebSocketServer({ noServer: true });
+  const telemetryWss = new WebSocketServer({ noServer: true });
+
+  const wsServer = new DashboardWebSocketServer(dashboardWss, engine, exchanges);
+  const telemetryServer = new TelemetryWebSocketServer(telemetryWss, engine, exchanges);
+
+  // Multiplex WebSocket upgrade requests
+  httpServer.on('upgrade', (request, socket, head) => {
+    const parsedUrl = url.parse(request.url || '', true);
+    const pathname = parsedUrl.pathname;
+
+    if (pathname === '/api/v1/telemetry/logs') {
+      const token = parsedUrl.query.token;
+      if (token !== config.API_KEY) {
+        logger.warn('🔒 Unauthorized Telemetry WebSocket upgrade attempt blocked.');
+        socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+        socket.destroy();
+        return;
+      }
+      telemetryWss.handleUpgrade(request, socket, head, (ws) => {
+        telemetryWss.emit('connection', ws, request);
+      });
+    } else {
+      // Default to standard dashboard WebSocket
+      dashboardWss.handleUpgrade(request, socket, head, (ws) => {
+        dashboardWss.emit('connection', ws, request);
+      });
+    }
+  });
 
   // Bind the engine's broadcast function to push live StatePayload to the UI. The autostart
   // guard ensures a restart/redeploy always resumes trading (never boots silently paused).

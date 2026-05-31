@@ -10,7 +10,7 @@ import { baseLogger } from '../core/logging/logger.js';
 import { ArbitrageEngine } from '../engine/ArbitrageEngine.js';
 import { ExchangeAdapter } from '../exchanges/index.js';
 import { logger } from '../logging.js';
-import { getTrades, resetSimulation } from '../persistence/repositories.js';
+import { getTrades, resetSimulation, saveCopilotAuditLog, getCopilotAuditLogs, saveConfig } from '../persistence/repositories.js';
 import { buildStatePayload } from '../state/stateAggregator.js';
 
 
@@ -159,6 +159,85 @@ export function createHttpServer(
       res.send(csvContent);
     } catch (error) {
       res.status(500).json({ error: 'Failed to compile trade sheet CSV' });
+    }
+  });
+
+  // 7. BOT DYNAMIC CALIBRATION
+  app.post('/api/v1/bot/calibrate', secureGuard, async (req: Request, res: Response) => {
+    try {
+      const { profitFloor, minSpread, maxExposure, safetyBuffer, source, sessionId, operatorId } = req.body;
+      
+      if (
+        typeof profitFloor !== 'number' ||
+        typeof minSpread !== 'number' ||
+        typeof maxExposure !== 'number' ||
+        typeof safetyBuffer !== 'number'
+      ) {
+        return res.status(400).json({ error: 'Invalid parameter types for calibration.' });
+      }
+
+      const currentConfig = engine.getConfig();
+      const updatedConfig = {
+        ...currentConfig,
+        minNetProfitUSD: profitFloor,
+        slippageSafetyBps: minSpread,
+        maxPositionBTCPerExchange: maxExposure,
+        latencySafetyBps: safetyBuffer
+      };
+
+      await engine.updateConfig(updatedConfig);
+      await saveConfig(updatedConfig);
+
+      // Log to audit trail in database
+      const auditLog = await saveCopilotAuditLog({
+        session_id: sessionId || 'calibration-session',
+        operator_id: operatorId || 'operator',
+        widget_source: source === 'copilot' ? 'COPILOT_WORKSPACE' : 'RISK_CONSOLE',
+        scenario_key: 'suggest_params',
+        prompt_version: 'AurexQuant-V2.1',
+        prompt_language: 'en',
+        user_query: 'Calibrate risk parameters dynamically',
+        model_identifier: 'Aurex-Quant-Llama-70B',
+        model_latency_ms: 0,
+        confidence_percentage: 100.0,
+        explainability_payload: { rationale: `Dynamic calibration update from ${source || 'operator'}` },
+        applied_parameters: {
+          minNetProfitUSD: profitFloor,
+          slippageSafetyBps: minSpread,
+          maxPositionBTCPerExchange: maxExposure,
+          latencySafetyBps: safetyBuffer
+        },
+        operator_action: 'APPLIED_SUGGESTION',
+        final_system_decision: 'ACCEPTED'
+      });
+
+      res.json({ success: true, config: engine.getConfig(), auditLog });
+    } catch (error) {
+      logger.error('Failed to calibrate bot parameters', error);
+      res.status(500).json({ error: 'Failed to calibrate bot parameters' });
+    }
+  });
+
+  // 8. COPILOT AUDITS WRITE PROXY
+  app.post('/api/v1/copilot/audits', secureGuard, async (req: Request, res: Response) => {
+    try {
+      const log = await saveCopilotAuditLog(req.body);
+      res.json({ success: true, log });
+    } catch (error) {
+      logger.error('Failed to write copilot audit log', error);
+      res.status(500).json({ error: 'Failed to write copilot audit log' });
+    }
+  });
+
+  // 9. COPILOT AUDITS READ PROXY
+  app.get('/api/v1/copilot/audits', async (req: Request, res: Response) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
+      const logs = await getCopilotAuditLogs(limit);
+      res.json(logs);
+    } catch (error) {
+      logger.error('Failed to fetch copilot audit logs', error);
+      res.status(500).json({ error: 'Failed to fetch copilot audit logs' });
     }
   });
 
