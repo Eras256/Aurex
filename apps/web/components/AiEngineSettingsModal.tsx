@@ -40,8 +40,8 @@ export const AiEngineSettingsModal: React.FC<AiEngineSettingsModalProps> = ({
   const t = (key: string): string => {
     const dict: Record<string, { en: string; es: string }> = {
       title: {
-        en: 'AI Engine Settings',
-        es: 'Configuración del Motor de IA',
+        en: 'Quant Copilot Engine',
+        es: 'Motor del Copiloto Cuantitativo',
       },
       subtitle: {
         en: 'Configure API endpoints and credentials for institutional advisory and copilot simulation.',
