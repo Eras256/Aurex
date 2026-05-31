@@ -8,12 +8,13 @@ import { pinoHttp } from 'pino-http';
 import { config } from '../config.js';
 import { baseLogger } from '../core/logging/logger.js';
 import { ArbitrageEngine } from '../engine/ArbitrageEngine.js';
+import { ExchangeAdapter } from '../exchanges/index.js';
 import { logger } from '../logging.js';
 import { getTrades, resetSimulation } from '../persistence/repositories.js';
 import { buildStatePayload } from '../state/stateAggregator.js';
 
 
-function jsonToCSV(items: any[]): string {
+function jsonToCSV(items: Record<string, unknown>[]): string {
   if (items.length === 0) return '';
   const header = Object.keys(items[0]);
   const csv = [
@@ -30,7 +31,7 @@ function jsonToCSV(items: any[]): string {
 
 export function createHttpServer(
   engine: ArbitrageEngine,
-  exchanges: any
+  exchanges: Record<string, ExchangeAdapter>
 ): express.Express {
   const app = express();
 
@@ -70,15 +71,15 @@ export function createHttpServer(
 
   // 1. HEALTHCHECK
   app.get('/health', (req: Request, res: Response) => {
+    const connections: Record<string, boolean> = {};
+    for (const [id, adapter] of Object.entries(exchanges)) {
+      connections[id] = adapter.isConnected();
+    }
     res.json({
       status: 'healthy',
       timestamp: Date.now(),
       uptime: process.uptime(),
-      connections: {
-        binance: exchanges.binance.isConnected(),
-        kraken: exchanges.kraken.isConnected(),
-        coinbase: exchanges.coinbase.isConnected(),
-      }
+      connections,
     });
   });
 

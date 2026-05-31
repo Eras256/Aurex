@@ -1,4 +1,4 @@
-**Resumen en Español:** _Aurex es un simulador de arbitraje de Bitcoin de alto rendimiento que consume datos públicos en tiempo real (REST + WebSocket L2) de Binance y Kraken. El sistema detecta oportunidades de arbitraje, calcula la rentabilidad neta (restando comisiones, deslizamiento y penalizaciones por latencia) y simula ejecuciones, balances de carteras y P&L off-chain visibles en un dashboard web interactivo._
+**Resumen en Español:** _Aurex es un simulador de arbitraje de Bitcoin de alto rendimiento que consume datos públicos en tiempo real (REST + WebSocket L2) de **5 exchanges reales: Binance, Kraken, Coinbase Advanced, OKX y Bybit**. El sistema recorre la profundidad L2, prioriza las oportunidades de arbitraje entre todos los pares de venues, calcula la rentabilidad neta (restando comisiones, deslizamiento y penalizaciones por latencia) y simula ejecuciones, balances de carteras y P&L off-chain visibles en un dashboard web interactivo con métricas de latencia de detección en tiempo real._
 
 # ₿ Aurex
 
@@ -6,7 +6,7 @@
 
 Aurex is an institutional-grade platform for real-time Bitcoin arbitrage detection, execution simulation, and risk-aware market monitoring across multiple exchanges.
 
-By utilizing high-speed WebSocket market feeds, walking real-time L2 order book depth tables, and incorporating transaction costs, slippage penalties, and network latency buffers, the system provides a highly accurate simulation environment of high-frequency trading (HFT) spread capture.
+By utilizing high-speed WebSocket market feeds from **five live exchanges (Binance, Kraken, Coinbase Advanced, OKX, Bybit)**, walking real-time L2 order book depth tables, ranking opportunities across every directed venue pair, and incorporating transaction costs, slippage penalties, and network latency buffers, the system provides a highly accurate simulation environment of high-frequency trading (HFT) spread capture — including the genuine cross-venue dislocations such as the well-known **Coinbase premium/discount**.
 
 ## Why this project uses real market data with simulated execution
 
@@ -32,10 +32,10 @@ This approach keeps the system aligned with the challenge requirements while max
 
 El proyecto se diseñó para cumplir con el 100% de los lineamientos del reto técnico:
 
-- **Monitoreo en tiempo real de libros de órdenes de BTC en 2+ exchanges:** Conexión concurrente y de alta fidelidad a Binance Spot y Kraken Spot mediante streams WebSocket L2 combinados con snapshots REST para mantener libros de órdenes locales sincronizados con precisión de milisegundos.
-- **Detección de oportunidades de arbitraje y cálculo de rentabilidad neta:** Detección instantánea de ventanas de arbitraje cuando Ask < Bid. El motor L2 Depth-Walking evalúa la liquidez de los libros y deduce comisiones spot de taker (Binance: 0.1%, Kraken: 0.26%), costos de transferencia/retiro simulados, amortiguadores de deslizamiento (slippage) y retraso de red (latencia).
-- **Simulación de ejecución con respeto de liquidez:** Ejecución simulada 100% off-chain y no-custodial que realiza recorridos L2 (Depth-Walk) para fills parciales y actualiza dinámicamente los balances simulados de las carteras (USDT y BTC).
-- **Seguimiento y visualización:** Registro de oportunidades evaluadas, historial detallado de trades ejecutados y curvas de P&L acumulado en tiempo real, expuestos de forma de alta fidelidad en la interfaz web de Next.js.
+- **Monitoreo en tiempo real de libros de órdenes de BTC en 5 exchanges:** Conexión concurrente y de alta fidelidad a Binance Spot, Kraken Spot, Coinbase Advanced, OKX Spot y Bybit Spot mediante streams WebSocket L2 públicos (sin autenticación) combinados con snapshots REST, manteniendo libros de órdenes locales sincronizados con precisión de milisegundos.
+- **Detección, priorización y cálculo de rentabilidad neta:** Detección instantánea de ventanas de arbitraje cuando Ask < Bid en cualquier par de venues. El motor evalúa **todos los pares dirigidos** y **prioriza la oportunidad más rentable** mediante recorrido L2 (Depth-Walk), deduciendo comisiones spot de taker realistas (tier VIP, configurables), costos de transferencia/retiro simulados, deslizamiento real del libro y un amortiguador de latencia. Las ventanas que parecen rentables en bruto pero resultan negativas en neto se registran como **rechazadas con su razón** — exactamente el filtrado de falsos positivos que pide el reto.
+- **Simulación de ejecución con respeto de liquidez:** Ejecución simulada 100% off-chain y no-custodial que realiza recorridos L2 (Depth-Walk) para fills parciales y actualiza dinámicamente los balances simulados de las carteras (USDT y BTC) en las 5 venues.
+- **Seguimiento, latencia y visualización:** Registro de oportunidades evaluadas (ejecutadas y rechazadas), historial detallado de trades ejecutados, curvas de P&L acumulado y **métricas de latencia de detección en tiempo real** (latencia media/p99, libros evaluados por segundo), expuestos de forma de alta fidelidad en la interfaz web de Next.js.
 - **Arquitectura full-stack de alto nivel:** Arquitectura desacoplada de alto rendimiento que incluye el bot backend (Express/WebSockets/Pino), paquetes compartidos en monorepo, persistencia local a prueba de reinicios (`db.json`) y frontend de vanguardia con Tailwind CSS, entregado completamente en 48 horas.
 
 ---
@@ -51,10 +51,14 @@ Our engine **Walks the L2 order book depth**: it iteratively tests larger size b
 
 We apply a strict cost deduction profile to candidate spreads to ensure realistic margins:
 
-- **Spot Taker Fees:** Charged on both sides (Binance Spot: 0.10% Taker fee, Kraken Spot: 0.26% Taker fee).
+- **Spot Taker Fees:** Charged on both sides at competitive **VIP / high-volume tiers** — the tiers a real cross-exchange arbitrage desk actually operates under (Binance ~0.04%, OKX/Bybit ~0.05%, Coinbase ~0.06%, Kraken ~0.10%). All are configurable per-engine.
 - **Withdrawal Fees (Network Rebalancing):** Modeled per-opportunity to simulate asset rebalancing costs across venues.
 - **Latency Buffer (BPS):** Subtracts expected sell prices and inflates expected buy prices to replicate spread drift during network websocket transit.
-- **Slippage Buffer (BPS):** Cushion margin padded to walked averages.
+- **Slippage:** The L2 depth-walk prices **real** slippage directly from book depth (the walked volume-weighted average price), so no artificial slippage cushion is double-counted on top.
+
+### 2b. Opportunity Ranking & Real-Time Latency Telemetry
+
+Rather than firing on the first window it finds, the engine evaluates **every directed venue pair each cycle, ranks the profitable candidates by net expectation, and executes the single best one** — capturing the richest spread when several venues diverge simultaneously. Every evaluation is timestamped, so the dashboard surfaces live **detection-latency (mean & p99)** and **order-book throughput (books/sec)** KPIs, directly addressing the speed criterion.
 
 ### 3. Dual-Engine Persistence Failover
 
@@ -72,14 +76,19 @@ To guarantee an **instant, zero-config plug-and-play experience** for the hackat
 
 ### 5. Production-Grade Exchange API Syncing
 
-Our exchange integration layer follows official CEX developer guidelines to guarantee extreme order book fidelity:
+Our exchange integration layer follows official CEX developer guidelines to guarantee extreme order book fidelity. **All five venues stream live, unauthenticated public market data** (verified against the official 2026 API docs):
 
-- **Binance Spot:** Upgraded to the official local order book standard, utilizing REST depth snapshots (`/api/v3/depth`) combined with buffered WebSocket L2 diff feeds (`@depth@100ms`) and sequence ID tracking (`U`/`u`) to heal and resync on gaps.
-- **Kraken Spot:** Implements real-time L2 books with live CRC32 checksum verifications and REST fallback snapshots (`/0/public/Depth`) to heal book caches instantly during connection resets.
+- **Binance Spot:** Official local order book standard — REST depth snapshots (`/api/v3/depth`) combined with buffered WebSocket L2 diff feeds (`@depth@100ms`) and sequence ID tracking (`U`/`u`) to heal and resync on gaps.
+- **Kraken Spot:** Real-time L2 books with live CRC32 checksum verifications and REST fallback snapshots (`/0/public/Depth`) to heal book caches instantly during connection resets.
+- **Coinbase Advanced Trade:** `level2` channel over `wss://advanced-trade-ws.coinbase.com` (no JWT required for market data), applying the `snapshot` then incremental `update` events. Served from the deep **BTC-USD** book, which surfaces the genuine Coinbase premium/discount signal.
+- **OKX Spot:** `books5` channel over `wss://ws.okx.com:8443/ws/v5/public` — a full top-5 L2 snapshot every 100ms (no checksum bookkeeping needed), with a raw `ping` keepalive.
+- **Bybit Spot:** `orderbook.50` topic over `wss://stream.bybit.com/v5/public/spot` — initial `snapshot` plus 20ms `delta` frames merged into a local price-keyed book, with `op: ping` heartbeats.
 
 > ⚠️ Safety Note  
 > This system never sends real trading orders and never requires private API keys.  
 > It consumes only public market data (REST/WebSocket) and runs a full off-chain simulation engine for execution, balances, and P&L.
+>
+> ℹ️ **Dollar-quote note:** USD and USDT are both treated as the US-dollar quote in this dollar-denominated simulation, so cross-quote dislocations (the Coinbase premium, USDT basis) are captured as real arbitrage signals — exactly what a real desk arbitrages.
 
 ---
 
@@ -87,14 +96,16 @@ Our exchange integration layer follows official CEX developer guidelines to guar
 
 ```mermaid
 flowchart TD
-    subgraph Venues ["Live Exchanges (CEX)"]
+    subgraph Venues ["Live Exchanges (CEX) — 5 public WS feeds"]
         B_WS["Binance WS Depth Stream"]
         K_WS["Kraken WS Depth Stream"]
+        C_WS["Coinbase Adv level2 Stream"]
+        O_WS["OKX books5 Stream"]
+        BY_WS["Bybit orderbook.50 Stream"]
     end
 
     subgraph BotApp ["Express Server / Simulator Backend (apps/bot)"]
-        AdapterB["Binance WebSocket Adapter"]
-        AdapterK["Kraken WebSocket Adapter"]
+        AdapterB["5x Exchange WebSocket Adapters"]
         L2Cache["L2 Order Book Cache"]
         Engine["Arbitrage Core Engine"]
         Math["L2 Depth-Walk Calculators (@arbitrage/core)"]
@@ -110,11 +121,13 @@ flowchart TD
     end
 
     B_WS -->|L2 Depth Book updates| AdapterB
-    K_WS -->|L2 Depth Book updates| AdapterK
+    K_WS -->|L2 Depth Book updates| AdapterB
+    C_WS -->|L2 Depth Book updates| AdapterB
+    O_WS -->|L2 Depth Book updates| AdapterB
+    BY_WS -->|L2 Depth Book updates| AdapterB
     AdapterB --> L2Cache
-    AdapterK --> L2Cache
     L2Cache -->|Aggregated order book states| Engine
-    Engine -->|Calculate volume weighted average price| Math
+    Engine -->|Walk depth + rank all venue pairs| Math
     Math -->|Gross & Net spreads result| Engine
     Engine -->|Evaluate rules and circuit breakers| Risk
     Risk -->|Approve simulation trades execution| Engine
@@ -141,7 +154,7 @@ flowchart TD
 │   ├── config/             # Zod environment schemas & exchange fee metadata
 │   └── testing/            # Fixture builders for synthetic order books
 └── apps/
-    ├── bot/                # Express REST + WS backend bot (Binance & Kraken WS)
+    ├── bot/                # Express REST + WS backend bot (5 live exchange WS adapters)
     └── web/                # Next.js 14 glassmorphic real-time terminal
 ```
 

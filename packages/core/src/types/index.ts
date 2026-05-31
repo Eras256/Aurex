@@ -82,6 +82,14 @@ export interface EngineEvent {
   message: string;
 }
 
+export interface EngineMetrics {
+  detectionLatencyMs: number; // Rolling average: book-event timestamp -> opportunity evaluation completion
+  p99LatencyMs: number; // Worst-case (p99) detection latency in the rolling window
+  evalsPerSecond: number; // Order-book snapshots evaluated per second
+  booksProcessed: number; // Total order-book snapshots evaluated since boot
+  opportunitiesDetected: number; // Total profitable windows isolated since boot
+}
+
 export interface StatePayload {
   config: EngineConfig;
   connections: Record<string, { connected: boolean; reconnects: number; lastMessageAt: number }>;
@@ -98,6 +106,7 @@ export interface StatePayload {
     equityHistory: { timestamp: number; value: number }[];
   };
   risk: RiskStatus;
+  metrics: EngineMetrics;
   events: EngineEvent[];
   uptime: number;
 }

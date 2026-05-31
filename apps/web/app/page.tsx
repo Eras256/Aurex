@@ -56,6 +56,11 @@ export default function OverviewPage() {
   const winRate = state?.pnl?.winRate ?? 0;
   const sharpeRatio = state?.pnl?.sharpeRatio ?? 0;
   const avgProfit = totalTrades > 0 ? totalProfit / totalTrades : 0;
+
+  // Real-time engine throughput / latency telemetry (criterion: speed of detection)
+  const detectionLatency = state?.metrics?.detectionLatencyMs ?? 0;
+  const evalsPerSecond = state?.metrics?.evalsPerSecond ?? 0;
+  const opportunitiesDetected = state?.metrics?.opportunitiesDetected ?? 0;
   
   const trades = state?.trades ?? [];
   const recentTrades = trades.slice(0, 5);
@@ -105,7 +110,7 @@ export default function OverviewPage() {
       </div>
 
       {/* 2. INSTITUTIONAL KPI CARDS */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-6">
         {/* Card 1: Equity */}
         <Card glow className="flex flex-col justify-between min-h-[110px]">
           <CardHeader className="p-4 border-b-0 pb-0">
@@ -168,6 +173,21 @@ export default function OverviewPage() {
               {sharpeRatio.toFixed(2)}
             </h3>
             <span className="text-[10px] text-slate-500 font-mono">Risk-free rate: 0.0%</span>
+          </CardContent>
+        </Card>
+
+        {/* Card 6: Detection Latency (speed criterion) */}
+        <Card glow className="flex flex-col justify-between min-h-[110px]">
+          <CardHeader className="p-4 border-b-0 pb-0">
+            <CardTitle className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">DETECTION LATENCY</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-1">
+            <h3 className="text-2xl font-bold font-mono tracking-tight text-sky-400 glow-text-blue">
+              {detectionLatency.toFixed(2)}<span className="text-sm text-slate-500"> ms</span>
+            </h3>
+            <span className="text-[10px] text-slate-500 font-mono">
+              {evalsPerSecond}/s books · {opportunitiesDetected.toLocaleString()} windows
+            </span>
           </CardContent>
         </Card>
       </div>
@@ -244,7 +264,7 @@ export default function OverviewPage() {
             <div className="space-y-1.5">
               <span className="text-[10px] text-slate-500 font-mono">CORE ALGORITHM:</span>
               <p className="text-xs text-slate-300 leading-relaxed font-sans">
-                Evaluating multi-level order books to size arbitrage trades, verifying spreads after subtracting taker fees (Binance 0.1%, Kraken 0.26%), slippage safety, and transfer costs.
+                Ranking every directed venue pair across 5 live exchanges (Binance, Kraken, Coinbase, OKX, Bybit), sizing each via L2 depth-walk and verifying spreads net of VIP-tier taker fees, slippage safety, and transfer costs — then executing the most profitable window.
               </p>
             </div>
             <div className="space-y-1.5">

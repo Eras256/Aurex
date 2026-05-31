@@ -28,6 +28,14 @@ export default function SystemHealthPage() {
 
   const events = state?.events || [];
   const uptime = state?.uptime || 0;
+  const metrics = state?.metrics;
+  const venueLabels: Record<string, string> = {
+    binance: 'Binance Spot WS',
+    kraken: 'Kraken Spot WS',
+    coinbase: 'Coinbase Adv WS',
+    okx: 'OKX Spot WS',
+    bybit: 'Bybit Spot WS',
+  };
 
   const renderConnectionCard = (exName: string, stateObj: any) => {
     const msSinceLastMsg = Date.now() - stateObj.lastMessageAt;
@@ -107,24 +115,29 @@ export default function SystemHealthPage() {
           </CardContent>
         </Card>
 
-        {/* Active strategies */}
+        {/* Detection latency (speed criterion) */}
         <Card>
           <CardHeader className="p-4 border-b-0 pb-0">
-            <span className="text-[10px] text-slate-500 font-mono tracking-wider uppercase">ACTIVE STRATEGIES</span>
+            <span className="text-[10px] text-slate-500 font-mono tracking-wider uppercase">DETECTION LATENCY</span>
           </CardHeader>
           <CardContent className="p-4 pt-1">
-            <h3 className="text-lg font-bold font-mono mt-1 text-amber-500 font-bold">
-              SPOT-ARB-BTC
+            <h3 className="text-lg font-bold font-mono mt-1 text-sky-400 glow-text-blue">
+              {(metrics?.detectionLatencyMs ?? 0).toFixed(2)} ms
             </h3>
+            <span className="text-[10px] text-slate-500 font-mono">
+              p99 {(metrics?.p99LatencyMs ?? 0).toFixed(2)} ms · {metrics?.evalsPerSecond ?? 0} books/s
+            </span>
           </CardContent>
         </Card>
       </div>
 
-      {/* EXCHANGE FEEDS METRICS */}
+      {/* EXCHANGE FEEDS METRICS — one card per live venue */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {renderConnectionCard('Binance Spot WS', conn.binance)}
-        {renderConnectionCard('Kraken Spot WS', conn.kraken)}
-        {renderConnectionCard('Coinbase Adv WS', conn.coinbase)}
+        {Object.entries(conn).map(([id, stateObj]) => (
+          <React.Fragment key={id}>
+            {renderConnectionCard(venueLabels[id] ?? `${id.toUpperCase()} WS`, stateObj)}
+          </React.Fragment>
+        ))}
       </div>
 
       {/* 4. AUDIT SYSTEM LOGS TABLE */}

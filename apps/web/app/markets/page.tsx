@@ -127,7 +127,7 @@ export default function MarketsPage() {
           Comparative Order Books
         </h2>
         <p className="mt-2 text-sm text-slate-400">
-          Real-time synchronized order books from Binance Spot and Kraken Spot. Walk depth tables and inspect spreads before and after simulated transaction fees.
+          Live L2 order books across 5 venues (Binance, Kraken, Coinbase, OKX, Bybit). Binance vs Kraken are shown side-by-side below; the engine ranks spreads across every venue pair net of simulated fees.
         </p>
       </div>
 

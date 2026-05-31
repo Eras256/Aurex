@@ -5,7 +5,14 @@ import { DEFAULT_ENGINE_CONFIG } from '@arbitrage/config';
 
 import { config } from './config.js';
 import { ArbitrageEngine } from './engine/ArbitrageEngine.js';
-import { BinanceClient, KrakenClient, CoinbaseClient } from './exchanges/index.js';
+import {
+  ExchangeAdapter,
+  BinanceClient,
+  KrakenClient,
+  CoinbaseClient,
+  OKXClient,
+  BybitClient,
+} from './exchanges/index.js';
 import { logger } from './logging.js';
 import { orderBookStore } from './orderbooks/normalizedOrderBookStore.js';
 import { initializeDatabase } from './persistence/repositories.js';
@@ -18,11 +25,13 @@ async function bootstrap() {
   // 1. Initialize local persistent JSON database
   await initializeDatabase();
 
-  // 2. Instantiate exchange clients
-  const exchanges = {
+  // 2. Instantiate live exchange clients (all real public WebSocket L2 feeds).
+  const exchanges: Record<string, ExchangeAdapter> = {
     binance: new BinanceClient(config.BINANCE_WS_URL, config.BINANCE_REST_URL),
     kraken: new KrakenClient(config.KRAKEN_WS_URL, config.KRAKEN_REST_URL),
-    coinbase: new CoinbaseClient(), // Coinbase Stub Client
+    coinbase: new CoinbaseClient(config.COINBASE_WS_URL),
+    okx: new OKXClient(config.OKX_WS_URL),
+    bybit: new BybitClient(config.BYBIT_WS_URL),
   };
 
   // 3. Initialize engine
@@ -31,7 +40,7 @@ async function bootstrap() {
   // 4. Construct HTTP & WebSocket servers
   const expressApp = createHttpServer(engine, exchanges);
   const httpServer = createServer(expressApp);
-  
+
   // Dashboard WS Server
   const wsServer = new DashboardWebSocketServer(httpServer, engine, exchanges);
 
@@ -40,25 +49,15 @@ async function bootstrap() {
     wsServer.broadcast();
   });
 
-  // 5. Connect exchange book streams to L2 caches
-  exchanges.binance.subscribeOrderBook('BTCUSDT', (book) => {
-    orderBookStore.updateBook(book);
-  });
-  exchanges.kraken.subscribeOrderBook('BTCUSDT', (book) => {
-    orderBookStore.updateBook(book);
-  });
-  exchanges.coinbase.subscribeOrderBook('BTCUSD', (book) => {
-    orderBookStore.updateBook(book);
-  });
+  // 5. Connect every venue's BTC/USDT book stream into the shared L2 cache.
+  for (const adapter of Object.values(exchanges)) {
+    adapter.subscribeOrderBook('BTCUSDT', (book) => orderBookStore.updateBook(book));
+  }
 
   // 6. Connect exchange sockets
   try {
-    await Promise.all([
-      exchanges.binance.connect(),
-      exchanges.kraken.connect(),
-      exchanges.coinbase.connect(),
-    ]);
-    logger.info('🔌 Connected to all exchange WebSocket feeds.');
+    await Promise.allSettled(Object.values(exchanges).map((a) => a.connect()));
+    logger.info('🔌 Exchange WebSocket feed connections initiated.');
   } catch (error) {
     logger.error('Failed to establish connections to some exchanges, starting engine fallback...', error);
   }

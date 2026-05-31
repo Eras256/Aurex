@@ -27,7 +27,17 @@ primary_region = "ord"
   NODE_ENV = "production"
   PORT = "3001"
   BINANCE_WS_URL = "wss://stream.binance.com:9443/ws"
+  BINANCE_REST_URL = "https://api.binance.com"
   KRAKEN_WS_URL = "wss://ws.kraken.com"
+  KRAKEN_REST_URL = "https://api.kraken.com"
+  # Additional live venue feeds (Coinbase USD book, OKX, Bybit) — all public, no auth.
+  COINBASE_WS_URL = "wss://advanced-trade-ws.coinbase.com"
+  OKX_WS_URL = "wss://ws.okx.com:8443/ws/v5/public"
+  BYBIT_WS_URL = "wss://stream.bybit.com/v5/public/spot"
+  # Engine tuning (see packages/config/src/engine.ts for rationale).
+  ENGINE_MIN_NET_PROFIT_USD = "0.25"
+  ENGINE_LATENCY_SAFETY_BPS = "1"
+  ENGINE_SLIPPAGE_SAFETY_BPS = "0"
   # CORS allowlist (comma-separated). Keep http://localhost:3000 for local dev.
   # TODO: replace "https://bitcoin-arbitrage-web.vercel.app" with your REAL
   # Vercel production domain before deploying, or override at deploy time with:

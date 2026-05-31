@@ -3,15 +3,16 @@ import { Server } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 
 import { ArbitrageEngine } from '../engine/ArbitrageEngine.js';
+import { ExchangeAdapter } from '../exchanges/index.js';
 import { logger } from '../logging.js';
 import { buildStatePayload } from '../state/stateAggregator.js';
 
 export class DashboardWebSocketServer {
   private wss: WebSocketServer;
   private engine: ArbitrageEngine;
-  private exchanges: any;
+  private exchanges: Record<string, ExchangeAdapter>;
 
-  constructor(server: Server, engine: ArbitrageEngine, exchanges: any) {
+  constructor(server: Server, engine: ArbitrageEngine, exchanges: Record<string, ExchangeAdapter>) {
     this.wss = new WebSocketServer({ server });
     this.engine = engine;
     this.exchanges = exchanges;

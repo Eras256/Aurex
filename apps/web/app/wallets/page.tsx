@@ -17,6 +17,19 @@ export default function WalletsPage() {
   const maxQuote = 100000;
   const maxBtc = 3.0;
 
+  const venueNames: Record<string, string> = {
+    binance: 'Binance Spot',
+    kraken: 'Kraken Spot',
+    coinbase: 'Coinbase Advanced',
+    okx: 'OKX Spot',
+    bybit: 'Bybit Spot',
+  };
+
+  const venueIds = Object.keys(wallets).length > 0 ? Object.keys(wallets) : ['binance', 'kraken'];
+
+  const aggregateBtc = venueIds.reduce((sum, id) => sum + (wallets[id]?.BTC?.free || 0), 0);
+  const aggregateUsdt = venueIds.reduce((sum, id) => sum + (wallets[id]?.USDT?.free || 0), 0);
+
   const renderExchangeBalances = (exchangeId: string, name: string) => {
     const assets = wallets[exchangeId] || { BTC: { free: 0, locked: 0 }, USDT: { free: 0, locked: 0 } };
     const btcFree = assets.BTC?.free || 0;
@@ -83,10 +96,13 @@ export default function WalletsPage() {
         </p>
       </div>
 
-      {/* BALANCES GRID */}
+      {/* BALANCES GRID — one pool per live venue */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {renderExchangeBalances('binance', 'Binance Spot')}
-        {renderExchangeBalances('kraken', 'Kraken Spot')}
+        {venueIds.map((id) => (
+          <React.Fragment key={id}>
+            {renderExchangeBalances(id, venueNames[id] ?? id.toUpperCase())}
+          </React.Fragment>
+        ))}
       </div>
 
       {/* EXPOSURES CARD */}
@@ -98,19 +114,13 @@ export default function WalletsPage() {
           <div className="space-y-1.5">
             <span className="text-slate-500">AGGREGATE BTC SPOT EXPOSURE:</span>
             <p className="text-lg font-bold text-amber-500">
-              {(
-                (wallets.binance?.BTC?.free || 0) + 
-                (wallets.kraken?.BTC?.free || 0)
-              ).toFixed(4)} BTC
+              {aggregateBtc.toFixed(4)} BTC
             </p>
           </div>
           <div className="space-y-1.5">
             <span className="text-slate-500">AGGREGATE QUOTE CASH EXPOSURE:</span>
             <p className="text-lg font-bold text-emerald-400">
-              ${(
-                (wallets.binance?.USDT?.free || 0) + 
-                (wallets.kraken?.USDT?.free || 0)
-              ).toLocaleString('en-US', { minimumFractionDigits: 2 })} USDT
+              ${aggregateUsdt.toLocaleString('en-US', { minimumFractionDigits: 2 })} USDT
             </p>
           </div>
         </CardContent>
