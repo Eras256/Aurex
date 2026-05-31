@@ -47,6 +47,30 @@ export default function RootLayout({
               <div className="flex-1 p-4 sm:p-6 md:p-8 max-w-[1600px] w-full mx-auto">
                 {children}
               </div>
+
+              {/* Premium Institutional Footer */}
+              <footer className="border-t border-white/5 bg-darkCard/10 backdrop-blur-md py-6 px-4 sm:px-8 mt-auto shrink-0">
+                <div className="max-w-[1600px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-slate-500">
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-400 font-semibold tracking-wider">AUREX</span>
+                    <span>&copy; {new Date().getFullYear()}</span>
+                    <span className="hidden xs:inline text-white/10">|</span>
+                    <span className="hidden xs:inline">Institutional Arbitrage Console</span>
+                  </div>
+                  <div className="flex items-center gap-4 flex-wrap justify-center sm:justify-end">
+                    <span className="text-amber-500/80 bg-amber-500/5 px-2 py-0.5 rounded border border-amber-500/10 text-[10px] tracking-wider uppercase">
+                      Simulated Environment Only
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                      </span>
+                      <span className="text-emerald-400 text-[10px] font-medium tracking-wide">SECURE NODE</span>
+                    </div>
+                  </div>
+                </div>
+              </footer>
             </main>
           </div>
         </WebSocketProvider>

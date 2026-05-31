@@ -55,6 +55,7 @@ export class KrakenClient implements ExchangeAdapter {
   });
 
   private snapshotReceived = false;
+  private lastChecksumHealAt = 0;
 
   // Internal L2 Order book representation for incremental diff updates
   private localAsks: OrderBookLevel[] = [];
@@ -281,22 +282,25 @@ export class KrakenClient implements ExchangeAdapter {
     this.localAsks = this.localAsks.slice(0, 10);
     this.localBids = this.localBids.slice(0, 10);
 
-    // Checksum verification
+    // Checksum verification — NON-DESTRUCTIVE. The Kraken WS v1 CRC32 is precision-fussy;
+    // rather than clear the local book and resubscribe on every mismatch (which blanks the
+    // book in a churn loop), we keep serving the current book and heal from a REST snapshot
+    // at most once every 15s. The book therefore stays continuously populated and live.
     if (expectedChecksum) {
       const valid = this.verifyChecksum(parseInt(expectedChecksum, 10));
       if (!valid) {
-        this.logger.warn(
-          { eventType: 'WARNING' },
-          '⚠️ Kraken Order Book Checksum failed. Triggering REST snapshot fallback and resubscribing to channel...'
-        );
-
-        // Fetch REST snapshot to recover cache immediately
-        this.fetchRestSnapshot().catch((err) => {
-          this.logger.error({ eventType: 'ERROR', error: err }, 'Kraken REST fallback snapshot recovery failed');
-        });
-
-        this.resubscribe();
-        return;
+        const now = Date.now();
+        if (now - this.lastChecksumHealAt > 15000) {
+          this.lastChecksumHealAt = now;
+          this.logger.warn(
+            { eventType: 'WARNING' },
+            '⚠️ Kraken checksum mismatch — refreshing snapshot via REST (non-destructive heal).'
+          );
+          this.fetchRestSnapshot().catch((err) => {
+            this.logger.error({ eventType: 'ERROR', error: err }, 'Kraken REST heal snapshot failed');
+          });
+        }
+        // Fall through and still notify listeners with the current best-effort book.
       }
     }
 
@@ -332,41 +336,6 @@ export class KrakenClient implements ExchangeAdapter {
 
     const calculated = crc32(checksumString);
     return calculated === expected;
-  }
-
-  private resubscribe() {
-    if (!this.wsConnected || !this.ws) return;
-
-    // Reset local cache
-    this.localAsks = [];
-    this.localBids = [];
-
-    // Send Unsubscribe
-    const unsubPayload = {
-      event: 'unsubscribe',
-      pair: [this.mapSymbolToKraken(this.activeSymbol)],
-      subscription: {
-        name: 'book',
-        depth: 10,
-      },
-    };
-    this.ws.send(JSON.stringify(unsubPayload));
-
-    // Send Subscribe after 500ms
-    setTimeout(() => {
-      if (this.wsConnected && this.ws) {
-        const subPayload = {
-          event: 'subscribe',
-          pair: [this.mapSymbolToKraken(this.activeSymbol)],
-          subscription: {
-            name: 'book',
-            depth: 10,
-          },
-        };
-        this.ws.send(JSON.stringify(subPayload));
-        this.logger.info({ eventType: 'INFO' }, '🔄 Subscribed to Kraken Spot L2 depth stream.');
-      }
-    }, 500);
   }
 
   private handleReconnect() {
