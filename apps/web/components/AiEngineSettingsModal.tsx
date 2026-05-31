@@ -143,6 +143,18 @@ export const AiEngineSettingsModal: React.FC<AiEngineSettingsModalProps> = ({
         en: 'Copied!',
         es: '¡Copiado!',
       },
+      reasoningCompact: {
+        en: 'Compact',
+        es: 'Compacto',
+      },
+      reasoningStandard: {
+        en: 'Standard',
+        es: 'Estándar',
+      },
+      reasoningFull: {
+        en: 'Full',
+        es: 'Completo',
+      },
     };
 
     return dict[key]?.[language] || key;
@@ -427,7 +439,7 @@ export const AiEngineSettingsModal: React.FC<AiEngineSettingsModalProps> = ({
                   type="button"
                   onClick={handleCopyKey}
                   className="p-2 rounded-lg border border-white/10 hover:border-white/20 hover:bg-white/5 text-slate-400 hover:text-white transition-all flex items-center justify-center shrink-0 h-9 w-9"
-                  title={t('copy')}
+                  title={isCopied ? t('copied') : t('copy')}
                 >
                   {isCopied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                 </button>
@@ -499,7 +511,11 @@ export const AiEngineSettingsModal: React.FC<AiEngineSettingsModalProps> = ({
                           : 'text-slate-400 hover:text-white'
                       }`}
                     >
-                      {detail}
+                      {detail === 'Compact'
+                        ? t('reasoningCompact')
+                        : detail === 'Standard'
+                        ? t('reasoningStandard')
+                        : t('reasoningFull')}
                     </button>
                   ))}
                 </div>

@@ -216,7 +216,7 @@ export default function CopilotWorkspace() {
               {t('copilot.title')}
             </h1>
             <p className="text-slate-300 text-xs md:text-sm max-w-3xl mt-1.5 leading-relaxed font-mono">
-              Quantitative quantitative analysis, latency tracking, L2 depth audits, and risk modeling.
+              {t('copilot.desc')}
             </p>
           </div>
           
@@ -255,7 +255,7 @@ export default function CopilotWorkspace() {
             <CardHeader className="pb-3">
               <CardTitle className="text-xs">{t('copilot.presets')}</CardTitle>
               <CardDescription className="text-[10px] font-mono">
-                Click a quantitative directive below to execute deterministic simulation walks
+                {t('copilot.presets_desc')}
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 pt-0">
@@ -299,7 +299,7 @@ export default function CopilotWorkspace() {
                   disabled={chatStatus === 'thinking' || chatStatus === 'streaming' || !composerInput.trim()}
                   className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold border border-amber-600/30 shrink-0 text-xs px-5 rounded-xl disabled:opacity-50"
                 >
-                  ⚡ EXECUTE
+                  {t('copilot.execute')}
                 </Button>
               </div>
 
@@ -311,7 +311,7 @@ export default function CopilotWorkspace() {
                     <div className="flex items-center gap-2">
                       <span className={`w-1.5 h-1.5 rounded-full ${chatStatus === 'completed' ? 'bg-emerald-400' : 'bg-amber-500 animate-pulse'}`}></span>
                       <span>
-                        {chatStatus === 'thinking' && 'AI RUN TIME: SEARCHING telemetries...'}
+                        {chatStatus === 'thinking' && t('copilot.thinking')}
                         {chatStatus === 'streaming' && t('copilot.streaming')}
                         {chatStatus === 'completed' && t('copilot.stream_done')}
                       </span>
@@ -336,7 +336,7 @@ export default function CopilotWorkspace() {
                             <span className="text-sky-400">{tool.name}</span>()
                           </span>
                           <span className={`${tool.status === 'executing' ? 'text-amber-500 animate-pulse' : 'text-emerald-400'} text-[9px] max-w-[50%] truncate`}>
-                            {tool.status === 'executing' ? 'invoking...' : `${tool.result} (${tool.durationMs}ms)`}
+                            {tool.status === 'executing' ? t('copilot.invoking') : `${tool.result} (${tool.durationMs}ms)`}
                           </span>
                         </div>
                       ))}
@@ -405,14 +405,14 @@ export default function CopilotWorkspace() {
           <Card>
             <CardHeader className="pb-3 border-b border-white/5">
               <CardTitle className="text-xs">🔬 {t('copilot.rationale')}</CardTitle>
-              <CardDescription className="text-[10px] font-mono">Mathematical decision audit</CardDescription>
+              <CardDescription className="text-[10px] font-mono">{t('copilot.rationale_desc')}</CardDescription>
             </CardHeader>
             <CardContent className="p-4 space-y-6">
               {explainability ? (
                 <div className="space-y-4 font-mono text-[11px]">
                   <div>
                     <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold block mb-1">
-                      Z-Score Rationale
+                      {t('copilot.zscore_rationale')}
                     </span>
                     <p className="text-slate-300 leading-normal font-sans">
                       {language === 'en' ? explainability.rationaleEn : explainability.rationaleEs}
@@ -420,7 +420,7 @@ export default function CopilotWorkspace() {
                   </div>
                   <div className="border-t border-white/5 pt-3">
                     <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold block mb-1">
-                      Algorithmic Deep Walk
+                      {t('copilot.algorithmic_walk')}
                     </span>
                     <p className="text-slate-300 leading-normal font-sans">
                       {language === 'en' ? explainability.detailsEn : explainability.detailsEs}
@@ -448,7 +448,7 @@ export default function CopilotWorkspace() {
                 </div>
               ) : (
                 <div className="text-slate-500 font-mono text-[10px] text-center py-8">
-                  Awaiting query execution... Explainability models will map dynamically.
+                  {t('copilot.awaiting_execution')}
                 </div>
               )}
             </CardContent>
@@ -457,19 +457,27 @@ export default function CopilotWorkspace() {
           {/* SIMULATED SYSTEM SECURITY GATES */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-xs">🛡️ Operational Governance</CardTitle>
+              <CardTitle className="text-xs">{t('copilot.governance')}</CardTitle>
             </CardHeader>
             <CardContent className="text-[10px] font-mono space-y-3 text-slate-400 leading-normal font-sans">
               <div className="flex gap-2">
                 <span className="text-amber-500 shrink-0 font-mono text-xs">⚠️</span>
                 <p>
-                  <strong>Advisory-Only Mode:</strong> The Copilot cannot write trade executions directly to exchanges. All recommendations are advisory-only.
+                  {language === 'en' ? (
+                    <><strong>Advisory-Only Mode:</strong> The Copilot cannot write trade executions directly to exchanges. All recommendations are advisory-only.</>
+                  ) : (
+                    <><strong>Modo de Solo Asesoría:</strong> El Copiloto no puede emitir ejecuciones de operaciones directamente en los exchanges. Todas las recomendaciones son únicamente de carácter consultivo.</>
+                  )}
                 </p>
               </div>
               <div className="flex gap-2 border-t border-white/5 pt-3">
                 <span className="text-emerald-400 shrink-0 font-mono text-xs">✓</span>
                 <p>
-                  <strong>Immutable Audit Logging:</strong> Operates under database-enforced immutability. No updates or deletions are permitted on compiled records.
+                  {language === 'en' ? (
+                    <><strong>Immutable Audit Logging:</strong> Operates under database-enforced immutability. No updates or deletions are permitted on compiled records.</>
+                  ) : (
+                    <><strong>Registro de Auditoría Inmutable:</strong> Opera bajo inmutabilidad forzada por la base de datos. No se permiten actualizaciones ni eliminaciones en los registros recopilados.</>
+                  )}
                 </p>
               </div>
             </CardContent>
@@ -483,15 +491,15 @@ export default function CopilotWorkspace() {
           <div>
             <CardTitle className="text-xs">{t('copilot.audit')}</CardTitle>
             <CardDescription className="text-[10px] font-mono">
-              Real-time audit log of all simulated runs tracked by active session ID
+              {t('copilot.audit_desc')}
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[9px] uppercase font-mono tracking-widest text-slate-500 font-bold">
-              Secure Ledger:
+              {t('copilot.secure_ledger')}
             </span>
             <Badge variant="success" className="text-[9px] font-mono py-0.5 px-2 font-bold uppercase rounded">
-              APPEND-ONLY (DB TRIGGER ENFORCED)
+              {t('copilot.append_only')}
             </Badge>
           </div>
         </CardHeader>
@@ -505,14 +513,14 @@ export default function CopilotWorkspace() {
                 <TableHead className="px-6 py-3">{t('copilot.audit_col_action')}</TableHead>
                 <TableHead className="px-6 py-3">{t('copilot.audit_col_decision')}</TableHead>
                 <TableHead className="px-6 py-3 text-right">{t('copilot.audit_col_latency')}</TableHead>
-                <TableHead className="px-6 py-3 text-right">Confidence</TableHead>
+                <TableHead className="px-6 py-3 text-right">{t('copilot.confidence')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {auditLoading ? (
                 <TableRow>
                   <TableCell colSpan={7} className="py-8 text-center text-slate-500 font-mono text-xs">
-                    Reconciling immutable database ledger records...
+                    {t('copilot.reconciling')}
                   </TableCell>
                 </TableRow>
               ) : auditLogs.length === 0 ? (
@@ -565,9 +573,9 @@ export default function CopilotWorkspace() {
             <div className="space-y-6">
               <div className="flex items-center justify-between border-b border-white/5 pb-4">
                 <div>
-                  <h3 className="text-sm font-bold text-white font-mono">🔍 AI Review Proposal Drawer</h3>
+                  <h3 className="text-sm font-bold text-white font-mono">{t('copilot.drawer_title')}</h3>
                   <p className="text-[9px] text-slate-500 font-mono uppercase tracking-wider mt-0.5">
-                    Operator validation gateway
+                    {t('copilot.drawer_subtitle')}
                   </p>
                 </div>
                 <button
@@ -581,19 +589,19 @@ export default function CopilotWorkspace() {
               <div className="space-y-4 text-xs font-mono">
                 <div className="bg-slate-950/60 p-4 rounded-xl border border-white/5 space-y-3">
                   <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold block">
-                    Telemetry Overview
+                    {t('copilot.telemetry_overview')}
                   </span>
                   <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-300">
-                    <div>Model: <span className="text-white">{selectedModel}</span></div>
-                    <div>Source: <span className="text-sky-400">COPILOT_WORKSPACE</span></div>
-                    <div>Confidence: <span className="text-amber-500 font-bold">{(confidence ? confidence * 100 : 0).toFixed(0)}%</span></div>
-                    <div>Latency: <span className="text-white">{(explainability ? 1450 : 0)} ms</span></div>
+                    <div>{t('copilot.model_label')} <span className="text-white">{selectedModel}</span></div>
+                    <div>{t('copilot.source_label')} <span className="text-sky-400">COPILOT_WORKSPACE</span></div>
+                    <div>{t('copilot.confidence_label')} <span className="text-amber-500 font-bold">{(confidence ? confidence * 100 : 0).toFixed(0)}%</span></div>
+                    <div>{t('copilot.latency_label')} <span className="text-white">{(explainability ? 1450 : 0)} ms</span></div>
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold block">
-                    Execution Rationale
+                    {t('copilot.execution_rationale')}
                   </span>
                   <p className="text-slate-300 leading-relaxed font-sans text-[11px]">
                     {language === 'en' ? explainability.rationaleEn : explainability.rationaleEs}
@@ -602,7 +610,7 @@ export default function CopilotWorkspace() {
 
                 <div className="space-y-2 border-t border-white/5 pt-3">
                   <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold block">
-                    Safety Evaluation
+                    {t('copilot.safety_evaluation')}
                   </span>
                   <p className="text-slate-300 leading-relaxed font-sans text-[11px]">
                     {language === 'en' ? explainability.detailsEn : explainability.detailsEs}
@@ -617,7 +625,7 @@ export default function CopilotWorkspace() {
                 variant="outline"
                 className="border-white/10 bg-white/5 text-white text-[10px] font-bold px-4 py-2"
               >
-                DISMISS
+                {t('copilot.dismiss')}
               </Button>
               {activeParams && (
                 <Button

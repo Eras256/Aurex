@@ -95,8 +95,8 @@ export const Navigation: React.FC = () => {
           <button
             onClick={() => setIsSettingsOpen(true)}
             className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-all flex items-center justify-center shrink-0"
-            title="Quant Copilot Engine"
-            aria-label="Quant Copilot Engine"
+            title={t('nav.copilot_settings')}
+            aria-label={t('nav.copilot_settings')}
           >
             <Settings className="w-5 h-5 text-slate-400 hover:text-white hover:rotate-45 transition-transform duration-300" />
           </button>
@@ -196,8 +196,8 @@ export const Navigation: React.FC = () => {
                   setIsSettingsOpen(true);
                 }}
                 className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center"
-                title="Quant Copilot Engine"
-                aria-label="Quant Copilot Engine"
+                title={t('nav.copilot_settings')}
+                aria-label={t('nav.copilot_settings')}
               >
                 <Settings className="w-4 h-4 text-slate-400 hover:text-white" />
               </button>
@@ -281,8 +281,8 @@ export const Navigation: React.FC = () => {
               <button
                 onClick={() => setIsSettingsOpen(true)}
                 className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center"
-                title="Quant Copilot Engine"
-                aria-label="Quant Copilot Engine"
+                title={t('nav.copilot_settings')}
+                aria-label={t('nav.copilot_settings')}
               >
                 <Settings className="w-4 h-4 text-slate-400 hover:text-white" />
               </button>
