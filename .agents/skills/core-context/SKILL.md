@@ -12,6 +12,8 @@ description: >
 
 This local skill instructs **Antigravity** (our agentic system) to automatically load, parse, and synchronize strategic and technical codebase configurations from `claude.md` and `CLAUDE.md` before executing any development workflows.
 
+- **Live Production Dashboard:** [https://aurex-terminal.vercel.app/](https://aurex-terminal.vercel.app/)
+
 **Always use this skill when:**
 
 - Initializing a task in the **Aurex** repository.

@@ -2,6 +2,10 @@
 
 This file documents the command reference and codebase standards for **Aurex**.
 
+## 🌐 Live Deployment
+- **Production Dashboard:** [https://aurex-terminal.vercel.app/](https://aurex-terminal.vercel.app/)
+
+
 ## 🛠️ Commands Reference
 
 ### 1. Startup & Development
