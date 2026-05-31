@@ -39,6 +39,7 @@ primary_region = "fra"
   BYBIT_WS_URL = "wss://stream.bybit.com/v5/public/spot"
   # Engine tuning (see packages/config/src/engine.ts for rationale).
   ENGINE_MIN_NET_PROFIT_USD = "0.25"
+  ENGINE_MAX_POSITION_BTC_PER_EXCHANGE = "5"
   ENGINE_LATENCY_SAFETY_BPS = "1"
   ENGINE_SLIPPAGE_SAFETY_BPS = "0"
   # CORS allowlist (comma-separated). Keep http://localhost:3000 for local dev.

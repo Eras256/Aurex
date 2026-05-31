@@ -73,9 +73,12 @@ export const EXCHANGES_METADATA: Record<string, ExchangeMetadata> = {
   },
 };
 
+// Seed inventory per venue. BTC must stay below maxPositionBTCPerExchange so the buy
+// side has room to accumulate; USDT is generous so the simulation sustains a long run
+// of real captures before draining (the Reset control rebalances back to these seeds).
 const seedWallet = () => ({
-  BTC: { free: 2, locked: 0 },
-  USDT: { free: 400000, locked: 0 },
+  BTC: { free: 1.5, locked: 0 },
+  USDT: { free: 200000, locked: 0 },
 });
 
 export const INITIAL_WALLET_BALANCES: Record<
