@@ -21,11 +21,12 @@ import { useWebSocket } from '../WebSocketContext';
 export default function RiskSettingsPage() {
   const { state, updateConfig, triggerReset } = useWebSocket();
 
-  // Settings form states
-  const [minNetProfitUSD, setMinNetProfitUSD] = useState(1.5);
+  // Settings form states (initial values mirror the engine defaults; synced from the
+  // live backend config as soon as the first StatePayload arrives).
+  const [minNetProfitUSD, setMinNetProfitUSD] = useState(0.25);
   const [maxPositionBTC, setMaxPositionBTC] = useState(2.0);
-  const [latencySafetyBps, setLatencySafetyBps] = useState(5);
-  const [slippageSafetyBps, setSlippageSafetyBps] = useState(2);
+  const [latencySafetyBps, setLatencySafetyBps] = useState(1);
+  const [slippageSafetyBps, setSlippageSafetyBps] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
   const [saving, setSaving] = useState(false);

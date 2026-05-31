@@ -45,7 +45,7 @@ export default function DocsPage() {
               <p>1. Start with test block volume V = 0.05 BTC</p>
               <p>2. Query cumulative asks on Cheap venue and bids on Expensive venue up to V</p>
               <p>3. Calculate weighted average walked prices (BuyPrice & SellPrice)</p>
-              <p>4. Subtract fees (taker fees, slippage safety bps, latency safety bps)</p>
+              <p>4. Subtract costs (taker fees, real walked slippage, latency safety bps)</p>
               <p>5. If Net profit is positive, increment size V = V + 0.05 BTC and repeat</p>
               <p>6. Stop walking once net profit decreases, ensuring optimal sizing</p>
             </CardContent>
@@ -60,16 +60,16 @@ export default function DocsPage() {
           </p>
           <ul className="list-disc pl-5 space-y-2 text-xs">
             <li>
-              <strong className="text-white">Exchange Taker Fees:</strong> Applied on both sides since arbitrage executes against existing order book liquidity (Binance: 0.10% Spot taker, Kraken: 0.26% Spot taker).
+              <strong className="text-white">Exchange Taker Fees:</strong> Applied on both sides since arbitrage executes against existing order book liquidity, at competitive VIP / high-volume tiers (Binance ~0.04%, OKX/Bybit ~0.05%, Coinbase ~0.06%, Kraken ~0.10%). All are configurable per-engine.
             </li>
             <li>
               <strong className="text-white">Withdrawal fees (network rebalancing):</strong> Flat fee deducted per-opportunity representing network transfer costs to balance portfolios across venues.
             </li>
             <li>
-              <strong className="text-white">Latency safety buffer (BPS):</strong> Configure a safety shield (e.g. 5 BPS). Deducts expected sell price and inflates expected buy price to represent spread drift during socket transmission hops.
+              <strong className="text-white">Latency safety buffer (BPS):</strong> Configure a safety shield (default 1 BPS). Deducts expected sell price and inflates expected buy price to represent spread drift during socket transmission hops.
             </li>
             <li>
-              <strong className="text-white">Slippage safety buffer (BPS):</strong> Extra cushion padded to expected average walked prices.
+              <strong className="text-white">Real depth-walk slippage:</strong> The L2 book-walk prices slippage directly from the consumed depth (volume-weighted average fill price), so no artificial cushion is double-counted on top.
             </li>
           </ul>
         </section>
@@ -91,7 +91,7 @@ export default function DocsPage() {
               <span className="text-white font-sans font-semibold">packages/testing</span> &mdash; Fabrication templates for mocking order books.
             </li>
             <li>
-              <span className="text-white font-sans font-semibold">apps/bot</span> &mdash; Backend bot running Express server endpoints and managing Binance and Kraken live WS connections.
+              <span className="text-white font-sans font-semibold">apps/bot</span> &mdash; Backend bot running Express server endpoints and managing 5 live exchange WS connections (Binance, Kraken, Coinbase, OKX, Bybit).
             </li>
             <li>
               <span className="text-white font-sans font-semibold">apps/web</span> &mdash; Institutional Next.js 14 glassmorphic real-time dashboard terminal.

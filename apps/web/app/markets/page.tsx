@@ -81,6 +81,10 @@ export default function MarketsPage() {
   const grossBtoK = bestKrakenBid > 0 && bestBinanceAsk > 0 ? bestKrakenBid - bestBinanceAsk : 0;
   const grossKtoB = bestBinanceBid > 0 && bestKrakenAsk > 0 ? bestBinanceBid - bestKrakenAsk : 0;
 
+  // Estimated round-trip taker cost per BTC at VIP tiers (Binance 0.04% + Kraken 0.10%).
+  const refPrice = binanceMid || krakenMid || 0;
+  const estRoundTripCost = (refPrice * (4 + 10)) / 10000;
+
   // Compute dataset for order book depth chart
   const depthChartData = useMemo(() => {
     const activeBook = activeDepthExchange === 'binance' ? binanceBook : krakenBook;
@@ -154,13 +158,13 @@ export default function MarketsPage() {
             <div>
               <span className="text-[10px] text-slate-500 font-mono">EST FEES & COST</span>
               <p className="text-lg font-bold font-mono text-slate-400">
-                ~$145.00
+                ~${estRoundTripCost.toFixed(2)}
               </p>
             </div>
             <div>
               <span className="text-[10px] text-slate-500 font-mono">NET ESTIMATE</span>
-              <p className={`text-lg font-bold font-mono ${grossBtoK > 145 ? 'text-emerald-400 font-semibold' : 'text-slate-500'}`}>
-                {grossBtoK > 145 ? `+$${(grossBtoK - 145).toFixed(2)}` : 'UNPROFITABLE'}
+              <p className={`text-lg font-bold font-mono ${grossBtoK > estRoundTripCost ? 'text-emerald-400 font-semibold' : 'text-slate-500'}`}>
+                {grossBtoK > estRoundTripCost ? `+$${(grossBtoK - estRoundTripCost).toFixed(2)}` : 'UNPROFITABLE'}
               </p>
             </div>
           </CardContent>
@@ -187,13 +191,13 @@ export default function MarketsPage() {
             <div>
               <span className="text-[10px] text-slate-500 font-mono">EST FEES & COST</span>
               <p className="text-lg font-bold font-mono text-slate-400">
-                ~$145.00
+                ~${estRoundTripCost.toFixed(2)}
               </p>
             </div>
             <div>
               <span className="text-[10px] text-slate-500 font-mono">NET ESTIMATE</span>
-              <p className={`text-lg font-bold font-mono ${grossKtoB > 145 ? 'text-emerald-400' : 'text-slate-500'}`}>
-                {grossKtoB > 145 ? `+$${(grossKtoB - 145).toFixed(2)}` : 'UNPROFITABLE'}
+              <p className={`text-lg font-bold font-mono ${grossKtoB > estRoundTripCost ? 'text-emerald-400' : 'text-slate-500'}`}>
+                {grossKtoB > estRoundTripCost ? `+$${(grossKtoB - estRoundTripCost).toFixed(2)}` : 'UNPROFITABLE'}
               </p>
             </div>
           </CardContent>
@@ -274,7 +278,7 @@ export default function MarketsPage() {
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <div>
               <CardTitle className="text-xs">Binance Spot L2 (BTC/USDT)</CardTitle>
-              <CardDescription className="text-[10px] font-mono">Taker Fee: 0.1% | Refreshed every 100ms</CardDescription>
+              <CardDescription className="text-[10px] font-mono">VIP Taker Fee: 0.04% | Refreshed every 100ms</CardDescription>
             </div>
             <div className="text-right">
               <span className="text-[10px] text-slate-500 font-mono block">MID PRICE</span>
@@ -331,7 +335,7 @@ export default function MarketsPage() {
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <div>
               <CardTitle className="text-xs">Kraken Spot L2 (XBT/USDT)</CardTitle>
-              <CardDescription className="text-[10px] font-mono">Taker Fee: 0.26% | CRC Checksums Valid</CardDescription>
+              <CardDescription className="text-[10px] font-mono">VIP Taker Fee: 0.10% | CRC Checksums Valid</CardDescription>
             </div>
             <div className="text-right">
               <span className="text-[10px] text-slate-500 font-mono block">MID PRICE</span>

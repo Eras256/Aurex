@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { AurexLogo } from '@/components/branding/AurexLogo';
+import { HeaderTicker } from '@/components/HeaderTicker';
 
 import { WebSocketProvider } from './WebSocketContext';
 import './globals.css';
@@ -76,23 +77,7 @@ export default function RootLayout({
             <main className="flex-1 flex flex-col overflow-x-hidden min-h-screen">
               {/* Header Ticker Banner */}
               <header className="h-16 border-b border-white/5 bg-darkCard/25 backdrop-blur-md px-6 flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-6 overflow-x-auto py-2 no-scrollbar">
-                  {/* BTC reference ticker */}
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="text-slate-500 font-mono">BTC SPOT:</span>
-                    <span className="text-slate-300 font-mono font-medium">$68,140.25</span>
-                  </div>
-                  {/* Binance vs Kraken Spread */}
-                  <div className="flex items-center gap-2 text-xs border-l border-white/5 pl-6">
-                    <span className="text-slate-500 font-mono">B/K NET SPREAD:</span>
-                    <span className="text-emerald-400 font-mono font-medium">+$45.20</span>
-                  </div>
-                  {/* Portfolio status */}
-                  <div className="flex items-center gap-2 text-xs border-l border-white/5 pl-6">
-                    <span className="text-slate-500 font-mono">SIM EQUITY:</span>
-                    <span className="text-amber-500 font-mono font-medium glow-text-gold">$100,240.50</span>
-                  </div>
-                </div>
+                <HeaderTicker />
 
                 <div className="flex items-center gap-3">
                   <span className="text-slate-500 font-mono text-xs hidden sm:inline">API VER: 1.0.0</span>

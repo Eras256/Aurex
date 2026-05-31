@@ -223,9 +223,9 @@ test.describe('📈 Bitcoin Arbitrage Simulator Visual Dashboard E2E Tests', () 
     await expect(page.locator('h2')).toContainText('Aurex Console Overview');
 
     // Assert equity growth curve and portfolio values are shown matching mock state
-    // Equity: 100000 + 500.50 = 100500.50
+    // Equity: 100000 + 500.50 = 100500.50 (shown in both the header ticker and the KPI card)
     await expect(page.getByText('PORTFOLIO EQUITY', { exact: true })).toBeVisible();
-    await expect(page.getByText('$100,500.50')).toBeVisible();
+    await expect(page.getByText('$100,500.50').first()).toBeVisible();
 
     // Accumulated P&L: +$500.50
     await expect(page.getByText('SIMULATED NET P&L', { exact: true })).toBeVisible();

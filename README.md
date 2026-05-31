@@ -8,6 +8,21 @@ Aurex is an institutional-grade platform for real-time Bitcoin arbitrage detecti
 
 By utilizing high-speed WebSocket market feeds from **five live exchanges (Binance, Kraken, Coinbase Advanced, OKX, Bybit)**, walking real-time L2 order book depth tables, ranking opportunities across every directed venue pair, and incorporating transaction costs, slippage penalties, and network latency buffers, the system provides a highly accurate simulation environment of high-frequency trading (HFT) spread capture — including the genuine cross-venue dislocations such as the well-known **Coinbase premium/discount**.
 
+## 🎬 60-Second Jury Walkthrough
+
+Open the dashboard and read it in this order — every value is live from the backend, nothing is hardcoded:
+
+| #   | What to look at                                         | Where                                            | Why it matters (evaluation criterion)                                    |
+| --- | ------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------ |
+| 1   | **5 venues connected** (CONNECTED badges + heartbeats)  | **System Health** page / header `FEEDS x/5 live` | Real multi-exchange monitoring (2+ required)                             |
+| 2   | **Detection latency** (mean + p99) & books/sec          | **Overview** KPI card / header `DETECTION`       | Speed of detection (criterion #1)                                        |
+| 3   | **Opportunity detected** across venue pairs             | **Live Opportunities** feed                      | Real-time detection + ranking                                            |
+| 4   | **Trade executed** with size, fills, net profit         | **Executed Trades** ledger (+ CSV export)        | Simulated execution respecting L2 liquidity                              |
+| 5   | **Opportunity rejected after costs** (red, with reason) | **Live Opportunities** → filter `Skipped`        | Correctly rejecting gross-positive / net-negative windows (criterion #2) |
+| 6   | **Cumulative P&L**, win rate, Sharpe, equity curve      | **Overview** + **Executed Trades**               | Performance tracking & visualization                                     |
+
+> The richest live signal is the **Coinbase premium/discount**: watch `coinbase → binance/okx/bybit` windows being detected, costed, and either executed or transparently rejected in real time.
+
 ## Why this project uses real market data with simulated execution
 
 Aurex uses real-time public market data from supported exchanges while keeping execution fully simulated. This design choice is intentional: the goal is to measure live cross-exchange spreads, maintain current order books, estimate net profitability after fees and slippage, and simulate fills under realistic market conditions without placing real orders or depending on private trading credentials.

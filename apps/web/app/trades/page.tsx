@@ -114,7 +114,7 @@ export default function TradesPage() {
               {trades.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="py-10 text-center text-slate-500">
-                    No transactions executed yet. (Try adjusting your risk margins in settings to trigger mock trades).
+                    No transactions executed yet. Awaiting a cross-venue window that clears all costs — adjust risk thresholds in Settings to widen the capture band.
                   </TableCell>
                 </TableRow>
               ) : (

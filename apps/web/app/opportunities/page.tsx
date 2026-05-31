@@ -93,14 +93,14 @@ export default function OpportunitiesPage() {
                     <TableCell className="px-4 py-2.5 text-right text-slate-400">
                       ${opp.grossSpread.toFixed(2)}
                     </TableCell>
-                    <TableCell className="px-4 py-2.5 text-right text-amber-500 font-semibold">
-                      ${opp.netSpread.toFixed(2)}
+                    <TableCell className={`px-4 py-2.5 text-right font-semibold ${opp.netSpread >= 0 ? 'text-amber-500' : 'text-slate-500'}`}>
+                      {opp.netSpread >= 0 ? '' : '-'}${Math.abs(opp.netSpread).toFixed(2)}
                     </TableCell>
                     <TableCell className="px-4 py-2.5 text-right text-slate-200 font-medium">
                       {opp.executableVolume.toFixed(2)} BTC
                     </TableCell>
-                    <TableCell className="px-4 py-2.5 text-right text-emerald-400 font-bold">
-                      +${opp.expectedNetProfitUSD.toFixed(2)}
+                    <TableCell className={`px-4 py-2.5 text-right font-bold ${opp.expectedNetProfitUSD >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {opp.expectedNetProfitUSD >= 0 ? '+' : '-'}${Math.abs(opp.expectedNetProfitUSD).toFixed(2)}
                     </TableCell>
                     <TableCell className="px-4 py-2.5">
                       <Badge variant={opp.status === 'EXECUTED' ? 'success' : 'destructive'}>

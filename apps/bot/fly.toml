@@ -1,6 +1,9 @@
 # fly.toml configuration file for deploying the Aurex Bot on Fly.io
 app = "bitcoin-arbitrage-bot"
-primary_region = "ord"
+# Frankfurt: a non-US region is required so Binance / OKX / Bybit public market-data
+# WebSockets are reachable (they geo-block US IPs). Kraken + Coinbase are global.
+# The engine degrades gracefully if any single feed is unavailable (needs >=2 venues).
+primary_region = "fra"
 
 [http_service]
   internal_port = 3001
