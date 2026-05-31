@@ -15,6 +15,7 @@ export const Navigation: React.FC = () => {
 
   const links = [
     { key: 'nav.overview', path: '/' },
+    { key: 'nav.copilot', path: '/copilot', isAI: true },
     { key: 'nav.markets', path: '/markets' },
     { key: 'nav.opportunities', path: '/opportunities' },
     { key: 'nav.trades', path: '/trades' },
@@ -81,13 +82,18 @@ export const Navigation: React.FC = () => {
                   key={link.path}
                   href={link.path}
                   onClick={() => setIsOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex items-center justify-between px-4 py-3 rounded-lg text-sm font-medium transition-all ${
                     isActive
                       ? 'text-white bg-white/5 border-l-2 border-gold font-semibold'
                       : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'
                   }`}
                 >
-                  {t(link.key)}
+                  <span>{t(link.key)}</span>
+                  {link.isAI && (
+                    <span className="text-[9px] uppercase font-mono tracking-wider font-extrabold text-gold bg-gold/15 px-1.5 py-0.5 rounded border border-gold/25 animate-pulse shrink-0">
+                      AI COPILOT
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -152,13 +158,18 @@ export const Navigation: React.FC = () => {
                 <Link
                   key={link.path}
                   href={link.path}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                     isActive
                       ? 'text-white bg-white/5 border-l-2 border-gold font-semibold'
                       : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'
                   }`}
                 >
-                  {t(link.key)}
+                  <span>{t(link.key)}</span>
+                  {link.isAI && (
+                    <span className="text-[9px] uppercase font-mono tracking-wider font-extrabold text-gold bg-gold/15 px-1.5 py-0.5 rounded border border-gold/25 animate-pulse shrink-0">
+                      AI
+                    </span>
+                  )}
                 </Link>
               );
             })}

@@ -18,6 +18,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
+import { MockRiskAdvisor } from '@/lib/ai/mock/mockRiskAdvisor';
+import { DashboardAIOutput } from '@/lib/ai/types';
 
 import { useLanguage } from './LanguageContext';
 import { useWebSocket } from './WebSocketContext';
@@ -49,12 +51,39 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
 
 export default function OverviewPage() {
   const { state } = useWebSocket();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [mounted, setMounted] = useState(false);
+  const [aiAdvisory, setAiAdvisory] = useState<DashboardAIOutput | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const fetchAdvisory = async () => {
+      setAiLoading(true);
+      try {
+        const latency = state?.metrics?.detectionLatencyMs ?? 0.85;
+        const res = await MockRiskAdvisor.generateAdvisory({
+          rollingVolume24hUSD: 14500,
+          currentSlippageBps: Math.round(latency * 8), // simulated slippage proxy from latency spikes
+          meanComputeLatencyMs: latency,
+          recentSpreads: [
+            { venuePair: 'Binance-Bybit', grossSpreadBps: 12.4 },
+            { venuePair: 'OKX-Kraken', grossSpreadBps: 8.5 }
+          ]
+        });
+        setAiAdvisory(res);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setAiLoading(false);
+      }
+    };
+    fetchAdvisory();
+  }, [mounted, state?.metrics?.detectionLatencyMs]);
 
   // Metric variables with sensible defaults
   const totalProfit = state?.pnl?.totalProfitUSD ?? 0;
@@ -283,6 +312,70 @@ export default function OverviewPage() {
 
       {/* 2b. TRIANGULAR ARBITRAGE (sophisticated single-venue strategy) */}
       <TriangularPanel />
+
+      {/* 2c. INTEGRATED AI QUANT ADVISORY WIDGET (Phase 1) */}
+      <Card glow className="border-amber-500/10 bg-slate-950/20 backdrop-blur-md">
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-gold animate-pulse"></span>
+              <CardTitle className="text-xs uppercase font-mono tracking-wider">{t('widget.ai_advisor')}</CardTitle>
+            </div>
+            <CardDescription className="text-[10px] font-mono mt-0.5">{t('widget.ai_advisor_sub')}</CardDescription>
+          </div>
+          <Badge variant="outline" className="text-[9px] border-amber-500/25 text-amber-500 font-mono tracking-wider font-semibold uppercase animate-pulse">
+            🛡️ {t('widget.ai_advisory_only')}
+          </Badge>
+        </CardHeader>
+        <CardContent className="p-4 pt-1">
+          {aiLoading && !aiAdvisory ? (
+            <div className="space-y-2 animate-pulse py-2">
+              <div className="h-4 bg-white/5 rounded w-3/4"></div>
+              <div className="h-3 bg-white/5 rounded w-1/2"></div>
+            </div>
+          ) : aiAdvisory ? (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-center">
+              
+              {/* Telemetry Analysis */}
+              <div className="md:col-span-2 space-y-1">
+                <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold block font-mono">
+                  Rolling Diagnostics
+                </span>
+                <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                  {language === 'en' ? aiAdvisory.telemetrySummary.en : aiAdvisory.telemetrySummary.es}
+                </p>
+              </div>
+
+              {/* Sizing Recommendations */}
+              <div className="space-y-1 font-mono text-center md:text-left border-t md:border-t-0 md:border-l border-white/5 md:pl-6 pt-3 md:pt-0">
+                <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold block">
+                  Recommended Profit Floor
+                </span>
+                <h3 className="text-2xl font-bold tracking-tight text-amber-500 glow-text-gold">
+                  ${aiAdvisory.recommendedProfitFloorUSD.toFixed(2)} <span className="text-xs text-slate-400 font-normal">USD</span>
+                </h3>
+                <span className="text-[9px] text-slate-500 block">
+                  Confidence Score: {(aiAdvisory.sizingConfidenceScore * 100).toFixed(0)}%
+                </span>
+              </div>
+
+              {/* Supervised Interaction Gate */}
+              <div className="flex justify-end border-t md:border-t-0 md:border-l border-white/5 md:pl-6 pt-3 md:pt-0 shrink-0">
+                <Link href="/copilot" passHref legacyBehavior>
+                  <Button variant="default" className="w-full md:w-auto bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold border border-amber-600/30 text-[10px] px-4 py-2 rounded-lg font-mono">
+                    ⚡ {t('widget.ai_review_btn')}
+                  </Button>
+                </Link>
+              </div>
+
+            </div>
+          ) : (
+            <div className="text-[10px] text-slate-500 font-mono text-center py-4">
+              Reconciling clean telemetry feeds... AI advisor offline.
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* 3. PERFORMANCE CHART */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

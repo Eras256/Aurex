@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import {
@@ -15,16 +16,17 @@ import {
 } from '@/components/ui/dialog';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
+import { MockRiskAdvisor } from '@/lib/ai/mock/mockRiskAdvisor';
+import { RiskAIOutput } from '@/lib/ai/types';
 
 import { useLanguage } from '../LanguageContext';
 import { useWebSocket } from '../WebSocketContext';
 
 export default function RiskSettingsPage() {
   const { state, updateConfig, triggerReset } = useWebSocket();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
-  // Settings form states (initial values mirror the engine defaults; synced from the
-  // live backend config as soon as the first StatePayload arrives).
+  // Settings form states
   const [minNetProfitUSD, setMinNetProfitUSD] = useState(0.25);
   const [maxPositionBTC, setMaxPositionBTC] = useState(2.0);
   const [latencySafetyBps, setLatencySafetyBps] = useState(1);
@@ -38,6 +40,50 @@ export default function RiskSettingsPage() {
 
   // Dialog state for simulation reset confirmation modal
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+
+  // AI Calibration State (Phase 1)
+  const [aiCalibration, setAiCalibration] = useState<RiskAIOutput | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiStatusMessage, setAiStatusMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!state?.config) return;
+    const fetchCalibration = async () => {
+      setAiLoading(true);
+      try {
+        const res = await MockRiskAdvisor.calibrateRisk({
+          currentRiskParams: {
+            minNetProfitUSD: state.config.minNetProfitUSD,
+            latencyDriftBufferBps: state.config.latencySafetyBps,
+            slippageSafetyBps: state.config.slippageSafetyBps,
+          },
+          rollingVolatilityZScore: 2.14 // Simulated high-frequency telemetry volatility Z-score
+        });
+        setAiCalibration(res);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setAiLoading(false);
+      }
+    };
+    fetchCalibration();
+  }, [state?.config]);
+
+  const handleApplyAIParams = () => {
+    if (!aiCalibration) return;
+    
+    // Controlled human pre-fill autofill
+    setMinNetProfitUSD(aiCalibration.suggestedParams.minNetProfitUSD);
+    setLatencySafetyBps(aiCalibration.suggestedParams.latencyDriftBufferBps);
+    setSlippageSafetyBps(aiCalibration.suggestedParams.slippageSafetyBps);
+
+    setAiStatusMessage(
+      language === 'es'
+        ? '💡 ¡Calibración cargada en el formulario! Revise los parámetros y haga clic en "Persist Configuration" para guardarlos.'
+        : '💡 Calibration pre-filled successfully! Review parameters and click "Persist Configuration" to save.'
+    );
+    setTimeout(() => setAiStatusMessage(null), 5000);
+  };
 
   // Sync inputs with active backend config on message loads
   useEffect(() => {
@@ -199,6 +245,96 @@ export default function RiskSettingsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 2d. INTEGRATED AI QUANT CALIBRATION ASSISTANT (Phase 1) */}
+      <Card glow className="border-amber-500/10 bg-slate-950/20 backdrop-blur-md">
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-gold animate-pulse"></span>
+              <CardTitle className="text-xs uppercase font-mono tracking-wider">{t('widget.ai_advisor')}</CardTitle>
+            </div>
+            <CardDescription className="text-[10px] font-mono mt-0.5">{t('risk.settings_desc')}</CardDescription>
+          </div>
+          <Badge variant="outline" className="text-[9px] border-amber-500/25 text-amber-500 font-mono tracking-wider font-semibold uppercase animate-pulse">
+            🛡️ {t('widget.ai_advisory_only')}
+          </Badge>
+        </CardHeader>
+        <CardContent className="p-4 pt-1 space-y-4">
+          {aiLoading && !aiCalibration ? (
+            <div className="space-y-2 animate-pulse py-2">
+              <div className="h-4 bg-white/5 rounded w-3/4"></div>
+              <div className="h-3 bg-white/5 rounded w-1/2"></div>
+            </div>
+          ) : aiCalibration ? (
+            <div className="space-y-4 font-mono text-[11px]">
+              
+              {/* Telemetry Analysis */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-b border-white/5 pb-4">
+                <div className="md:col-span-2 space-y-1">
+                  <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold block">
+                    Volatility Risk Audit (Z-Score: 2.14)
+                  </span>
+                  <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                    {language === 'es' ? aiCalibration.calibrationRationale.es : aiCalibration.calibrationRationale.en}
+                  </p>
+                  <span className="text-[9px] text-slate-500 font-mono block mt-1">
+                    {language === 'es' ? aiCalibration.zScoreExplanation.es : aiCalibration.zScoreExplanation.en}
+                  </span>
+                </div>
+
+                <div className="space-y-2 bg-slate-950/40 p-3 rounded-lg border border-white/5">
+                  <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold block text-center md:text-left">
+                    Calibration Proposals
+                  </span>
+                  <div className="space-y-1.5 text-[10px] text-slate-300">
+                    <div className="flex justify-between">
+                      <span>Profit Floor:</span>
+                      <span className="text-amber-500 font-bold">${aiCalibration.suggestedParams.minNetProfitUSD.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Latency Drift:</span>
+                      <span className="text-amber-500 font-bold">{aiCalibration.suggestedParams.latencyDriftBufferBps} BPS</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Slippage Safety:</span>
+                      <span className="text-amber-500 font-bold">{aiCalibration.suggestedParams.slippageSafetyBps} BPS</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <span className="text-slate-400 text-[10px] max-w-md font-sans leading-normal block">
+                  *Clicking Apply pre-fills the form sliders. You must manually click the &quot;Persist Configuration&quot; button below to compile and save.
+                </span>
+                <div className="flex gap-2 shrink-0 self-end">
+                  <Button
+                    type="button"
+                    onClick={handleApplyAIParams}
+                    className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold border border-amber-600/30 text-[10px] px-4 py-2 rounded-lg"
+                  >
+                    ⚙️ {t('widget.ai_apply_btn')}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Status Message banner */}
+              {aiStatusMessage && (
+                <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-3 rounded-lg text-[10px] leading-normal font-sans">
+                  {aiStatusMessage}
+                </div>
+              )}
+
+            </div>
+          ) : (
+            <div className="text-[10px] text-slate-500 font-mono text-center py-4">
+              Awaiting telemetry sync... calibration suggestions offline.
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* 3. SETTINGS FORM WITH PREMIUM SLIDERS */}
       <Card>

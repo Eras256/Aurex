@@ -1,18 +1,54 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 
 import { Badge } from '@/components/ui/badge';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
+import { MockDiagnostics } from '@/lib/ai/mock/mockDiagnostics';
+import { HealthAIOutput } from '@/lib/ai/types';
 
 import { useLanguage } from '../LanguageContext';
 import { useWebSocket } from '../WebSocketContext';
 
 export default function SystemHealthPage() {
   const { state, connected } = useWebSocket();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+
+  const conn = state?.connections || {
+    binance: { connected: false, reconnects: 0, lastMessageAt: 0 },
+    kraken: { connected: false, reconnects: 0, lastMessageAt: 0 },
+    coinbase: { connected: false, reconnects: 0, lastMessageAt: 0 },
+  };
+
+  const metrics = state?.metrics;
+
+  // AI Diagnostics State (Phase 1)
+  const [aiDiag, setAiDiag] = useState<HealthAIOutput | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchDiagnostics = async () => {
+      setAiLoading(true);
+      try {
+        const reconnects: Record<string, number> = {};
+        Object.entries(conn).forEach(([k, v]) => {
+          reconnects[k] = v.reconnects;
+        });
+        const res = await MockDiagnostics.diagnoseHealth({
+          jitterVarianceMs: metrics?.detectionLatencyMs ?? 1.2,
+          reconnectCounts: reconnects,
+        });
+        setAiDiag(res);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setAiLoading(false);
+      }
+    };
+    fetchDiagnostics();
+  }, [metrics?.detectionLatencyMs]);
 
   // Uptime formatting helper
   const formatUptime = (totalSeconds: number) => {
@@ -22,15 +58,8 @@ export default function SystemHealthPage() {
     return `${hours.toString().padStart(2, '0')}h ${minutes.toString().padStart(2, '0')}m ${seconds.toString().padStart(2, '0')}s`;
   };
 
-  const conn = state?.connections || {
-    binance: { connected: false, reconnects: 0, lastMessageAt: 0 },
-    kraken: { connected: false, reconnects: 0, lastMessageAt: 0 },
-    coinbase: { connected: false, reconnects: 0, lastMessageAt: 0 },
-  };
-
   const events = state?.events || [];
   const uptime = state?.uptime || 0;
-  const metrics = state?.metrics;
 
   // Engine liveness: paused (manual), live (evaluating recently), or idle (running but no
   // recent evaluations — the watchdog self-heals this). Mirrors the backend autostart guard.
@@ -189,6 +218,71 @@ export default function SystemHealthPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 2e. INTEGRATED AI SYSTEM DIAGNOSTICS MONITOR (Phase 1) */}
+      <Card glow className="border-amber-500/10 bg-slate-950/20 backdrop-blur-md">
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-gold animate-pulse"></span>
+              <CardTitle className="text-xs uppercase font-mono tracking-wider">{t('widget.ai_diagnostics')}</CardTitle>
+            </div>
+            <CardDescription className="text-[10px] font-mono mt-0.5">{t('widget.ai_diagnostics_sub')}</CardDescription>
+          </div>
+          <Badge variant="outline" className="text-[9px] border-amber-500/25 text-amber-500 font-mono tracking-wider font-semibold uppercase animate-pulse">
+            🛡️ {t('widget.ai_advisory_only')}
+          </Badge>
+        </CardHeader>
+        <CardContent className="p-4 pt-1">
+          {aiLoading && !aiDiag ? (
+            <div className="space-y-2 animate-pulse py-2 font-mono text-[10px]">
+              <div className="h-4 bg-white/5 rounded w-3/4"></div>
+              <div className="h-3 bg-white/5 rounded w-1/2"></div>
+            </div>
+          ) : aiDiag ? (
+            <div className="space-y-4 font-mono text-[11px] leading-relaxed">
+              
+              {/* Rating and Connection Jitter */}
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-bold uppercase text-[9px]">Telemetry Assessment</span>
+                <div className="flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${
+                    aiDiag.healthRating === 'NOMINAL' 
+                      ? 'bg-emerald-400 animate-pulse' 
+                      : aiDiag.healthRating === 'DEGRADED' 
+                        ? 'bg-amber-400' 
+                        : 'bg-rose-500'
+                  }`}></span>
+                  <Badge variant={aiDiag.healthRating === 'NOMINAL' ? 'success' : aiDiag.healthRating === 'DEGRADED' ? 'warning' : 'destructive'} className="text-[9px] font-bold py-0.5 px-2 uppercase rounded">
+                    {aiDiag.healthRating}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Terminal Diagnostics Feed */}
+              <div className="border border-white/5 bg-slate-950 p-4 rounded-lg font-mono text-xs text-slate-300 leading-normal border-l-2 border-l-amber-500">
+                <div className="flex items-center gap-2 border-b border-white/5 pb-2 mb-2 text-[10px] text-slate-500">
+                  <span>SYSTEM::DIAGNOSTIC_DAEMON_V1 &gt;_</span>
+                  <span className="ml-auto font-normal">LOCK_OK</span>
+                </div>
+                <p className="text-[11px] text-slate-200">
+                  {language === 'es' ? aiDiag.telemetryAnalysis.es : aiDiag.telemetryAnalysis.en}
+                </p>
+              </div>
+
+              <div className="flex justify-between items-center text-[9px] text-slate-500 pt-2 border-t border-white/5">
+                <span>Diagnostics: PASS</span>
+                <Badge variant="outline" className="text-[8px] text-slate-400 font-mono py-0 px-1">{t('widget.ai_advisory_only')}</Badge>
+              </div>
+
+            </div>
+          ) : (
+            <div className="text-[10px] text-slate-500 font-mono text-center py-4">
+              Awaiting telemetry diagnostics stream...
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* EXCHANGE FEEDS METRICS — one card per live venue */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
