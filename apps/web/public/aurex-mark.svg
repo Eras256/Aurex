@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="100%" height="100%" fill="none">
+  <!-- Left Pillar (Bid exchange L2 limits) -->
+  <path d="M4 28 L10 28 L15 8 L11 8 Z" fill="#F5F7FA" />
+  <!-- Right Pillar (Ask exchange L2 limits) -->
+  <path d="M28 28 L22 28 L17 8 L21 8 Z" fill="#F5F7FA" />
+  <!-- Crossbar Bridge (Execution Arbitrage Corridor) -->
+  <path d="M12.5 17.5 L19.5 17.5 L20 19.5 L12 19.5 Z" fill="#C89B3C" />
+</svg>

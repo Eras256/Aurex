@@ -1,0 +1,102 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-darkBg text-slate-100 font-sans antialiased;
+    background-image: radial-gradient(
+      circle at 12% 18%,
+      rgba(25, 30, 40, 0.25) 0%,
+      rgba(10, 10, 10, 1) 90%
+    );
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+}
+
+/* Glassmorphism visual components */
+.glass-panel {
+  @apply bg-darkCard border border-white/5 backdrop-blur-md rounded-xl shadow-2xl;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+}
+
+.glass-panel-glow {
+  @apply bg-darkCard border border-white/10 backdrop-blur-md rounded-xl shadow-2xl;
+  box-shadow:
+    0 8px 32px 0 rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(200, 155, 60, 0.05);
+}
+
+.neon-border-green {
+  border-color: rgba(19, 157, 114, 0.35);
+  box-shadow: 0 0 15px rgba(19, 157, 114, 0.05);
+}
+
+.neon-border-red {
+  border-color: rgba(207, 66, 89, 0.35);
+  box-shadow: 0 0 15px rgba(207, 66, 89, 0.05);
+}
+
+/* Financial values text glowing indicators */
+.glow-text-green {
+  text-shadow: 0 0 8px rgba(19, 157, 114, 0.45);
+}
+
+.glow-text-gold {
+  text-shadow: 0 0 8px rgba(200, 155, 60, 0.45);
+}
+
+.glow-text-blue {
+  text-shadow: 0 0 8px rgba(59, 167, 182, 0.45);
+}
+
+/* Custom Scrollbars for financial sheets */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(10, 10, 10, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+/* Real-time row flash animations on execution ticks */
+@keyframes flashGreen {
+  0% {
+    background-color: rgba(19, 157, 114, 0.2);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.flash-row-green {
+  animation: flashGreen 1.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes pulseGold {
+  0%,
+  100% {
+    border-color: rgba(200, 155, 60, 0.08);
+  }
+  50% {
+    border-color: rgba(200, 155, 60, 0.3);
+  }
+}
+
+.glow-pulse-gold {
+  animation: pulseGold 2s infinite ease-in-out;
+}

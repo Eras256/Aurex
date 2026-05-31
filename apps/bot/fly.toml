@@ -1,0 +1,35 @@
+# fly.toml configuration file for deploying the Aurex Bot on Fly.io
+app = "bitcoin-arbitrage-bot"
+primary_region = "ord"
+
+[http_service]
+  internal_port = 3001
+  force_https = true
+  auto_stop_machines = false # Keep simulator active to continually fetch and execute trades
+  auto_start_machines = true
+  min_machines_running = 1 # Keep one machine warm so long-lived WebSocket clients aren't dropped
+
+  # Connection-based limits suit a small Node app holding open WS connections.
+  [http_service.concurrency]
+    type = "connections"
+    soft_limit = 200
+    hard_limit = 250
+
+# HTTP health check against the Express /health endpoint (same internal port).
+[[http_service.checks]]
+  interval = "15s"
+  timeout = "2s"
+  grace_period = "10s"
+  method = "get"
+  path = "/health"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3001"
+  BINANCE_WS_URL = "wss://stream.binance.com:9443/ws"
+  KRAKEN_WS_URL = "wss://ws.kraken.com"
+  # CORS allowlist (comma-separated). Keep http://localhost:3000 for local dev.
+  # TODO: replace "https://bitcoin-arbitrage-web.vercel.app" with your REAL
+  # Vercel production domain before deploying, or override at deploy time with:
+  #   flyctl secrets set ALLOWED_ORIGINS="https://<your-vercel-domain>,http://localhost:3000" --config apps/bot/fly.toml
+  ALLOWED_ORIGINS = "https://bitcoin-arbitrage-web.vercel.app,http://localhost:3000"

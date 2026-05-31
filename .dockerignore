@@ -1,0 +1,24 @@
+# Keep the Docker build context small and reproducible.
+# Dependencies and build artifacts are produced inside the image.
+node_modules
+**/node_modules
+dist
+**/dist
+.next
+**/.next
+.turbo
+**/.turbo
+
+# Frontend app is deployed separately (Vercel); not needed for the bot image
+apps/web
+
+# Local env / tooling / VCS
+.env
+.env.*
+.git
+.github
+*.log
+playwright-report
+test-results
+.vercel
+.DS_Store

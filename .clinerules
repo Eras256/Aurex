@@ -1,0 +1,23 @@
+# 📊 Antigravity Arbitrage Core &mdash; AI Assistant Memory Rules (Cline)
+# This file forces the AI assistant to read the master memory before taking action.
+
+Always, at the start of any new conversation or before starting any task in this workspace, you MUST read and assimilate the contents of:
+- `claude.md` (Master Memory & Rules &mdash; containing both Strategic Roadmap, 70+ Audited Doc Links, Technical Manual, Command Registry, Naming Conventions, and Security Policies).
+
+No assumptions about the state of the project, exchange WebSocket structures, or coding conventions should be made without reading this file.
+
+---
+
+## 🔒 Audited Exchange Reference Policies
+Pay special attention to the links catalog in Part 1 of `claude.md`. These represent our **Audited Sources of Truth** for CEX APIs (Binance Spot, Kraken Spot, Coinbase Advanced, OKX, Bybit, etc.).
+
+When building active adapters, extending stubbed venues, or designing API clients:
+- **NO Base Hallucinations:** Do not guess, invent, or rely on outdated base knowledge regarding REST paths, depth parameters, or WebSocket channel names.
+- **Audited Links Scrape:** Use your web retrieval/scraping tools to explore and parse the official documentation URLs defined in `claude.md`.
+
+---
+
+## 📈 Continuous Memory Maintenance (CRITICAL)
+Upon successfully completing any significant implementation (such as registering a new package, refactoring engine math, modifying risk breaker variables, or installing new dependencies), **it is your strict obligation as an AI agent** to update `claude.md` to reflect those updates *before* concluding your turn. 
+
+Never allow code, folders, or scripts to drift from the memory file.
