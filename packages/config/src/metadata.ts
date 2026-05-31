@@ -74,8 +74,8 @@ export const EXCHANGES_METADATA: Record<string, ExchangeMetadata> = {
 };
 
 const seedWallet = () => ({
-  BTC: { free: 1.5, locked: 0 },
-  USDT: { free: 60000, locked: 0 },
+  BTC: { free: 2, locked: 0 },
+  USDT: { free: 400000, locked: 0 },
 });
 
 export const INITIAL_WALLET_BALANCES: Record<

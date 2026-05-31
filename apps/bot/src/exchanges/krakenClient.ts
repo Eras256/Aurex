@@ -80,16 +80,19 @@ export class KrakenClient implements ExchangeAdapter {
     return this.lastMessageTimestamp;
   }
 
-  // Maps external standard symbol to Kraken specific syntax (BTCUSDT -> XBT/USDT)
+  // Maps the canonical symbol to Kraken's native WS pair. We serve BTC from Kraken's
+  // flagship, deepest book — XBT/USD — and treat USD as the dollar quote (same approach
+  // as the Coinbase adapter). XBT/USDT on Kraken is comparatively thin, so XBT/USD gives
+  // far better depth-walk fidelity for arbitrage sizing.
   private mapSymbolToKraken(sym: string): string {
-    if (sym === 'BTCUSDT') return 'XBT/USDT';
+    if (sym === 'BTCUSDT') return 'XBT/USD';
     if (sym === 'BTCUSD') return 'XBT/USD';
     return sym;
   }
 
-  // Maps external standard symbol to Kraken REST specific pair syntax (BTCUSDT -> XBTUSDT)
+  // Maps the canonical symbol to Kraken's REST pair syntax (XBT/USD -> XBTUSD).
   private mapSymbolToKrakenRest(sym: string): string {
-    if (sym === 'BTCUSDT') return 'XBTUSDT';
+    if (sym === 'BTCUSDT') return 'XBTUSD';
     if (sym === 'BTCUSD') return 'XBTUSD';
     return sym.replace('/', '');
   }
@@ -314,14 +317,17 @@ export class KrakenClient implements ExchangeAdapter {
 
     let checksumString = '';
 
-    // Kraken CRC32 combines top 10 asks first, then top 10 bids
+    // Kraken CRC32 combines top 10 asks first, then top 10 bids. Both price and volume
+    // must use the pair's wire precision (XBT/USD: 1 decimal price, 8 decimal volume)
+    // BEFORE stripping the decimal point and leading zeros — formatting volume via
+    // toString() drops trailing zeros and breaks the checksum.
     for (let i = 0; i < 10; i++) {
       checksumString += cleanStringForChecksum(this.localAsks[i].price.toFixed(1));
-      checksumString += cleanStringForChecksum(this.localAsks[i].amount.toString());
+      checksumString += cleanStringForChecksum(this.localAsks[i].amount.toFixed(8));
     }
     for (let i = 0; i < 10; i++) {
       checksumString += cleanStringForChecksum(this.localBids[i].price.toFixed(1));
-      checksumString += cleanStringForChecksum(this.localBids[i].amount.toString());
+      checksumString += cleanStringForChecksum(this.localBids[i].amount.toFixed(8));
     }
 
     const calculated = crc32(checksumString);

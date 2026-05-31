@@ -95,7 +95,7 @@ export default function OverviewPage() {
             Aurex is an institutional-grade platform for real-time Bitcoin arbitrage detection, execution simulation, and risk-aware market monitoring across multiple exchanges.
           </p>
         </div>
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap shrink-0">
           <Link href="/markets" passHref legacyBehavior>
             <Button variant="outline" size="default">
               Monitor Order Books

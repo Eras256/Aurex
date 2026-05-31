@@ -25,7 +25,7 @@ export function HeaderTicker() {
     : 0;
 
   return (
-    <div className="flex items-center gap-6 overflow-x-auto py-2 no-scrollbar">
+    <div className="flex-1 min-w-0 flex items-center gap-6 overflow-x-auto py-2 no-scrollbar mr-4">
       {/* BTC reference ticker (live Binance mid) */}
       <div className="flex items-center gap-2 text-xs">
         <span className="text-slate-500 font-mono">BTC SPOT:</span>

@@ -276,9 +276,9 @@ export default function RiskSettingsPage() {
 
             </div>
 
-            <div className="flex items-center justify-between border-t border-white/5 pt-6 mt-8">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-t border-white/5 pt-6 mt-8">
               <span className="text-xs text-slate-400 font-mono font-medium">{saveStatus || ''}</span>
-              <Button type="submit" disabled={saving}>
+              <Button type="submit" disabled={saving} className="w-full sm:w-auto">
                 {saving ? 'Persisting changes...' : 'Save Configuration Changes'}
               </Button>
             </div>

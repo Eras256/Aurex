@@ -133,6 +133,17 @@ export class ArbitrageEngine {
   async resetSimulation() {
     await this.pnlTracker.reset();
     this.riskManager.resetBreakers();
+
+    // Reload the in-memory wallets from the freshly-reset persistence layer (the HTTP
+    // route resets the DB balances before calling this). Deep-clone so engine mutations
+    // never alias the seed constant. Without this, a reset left the engine trading on
+    // the old drained balances.
+    const restored = await loadBalances();
+    if (restored) {
+      this.wallets = JSON.parse(JSON.stringify(restored));
+      await saveBalances(this.wallets);
+    }
+
     this.booksProcessed = 0;
     this.opportunitiesDetected = 0;
     this.latencySamples = [];

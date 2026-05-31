@@ -131,7 +131,7 @@ export default function MarketsPage() {
           Comparative Order Books
         </h2>
         <p className="mt-2 text-sm text-slate-400">
-          Live L2 order books across 5 venues (Binance, Kraken, Coinbase, OKX, Bybit). Binance vs Kraken are shown side-by-side below; the engine ranks spreads across every venue pair net of simulated fees.
+          Live L2 order books across 5 venues — Binance (BTC/USDT), Kraken (XBT/USD), Coinbase (BTC/USD), OKX & Bybit (BTC/USDT). Binance vs Kraken are shown side-by-side below (the USDT-vs-USD basis is itself part of the dislocation); the engine ranks spreads across every venue pair net of simulated fees.
         </p>
       </div>
 
@@ -139,12 +139,12 @@ export default function MarketsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Route A: Binance to Kraken */}
         <Card className={`border ${grossBtoK > 0 ? 'border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.05)]' : 'border-white/5'}`}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2">
             <div>
               <CardTitle className="text-[10px] text-slate-500 font-mono tracking-wider">ROUTE permutation</CardTitle>
               <h3 className="font-bold text-sm tracking-wide text-white uppercase mt-1">Binance &rarr; Kraken</h3>
             </div>
-            <Badge variant={grossBtoK > 0 ? 'success' : 'secondary'}>
+            <Badge variant={grossBtoK > 0 ? 'success' : 'secondary'} className="self-start sm:self-auto">
               {grossBtoK > 0 ? 'ARBITRAGE WINDOW' : 'NO SPREAD'}
             </Badge>
           </CardHeader>
@@ -172,12 +172,12 @@ export default function MarketsPage() {
 
         {/* Route B: Kraken to Binance */}
         <Card className={`border ${grossKtoB > 0 ? 'border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.05)]' : 'border-white/5'}`}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2">
             <div>
               <CardTitle className="text-[10px] text-slate-500 font-mono tracking-wider">ROUTE permutation</CardTitle>
               <h3 className="font-bold text-sm tracking-wide text-white uppercase mt-1">Kraken &rarr; Binance</h3>
             </div>
-            <Badge variant={grossKtoB > 0 ? 'success' : 'secondary'}>
+            <Badge variant={grossKtoB > 0 ? 'success' : 'secondary'} className="self-start sm:self-auto">
               {grossKtoB > 0 ? 'ARBITRAGE WINDOW' : 'NO SPREAD'}
             </Badge>
           </CardHeader>
@@ -206,12 +206,12 @@ export default function MarketsPage() {
 
       {/* 2. DYNAMIC DEPTH CHART VISUALIZER */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-0 border-b-0">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-0 border-b-0">
           <div>
             <CardTitle className="text-xs">Liquidity Depth Analysis</CardTitle>
             <CardDescription className="text-[10px] font-mono">Cumulative bids vs asks quantity meeting at mid-price</CardDescription>
           </div>
-          <Tabs value={activeDepthExchange} onValueChange={setActiveDepthExchange} className="w-auto">
+          <Tabs value={activeDepthExchange} onValueChange={setActiveDepthExchange} className="w-auto self-start sm:self-auto">
             <TabsList>
               <TabsTrigger value="binance">Binance Spot</TabsTrigger>
               <TabsTrigger value="kraken">Kraken Spot</TabsTrigger>
@@ -275,12 +275,12 @@ export default function MarketsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Left: Binance Spot order book */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-3">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3">
             <div>
               <CardTitle className="text-xs">Binance Spot L2 (BTC/USDT)</CardTitle>
               <CardDescription className="text-[10px] font-mono">VIP Taker Fee: 0.04% | Refreshed every 100ms</CardDescription>
             </div>
-            <div className="text-right">
+            <div className="text-left sm:text-right">
               <span className="text-[10px] text-slate-500 font-mono block">MID PRICE</span>
               <p className="text-sm font-bold font-mono text-amber-500">${binanceMid.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
             </div>
@@ -332,12 +332,12 @@ export default function MarketsPage() {
 
         {/* Right: Kraken Spot order book */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-3">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3">
             <div>
-              <CardTitle className="text-xs">Kraken Spot L2 (XBT/USDT)</CardTitle>
-              <CardDescription className="text-[10px] font-mono">VIP Taker Fee: 0.10% | CRC Checksums Valid</CardDescription>
+              <CardTitle className="text-xs">Kraken Spot L2 (XBT/USD)</CardTitle>
+              <CardDescription className="text-[10px] font-mono">VIP Taker Fee: 0.10% | CRC32 Checksums Valid</CardDescription>
             </div>
-            <div className="text-right">
+            <div className="text-left sm:text-right">
               <span className="text-[10px] text-slate-500 font-mono block">MID PRICE</span>
               <p className="text-sm font-bold font-mono text-amber-500">${krakenMid.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
             </div>
