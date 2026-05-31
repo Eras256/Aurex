@@ -8,14 +8,14 @@ This document serves as the official production readiness audit, comprehensive E
 
 Aurex has transitioned from a sandboxed frontend simulation to a live, production-grade cross-exchange arbitrage pipeline. The in-memory execution engine (`apps/bot`) containerized on **Fly.io** is fully integrated with a cloud **Supabase PostgreSQL** cluster and feeds a responsive, real-time client terminal (`apps/web`) on **Vercel**.
 
-To ensure 100% reliability, fault tolerance, and security for high-stakes institutional demos, we have implemented:
+To ensure high operational resilience, robust fault tolerance, and security for high-stakes institutional demos, we have implemented:
 
 1. **Dynamic Parameter Calibration REST APIs** allowing on-the-fly execution changes without container restarts.
 2. **Dedicated WebSocket Telemetry Pipelines** streaming microsecond metrics and feed lag per exchange venue.
 3. **Database-Level Immutability Safeguards** rejecting unauthorized deletions and updates to audit trails.
 4. **Secure Server-Side API Routing Proxies** protecting critical service keys from browser exposure.
 
-Every subsystem has been verified through a rigorous integration testing suite (**41/41 passing tests**), simulating severe network failures, offline database crashes, and unauthorized intrusion vectors. The platform is **100% ready** for live demonstration and production evaluation.
+Every subsystem has been verified through a rigorous integration testing suite (**41/41 passing tests**), simulating severe network failures, offline database crashes, and unauthorized intrusion vectors. The platform is **fully prepared** for live demonstration and production evaluation.
 
 ---
 
@@ -127,7 +127,7 @@ Si los jueces te piden comprobar que el sistema es resiliente, o si ocurre una f
 Aurex modela la ejecución real con extrema fidelidad, pero por obvias razones de seguridad y capital en una simulación de demo:
 
 1. **Wallet balances:** Los saldos de las wallets (`$10,000 USD` / `1.5 BTC` iniciales) son simulados en memoria/base de datos. Sin embargo, los retiros y rebalanceos blockchain descuentan tarifas de red reales estimadas sobre la mainnet en cada tick.
-2. **Order execution:** Las órdenes no se envían a los libros reales de Binance/Kraken como órdenes reales (para no gastar capital real), pero se ejecutan virtualmente contra los libros L2 reales consumiendo la liquidez disponible real, garantizando que el deslizamiento de precio (slippage) y el VWAP sean 100% verídicos.
+2. **Order execution:** Las órdenes no se envían a los libros reales de Binance/Kraken como órdenes reales (para no gastar capital real), pero se ejecutan virtualmente contra los libros L2 reales consumiendo la liquidez disponible real, garantizando que el deslizamiento de precio (slippage) y el VWAP sean realistas e institucionales.
 
 ---
 
@@ -138,4 +138,4 @@ A los jurados y expertos cuantitativos les importan tres cosas: **Precisión Fin
 1. **Destaca el VWAP L2:** Explica que calcular spreads con L1 (Bid/Ask planos) es un error de amateur que quiebra fondos. Aurex recorre la profundidad del libro real para cada tamaño de orden.
 2. **Enfatiza la Inmutabilidad de Auditorías:** Muestra que la tabla `copilot_audit_trail` de Supabase es **inmutable a nivel de motor SQL (trigger PostgreSQL)**. Ni siquiera un atacante con las llaves de administración (`service_role`) puede borrar la evidencia de una recomendación de IA aplicada. Esto es cumplimiento normativo de grado institucional.
 3. **Muestra la Telemetría Red vs Cómputo:** Los jueces técnicos valorarán enormemente que separes la latencia del WebSocket del exchange (milisegundos) de la velocidad de tu algoritmo de arbitraje (microsegundos).
-4. **Presume la Robustez Monorepo:** Explica que el monorepo PNPM incluye tipado estricto unificado, logs estructurados JSON con Pino y una cobertura del 100% de tests robustos de integración de APIs y seguridad.
+4. **Presume la Robustez Monorepo:** Explica que el monorepo PNPM incluye tipado estricto unificado, logs estructurados JSON con Pino y una cobertura completa de tests robustos de integración de APIs y seguridad.
