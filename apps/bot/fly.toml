@@ -42,5 +42,8 @@ primary_region = "fra"
   ENGINE_MAX_POSITION_BTC_PER_EXCHANGE = "5"
   ENGINE_LATENCY_SAFETY_BPS = "1"
   ENGINE_SLIPPAGE_SAFETY_BPS = "0"
+  # Stablecoin (USD<->USDT) basis cost charged only on cross-quote legs (e.g. Coinbase
+  # BTC-USD vs Binance BTC-USDT), so the Coinbase premium isn't booked as free profit.
+  ENGINE_USDT_USD_BASIS_BPS = "8"
   # CORS allowlist (comma-separated). Production Vercel frontend + local dev.
   ALLOWED_ORIGINS = "https://aurex-terminal.vercel.app,http://localhost:3000"

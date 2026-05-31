@@ -41,8 +41,9 @@ export function walkOrderBook(
  * - Taker Fee (Sell) = Sell Price * sellTakerFeeDecimal
  * - Latency Penalty = Average Price * latencySafetyBps / 10000
  * - Slippage Penalty = Average Price * slippageSafetyBps / 10000
+ * - Cross-Quote (USD↔USDT basis) Cost = Average Price * crossQuoteBps / 10000 (only when legs differ in quote currency)
  * - Withdrawal Cost = Simulated network transfer fee in Quote asset
- * - Net Spread = Sell Price * (1 - Sell Fee Dec) - Buy Price * (1 + Buy Fee Dec) - Latency Penalty - Slippage Penalty
+ * - Net Spread = Sell Price * (1 - Sell Fee Dec) - Buy Price * (1 + Buy Fee Dec) - Latency Penalty - Slippage Penalty - Cross-Quote Cost
  */
 export function calculateNetSpread({
   buyPrice,
@@ -53,6 +54,7 @@ export function calculateNetSpread({
   slippageSafetyBps,
   withdrawalFeeBTC,
   btcPriceQuote,
+  crossQuoteBps = 0,
 }: {
   buyPrice: number;
   sellPrice: number;
@@ -62,6 +64,12 @@ export function calculateNetSpread({
   slippageSafetyBps: number;
   withdrawalFeeBTC: number;
   btcPriceQuote: number;
+  /**
+   * USD↔USDT conversion cost in bps, applied only when the buy and sell legs are quoted
+   * in different currencies (e.g. Coinbase BTC-USD vs Binance BTC-USDT). Defaults to 0
+   * so same-quote pairs are unaffected.
+   */
+  crossQuoteBps?: number;
 }): {
   grossSpread: number;
   buyCostPerBTC: number;
@@ -69,6 +77,7 @@ export function calculateNetSpread({
   feeCostUSD: number;
   slippageCostUSD: number;
   latencyCostUSD: number;
+  crossQuoteCostUSD: number;
   withdrawalCostUSD: number;
   netSpread: number;
 } {
@@ -84,6 +93,8 @@ export function calculateNetSpread({
   const avgPrice = (buyPrice + sellPrice) / 2;
   const latencyCostUSD = avgPrice * (latencySafetyBps / 10000);
   const slippageCostUSD = avgPrice * (slippageSafetyBps / 10000);
+  // Stablecoin-basis cost to actually move value across USD and USDT rails.
+  const crossQuoteCostUSD = avgPrice * (crossQuoteBps / 10000);
 
   const withdrawalCostUSD = withdrawalFeeBTC * btcPriceQuote;
 
@@ -91,7 +102,7 @@ export function calculateNetSpread({
   const sellProceedsPerBTC = sellPrice * (1 - sellFeeDecimal);
 
   // Net spread per BTC (before subtracting withdrawal costs which are flat-rate, handled at aggregate opportunity volume level)
-  const netSpread = sellProceedsPerBTC - buyCostPerBTC - latencyCostUSD - slippageCostUSD;
+  const netSpread = sellProceedsPerBTC - buyCostPerBTC - latencyCostUSD - slippageCostUSD - crossQuoteCostUSD;
 
   return {
     grossSpread,
@@ -100,6 +111,7 @@ export function calculateNetSpread({
     feeCostUSD,
     slippageCostUSD,
     latencyCostUSD,
+    crossQuoteCostUSD,
     withdrawalCostUSD,
     netSpread,
   };

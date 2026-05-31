@@ -28,7 +28,9 @@ export const Navigation: React.FC = () => {
     <>
       {/* 1. MOBILE HEADER BAR */}
       <div className="md:hidden w-full h-16 bg-darkCard border-b border-white/5 px-4 flex items-center justify-between shrink-0 backdrop-blur-xl sticky top-0 z-50">
-        <AurexLogo variant="full" size="sm" />
+        <Link href="/" className="cursor-pointer hover:opacity-90 transition-opacity flex items-center">
+          <AurexLogo variant="full" size="sm" />
+        </Link>
         
         <div className="flex items-center gap-3">
           {/* Mobile Language Toggle */}
@@ -137,7 +139,9 @@ export const Navigation: React.FC = () => {
         <div>
           {/* Brand / Logo */}
           <div className="px-2 mb-8 flex items-center">
-            <AurexLogo variant="full" size="md" />
+            <Link href="/" className="cursor-pointer hover:opacity-90 transition-opacity flex items-center">
+              <AurexLogo variant="full" size="md" />
+            </Link>
           </div>
 
           {/* Primary Nav Links */}

@@ -60,7 +60,7 @@ export async function initializeDatabase() {
       opportunities: parsed.opportunities || [],
       trades: parsed.trades || [],
       events: parsed.events || [],
-      balances: parsed.balances || INITIAL_WALLET_BALANCES,
+      balances: parsed.balances || JSON.parse(JSON.stringify(INITIAL_WALLET_BALANCES)),
       config: parsed.config || DEFAULT_ENGINE_CONFIG,
       pnlHistory: parsed.pnlHistory || [{ timestamp: Date.now(), value: 100000 }],
     };
@@ -248,7 +248,9 @@ export async function resetSimulation(): Promise<void> {
   dbState.opportunities = [];
   dbState.trades = [];
   dbState.events = [];
-  dbState.balances = INITIAL_WALLET_BALANCES;
+  // Deep-clone so subsequent in-memory mutations (trades, rebalancing) never alias the
+  // shared seed constant.
+  dbState.balances = JSON.parse(JSON.stringify(INITIAL_WALLET_BALANCES));
   dbState.pnlHistory = [{ timestamp: Date.now(), value: 100000 }];
   await flushToDisk();
 

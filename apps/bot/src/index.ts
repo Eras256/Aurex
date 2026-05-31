@@ -73,10 +73,19 @@ async function bootstrap() {
     wsServer.broadcast();
   }, 300);
 
+  // 8b. Settlement-style inventory rebalancing loop. Keeps cross-venue reserves solvent so
+  // directed arbitrage doesn't stall on "insufficient reserve" after draining one side.
+  const rebalanceInterval = setInterval(() => {
+    engine.maybeRebalance().catch((err) =>
+      logger.error('Inventory rebalance cycle failed', err)
+    );
+  }, 10000);
+
   // 9. Elegant Process termination handlers
   const shutdown = async (signal: string) => {
     logger.info(`🚨 Received signal: ${signal}. Commencing elegant shutdown...`);
     clearInterval(broadcastInterval);
+    clearInterval(rebalanceInterval);
     
     // Close servers
     httpServer.close();

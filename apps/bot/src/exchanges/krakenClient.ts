@@ -56,6 +56,8 @@ export class KrakenClient implements ExchangeAdapter {
 
   private snapshotReceived = false;
   private lastChecksumHealAt = 0;
+  // Exchange-stamped event time (ms), derived from the latest level timestamp (3rd element).
+  private lastEventTime = 0;
 
   // Internal L2 Order book representation for incremental diff updates
   private localAsks: OrderBookLevel[] = [];
@@ -219,6 +221,9 @@ export class KrakenClient implements ExchangeAdapter {
         this.logger.info({ eventType: 'INFO' }, '📥 First L2 depth snapshot received from Kraken Spot.');
       }
 
+      this.captureEventTime(data.as);
+      this.captureEventTime(data.bs);
+
       this.localAsks = data.as.map((a: string[]) => ({
         price: parseFloat(a[0]),
         amount: parseFloat(a[1]),
@@ -236,11 +241,13 @@ export class KrakenClient implements ExchangeAdapter {
     let bookUpdated = false;
 
     if (data.a) {
-      this.applyUpdates(this.localAsks, data.a, true);
+      this.captureEventTime(data.a);
+      this.applyUpdates(this.localAsks, data.a);
       bookUpdated = true;
     }
     if (data.b) {
-      this.applyUpdates(this.localBids, data.b, false);
+      this.captureEventTime(data.b);
+      this.applyUpdates(this.localBids, data.b);
       bookUpdated = true;
     }
 
@@ -249,7 +256,21 @@ export class KrakenClient implements ExchangeAdapter {
     }
   }
 
-  private applyUpdates(bookSide: OrderBookLevel[], updates: string[][], isAsk: boolean) {
+  /**
+   * Extracts the latest level timestamp (3rd element, Unix seconds with microsecond
+   * precision per Kraken WS v1 book spec) and records it in ms as the event time.
+   */
+  private captureEventTime(levels: string[][]) {
+    for (const level of levels) {
+      const tsSeconds = parseFloat(level[2]);
+      if (Number.isFinite(tsSeconds)) {
+        const tsMs = tsSeconds * 1000;
+        if (tsMs > this.lastEventTime) this.lastEventTime = tsMs;
+      }
+    }
+  }
+
+  private applyUpdates(bookSide: OrderBookLevel[], updates: string[][]) {
     for (const update of updates) {
       const price = parseFloat(update[0]);
       const amount = parseFloat(update[1]);
@@ -311,6 +332,7 @@ export class KrakenClient implements ExchangeAdapter {
       asks: this.localAsks,
       lastUpdateId: expectedChecksum || Date.now().toString(),
       updatedAt: Date.now(),
+      eventTimestamp: this.lastEventTime || undefined,
     };
 
     this.callback(normalizedBook);

@@ -64,6 +64,7 @@ export default function OpportunitiesPage() {
                 <TableHead className="px-4 py-3 text-right">{t('opps.col_net')}</TableHead>
                 <TableHead className="px-4 py-3 text-right">{t('opps.col_volume')}</TableHead>
                 <TableHead className="px-4 py-3 text-right">{t('opps.col_profit')}</TableHead>
+                <TableHead className="px-4 py-3 text-right">{t('opps.col_confidence')}</TableHead>
                 <TableHead className="px-4 py-3">{t('opps.col_status')}</TableHead>
                 <TableHead className="px-4 py-3">{t('opps.col_reason')}</TableHead>
               </TableRow>
@@ -71,7 +72,7 @@ export default function OpportunitiesPage() {
             <TableBody>
               {filteredOpps.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="py-10 text-center text-slate-500">
+                  <TableCell colSpan={11} className="py-10 text-center text-slate-500">
                     {t('opps.no_opps_filter')}
                   </TableCell>
                 </TableRow>
@@ -103,6 +104,18 @@ export default function OpportunitiesPage() {
                     </TableCell>
                     <TableCell className={`px-4 py-2.5 text-right font-bold ${opp.expectedNetProfitUSD >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                       {opp.expectedNetProfitUSD >= 0 ? '+' : '-'}${Math.abs(opp.expectedNetProfitUSD).toFixed(2)}
+                    </TableCell>
+                    <TableCell
+                      className={`px-4 py-2.5 text-right font-mono text-[11px] ${
+                        (opp.zScore ?? 0) >= 2
+                          ? 'text-cyan-300'
+                          : (opp.zScore ?? 0) >= 1
+                            ? 'text-cyan-500/70'
+                            : 'text-slate-500'
+                      }`}
+                      title="Statistical confidence: z-score of this spread vs the pair's rolling history. Higher = more anomalously wide (stronger mean-reversion signal)."
+                    >
+                      {opp.zScore !== undefined ? `${opp.zScore.toFixed(2)}σ` : '—'}
                     </TableCell>
                     <TableCell className="px-4 py-2.5">
                       <Badge variant={opp.status === 'EXECUTED' ? 'success' : 'destructive'}>

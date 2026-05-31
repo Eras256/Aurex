@@ -24,6 +24,8 @@ export class BinanceClient implements ExchangeAdapter {
   private eventBuffer: any[] = [];
   private isSyncing = false;
   private snapshotReceived = false;
+  // Exchange-stamped event time (ms) from the most recent diff frame's `E` field.
+  private lastEventTime = 0;
 
   // Custom structured child logger for BinanceClient
   private logger = createChildLogger({
@@ -124,6 +126,8 @@ export class BinanceClient implements ExchangeAdapter {
 
     this.applyDiffs(payload.b, payload.a);
     this.lastUpdateId = payload.u;
+    // `E` is Binance's event time in ms (per Spot WS diff-depth spec).
+    if (typeof payload.E === 'number') this.lastEventTime = payload.E;
     this.notifyListeners();
   }
 
@@ -256,6 +260,7 @@ export class BinanceClient implements ExchangeAdapter {
       asks: this.localAsks,
       lastUpdateId: this.lastUpdateId.toString(),
       updatedAt: Date.now(),
+      eventTimestamp: this.lastEventTime || undefined,
     };
 
     this.callback(normalizedBook);

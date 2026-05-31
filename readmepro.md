@@ -1,10 +1,10 @@
 # ₿ Aurex
 
-### Bitcoin Cross-Exchange Arbitrage Simulator
+### Institutional-Grade Bitcoin Cross-Exchange Arbitrage Simulator
 
-Aurex is a production-style platform designed to detect live cross-exchange Bitcoin spreads, model realistic execution costs, and simulate risk-hedged arbitrage trades in real time across five major centralized venues: Binance, Kraken, Coinbase Advanced, OKX, and Bybit.
+Aurex is an institutional-grade platform designed to detect live cross-exchange Bitcoin spreads, model realistic execution costs, and simulate risk-hedged arbitrage trades in real time across five major centralized venues: Binance, Kraken, Coinbase Advanced, OKX, and Bybit.
 
-**🔗 Live demo:** https://aurex-terminal.vercel.app &nbsp;|&nbsp; **🔌 Backend API:** https://bitcoin-arbitrage-bot.fly.dev
+**🔗 Live demo:** https://aurex-terminal.vercel.app/ &nbsp;|&nbsp; **🔌 Backend health:** https://bitcoin-arbitrage-bot.fly.dev/health
 
 <img width="100%" alt="Aurex Dashboard Overview" src="https://github.com/user-attachments/assets/d94a4ff8-20c0-4688-999b-4188629cfcad" />
 
@@ -19,18 +19,14 @@ Aurex aggregates public real-time Level 2 (L2) order books directly from live ex
 Unlike naive simulators that calculate arbitrary spreads using top-of-book levels alone, Aurex is designed to approximate more realistic execution conditions:
 
 - **Real Depth Walks:** Walks L2 books to derive volume-weighted execution prices.
-- **Realistic Cost Deduction:** Deducts VIP-tier taker fees, withdrawal/rebalancing estimates, and slippage.
-- **Honest USD↔USDT Basis:** Charges a configurable stablecoin-conversion (basis) cost whenever a leg crosses quote currencies, so the well-known "Coinbase premium" (BTC-USD vs BTC-USDT) is never booked as free profit.
+- **Realistic Cost Deduction:** Deducts VIP-tier taker fees, withdrawal estimates, and slippage.
 - **Expected Margin Checks:** Rejects gross-positive spreads that degrade into net-negative returns.
 - **Latency Drift Hedges:** Applies configurable latency basis point buffers to reflect market drift during data transit.
 
 ## 3. Key features
 
 - **5 Concurrent WS Adapters:** Unified streams for Binance, Kraken, Coinbase, OKX, and Bybit.
-- **True Wire-to-Detection Latency:** Latency is measured from each venue's own event timestamp (Binance `E`, OKX `ts`, Bybit `cts`, Kraken level time, Coinbase `timestamp`) to evaluation — not from our own receipt time — for an honest end-to-end figure.
 - **L2 Sizing Math Core:** Iterative optimization that searches for the trade size that maximizes net yield.
-- **Statistical Confidence Ranking:** Tracks a rolling z-score of each pair's spread and, among comparably-profitable windows, prioritizes the statistically anomalous (mean-reverting) dislocation over a coincidentally-marginal one.
-- **Settlement-Style Rebalancing:** Periodically transfers surplus inventory back across venues (paying real withdrawal/stablecoin fees) so directed arbitrage keeps running instead of stalling on a drained reserve.
 - **Risk Control Panel:** Configurable thresholds with circuit breakers for consecutive loss, volatility, and exposure caps.
 - **Dual Persistence Layer:** Seamless failover between zero-config local persistence (`db.json`) and Supabase Postgres.
 - **Telemetry Dashboards:** Real-time mean and p99 detection latency plus throughput monitoring.
@@ -75,15 +71,13 @@ flowchart LR
 
 ## 5. How it works
 
-1. **Stream:** Exchange adapters maintain active L2 order book caches by reconciling snapshots with incremental delta frames, stamping each book with the venue's own event time for true latency measurement.
+1. **Stream:** Exchange adapters maintain active L2 order book caches by reconciling snapshots with incremental delta frames.
 2. **Scan:** The engine evaluates directed venue pairs continuously, such as Coinbase → Binance.
 3. **Walk:** For each candidate, Aurex walks asks on the cheaper venue and bids on the more expensive venue.
 4. **Price:** The engine derives weighted average executable prices from consumed liquidity.
-5. **Hedge:** It applies taker fees, slippage, latency penalties and — when the legs cross USD/USDT — a stablecoin basis cost to estimate net profitability. The withdrawal cost is applied once per opportunity.
+5. **Hedge:** It applies fees, slippage, and latency penalties to estimate net profitability. The withdrawal cost is applied once per opportunity.
 6. **Size:** Position size is expanded incrementally until marginal net profit deteriorates.
-7. **Rank:** Simultaneous windows are ranked by net profit, with a rolling spread z-score breaking near-ties in favour of the statistically more anomalous (mean-reverting) dislocation.
-8. **Commit:** Circuit breakers are checked, simulated wallet balances are updated, and the execution ledger is recorded.
-9. **Rebalance:** A background loop transfers surplus inventory back across venues (net of withdrawal/stablecoin fees) when any reserve runs low, keeping the simulation solvent and trading.
+7. **Rank & Commit:** Simultaneous profitable windows are ranked by expected net profit, the most profitable is selected, circuit breakers are checked, simulated wallet balances are updated, and the execution ledger is recorded.
 
 ## 6. Tech stack
 
@@ -99,7 +93,6 @@ flowchart LR
 ├── packages/
 │   ├── core/         # Shared domain typings and L2 depth-walk math calculators
 │   ├── config/       # Environment schemas and static exchange fee parameters
-│   ├── sdk/          # Typed REST and WebSocket client for the bot backend
 │   └── testing/      # Synthetic book fixtures and mock market data templates
 └── apps/
     ├── bot/          # Express API, CEX WebSocket streams, and execution simulator
@@ -127,8 +120,9 @@ cp apps/web/.env.local.example apps/web/.env.local
 pnpm dev
 ```
 
-- **Dashboard UI:** `http://localhost:3000`
-- **Bot API Backend:** `http://localhost:3001`
+- **Dashboard UI (local):** `http://localhost:3000`
+- **Bot API Backend (local):** `http://localhost:3001`
+- **Live deployment:** https://aurex-terminal.vercel.app/ (frontend) · https://bitcoin-arbitrage-bot.fly.dev/health (backend health)
 
 ## 9. Environment variables
 
@@ -136,44 +130,41 @@ pnpm dev
 
 - `PORT`: Server port, default `3001`
 - `PERSISTENCE_DRIVER`: `local` or `supabase`
-- `API_KEY`: Authorization secret for protected actions
+- `API_KEY`: Authorization secret for protected actions (sent as the `x-api-key` header)
 - `SUPABASE_URL`: Supabase project URL
 - `SUPABASE_SERVICE_ROLE_KEY`: Supabase service role key
-- `ENGINE_USDT_USD_BASIS_BPS`: Cost (bps) charged on legs that cross USD↔USDT, modelling the stablecoin conversion needed to realize a Coinbase/Kraken (USD) vs Binance/OKX/Bybit (USDT) spread. Default `8`; set `0` to treat USD≈USDT 1:1.
 
 ### Web console (`apps/web/.env.local`)
 
-- `NEXT_PUBLIC_BACKEND_URL`: Absolute backend URL, for example `http://localhost:3001`
+- `NEXT_PUBLIC_BACKEND_URL`: Absolute backend URL, for example `http://localhost:3001` or `https://bitcoin-arbitrage-bot.fly.dev`
 
 ## 10. Deployment
 
-- **Backend API:** Configured for containerized deployment and compatible with Fly.io or Docker-based hosting.
-- **Frontend UI:** Structured for Vercel deployment with monorepo-aware configuration.
+- **Backend API:** Containerized (Dockerfile + `fly.toml`) and deployed on Fly.io, serving REST and the dashboard WebSocket over a unified port.
+- **Frontend UI:** Deployed on Vercel with monorepo-aware build configuration (`vercel.json`).
 
 ## 11. Runtime topology
 
-- **Frontend:** Next.js terminal deployed on Vercel.
-- **Backend bot:** Market ingestion, opportunity scanning, and execution simulation deployed on Fly.io.
+- **Frontend:** Next.js terminal deployed on Vercel — https://aurex-terminal.vercel.app/
+- **Backend bot:** Market ingestion, opportunity scanning, and execution simulation deployed on Fly.io — https://bitcoin-arbitrage-bot.fly.dev/health
 - **Persistence:** Local JSON fallback for zero-config mode, with optional Supabase Postgres persistence.
-- **Transport:** The frontend consumes backend state and execution events through the live backend interface.
+- **Transport:** The frontend consumes backend state and execution events over a WebSocket pushed from the bot.
 
 ## 12. Integration surface
 
 Aurex is structured around a standalone backend bot and a separate web terminal client.
 
-Potential integration points include:
+Integration points include:
 
-- backend REST endpoints for operational controls,
-- live event streaming for opportunities and executions,
-- and persistence-backed trade history export flows.
+- backend REST endpoints for operational controls (settings updates and simulation reset, guarded by `x-api-key`),
+- a live WebSocket event stream for opportunities, trades, and engine state,
+- and a persistence-backed trade history CSV export (`/trades/export`).
 
 ## 13. Demo notes
 
-- **Coinbase Premium Route:** Use Coinbase Advanced → Binance to observe the real USD vs USDT dislocation. Note that Aurex charges a stablecoin **basis cost** on this route (`ENGINE_USDT_USD_BASIS_BPS`), so a wide gross premium is only executed when it survives the conversion cost — by design, marginal cross-quote windows show up as transparently SKIPPED rather than as phantom profit.
-- **Statistical Confidence:** The Opportunities table shows a per-window z-score (σ); higher values flag dislocations that are unusually wide versus their own recent history.
-- **Inventory Rebalancing:** Watch the Health event feed for `REBALANCE` entries — the engine moves surplus inventory across venues (paying fees) so it never stalls on a drained reserve.
+- **Coinbase Premium Route:** Use Coinbase Advanced → Binance to observe real-time USD-denominated spread behavior.
 - **Risk Breakers:** Tighten latency or exposure settings in the control panel to trigger cooldown and protection logic.
-- **Trade Ledger:** Export simulated executions through the ledger controls.
+- **Trade Ledger:** Export simulated executions through the ledger CSV controls.
 - **Evaluation Focus:** The main reviewer path is live market state → opportunities → executed trades → cumulative P&L.
 
 ## 14. License

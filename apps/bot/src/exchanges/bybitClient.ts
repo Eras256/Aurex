@@ -25,6 +25,8 @@ export class BybitClient implements ExchangeAdapter {
   private pingTimer: NodeJS.Timeout | null = null;
   private book = new MapOrderBook();
   private snapshotReceived = false;
+  // Matching-engine timestamp (ms): `cts` when present, else system `ts`.
+  private lastEventTime = 0;
 
   private logger = createChildLogger({
     component: 'ExchangeClient',
@@ -102,11 +104,17 @@ export class BybitClient implements ExchangeAdapter {
     op?: string;
     topic?: string;
     type?: string;
+    ts?: number;
+    cts?: number;
     data?: { b?: [string, string][]; a?: [string, string][] };
   }): void {
     // Subscription/pong acknowledgements carry an `op` field; ignore them.
     if (payload.op) return;
     if (!payload.topic || !payload.topic.startsWith('orderbook') || !payload.data) return;
+
+    // `cts` is the matching-engine production time; `ts` is the system send time. Prefer cts.
+    const eventTs = payload.cts ?? payload.ts;
+    if (typeof eventTs === 'number') this.lastEventTime = eventTs;
 
     const { b: bids, a: asks } = payload.data;
 
@@ -133,6 +141,7 @@ export class BybitClient implements ExchangeAdapter {
       asks: this.book.topAsks(10),
       lastUpdateId: Date.now().toString(),
       updatedAt: Date.now(),
+      eventTimestamp: this.lastEventTime || undefined,
     };
     this.callback(normalizedBook);
   }

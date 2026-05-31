@@ -10,6 +10,14 @@ export interface ExchangeMetadata {
    * Every venue below streams real, unauthenticated production market data.
    */
   isLiveFeed: boolean;
+  /**
+   * The fiat/stablecoin the venue's flagship BTC book is denominated in. Binance, OKX
+   * and Bybit stream BTC-USDT; Coinbase (BTC-USD) and Kraken (XBT/USD) stream BTC-USD.
+   * Used to charge a realistic USDT↔USD conversion (basis) cost when an arbitrage leg
+   * crosses quote currencies — without it, the well-known "Coinbase premium" would be
+   * booked as free profit it is not.
+   */
+  quoteCurrency: 'USD' | 'USDT';
   supportedSymbols: string[];
 }
 
@@ -29,6 +37,7 @@ export const EXCHANGES_METADATA: Record<string, ExchangeMetadata> = {
     withdrawalFeeBTC: 0.00002,
     hasWebSocket: true,
     isLiveFeed: true,
+    quoteCurrency: 'USDT',
     supportedSymbols: ['BTCUSDT'],
   },
   kraken: {
@@ -39,6 +48,7 @@ export const EXCHANGES_METADATA: Record<string, ExchangeMetadata> = {
     withdrawalFeeBTC: 0.00002,
     hasWebSocket: true,
     isLiveFeed: true,
+    quoteCurrency: 'USD', // Kraken flagship book is XBT/USD
     supportedSymbols: ['BTCUSDT', 'BTCUSD'],
   },
   coinbase: {
@@ -49,6 +59,7 @@ export const EXCHANGES_METADATA: Record<string, ExchangeMetadata> = {
     withdrawalFeeBTC: 0.00001,
     hasWebSocket: true,
     isLiveFeed: true,
+    quoteCurrency: 'USD', // Coinbase Advanced flagship book is BTC-USD
     supportedSymbols: ['BTCUSDT', 'BTCUSD'],
   },
   okx: {
@@ -59,6 +70,7 @@ export const EXCHANGES_METADATA: Record<string, ExchangeMetadata> = {
     withdrawalFeeBTC: 0.00002,
     hasWebSocket: true,
     isLiveFeed: true,
+    quoteCurrency: 'USDT',
     supportedSymbols: ['BTCUSDT'],
   },
   bybit: {
@@ -69,6 +81,7 @@ export const EXCHANGES_METADATA: Record<string, ExchangeMetadata> = {
     withdrawalFeeBTC: 0.00003,
     hasWebSocket: true,
     isLiveFeed: true,
+    quoteCurrency: 'USDT',
     supportedSymbols: ['BTCUSDT'],
   },
 };

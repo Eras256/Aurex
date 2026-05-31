@@ -32,6 +32,8 @@ export class CoinbaseClient implements ExchangeAdapter {
   private wsUrl: string;
   private book = new MapOrderBook();
   private snapshotReceived = false;
+  // Exchange-stamped message time (ms) parsed from the level2 frame's ISO `timestamp`.
+  private lastEventTime = 0;
 
   private logger = createChildLogger({
     component: 'ExchangeClient',
@@ -110,9 +112,16 @@ export class CoinbaseClient implements ExchangeAdapter {
 
   private handleMessage(payload: {
     channel?: string;
+    timestamp?: string;
     events?: { type?: string; updates?: CoinbaseL2Update[] }[];
   }): void {
     if (payload.channel !== 'l2_data' || !payload.events) return;
+
+    // Coinbase Advanced Trade stamps each frame with an ISO-8601 `timestamp`.
+    if (payload.timestamp) {
+      const parsed = Date.parse(payload.timestamp);
+      if (Number.isFinite(parsed)) this.lastEventTime = parsed;
+    }
 
     let touched = false;
     for (const event of payload.events) {
@@ -142,6 +151,7 @@ export class CoinbaseClient implements ExchangeAdapter {
       asks: this.book.topAsks(10),
       lastUpdateId: Date.now().toString(),
       updatedAt: Date.now(),
+      eventTimestamp: this.lastEventTime || undefined,
     };
     this.callback(normalizedBook);
   }

@@ -22,8 +22,10 @@ import {
   saveConfig,
 } from '../persistence/repositories.js';
 
+import { InventoryManager } from './InventoryManager.js';
 import { PnLTracker } from './PnLTracker.js';
 import { RiskManager } from './RiskManager.js';
+import { SpreadStatistics } from './SpreadStatistics.js';
 
 type NetSpreadResult = ReturnType<typeof calculateNetSpread>;
 type Wallets = Record<string, Record<string, { free: number; locked: number }>>;
@@ -40,6 +42,8 @@ interface ArbitrageCandidate {
   topAsk: number;
   topBid: number;
   math: NetSpreadResult;
+  /** Statistical confidence (z-score) of this window vs the pair's rolling spread history. */
+  zScore: number;
   /** True when the net profit clears the configured minimum after all costs. */
   profitable: boolean;
 }
@@ -49,9 +53,13 @@ export class ArbitrageEngine {
   private wallets: Wallets = {};
   public riskManager: RiskManager;
   public pnlTracker: PnLTracker;
+  private inventoryManager = new InventoryManager();
+  private spreadStats = new SpreadStatistics();
   private wsBroadcaster: (() => void) | null = null;
   private isProcessing = false;
   private pendingSymbol: string | null = null;
+  // Throttle inventory rebalancing so it can't fire on every book tick.
+  private lastRebalanceAt = 0;
 
   // Observability counters for the speed/latency evaluation criterion.
   private latencySamples: number[] = [];
@@ -148,7 +156,60 @@ export class ArbitrageEngine {
     this.opportunitiesDetected = 0;
     this.latencySamples = [];
     this.evalTimestamps = [];
+    this.lastRebalanceAt = 0;
+    this.spreadStats.reset();
     this.wsBroadcaster?.();
+  }
+
+  /**
+   * Settlement-style inventory rebalancing. When directed arbitrage has drained BTC from
+   * the expensive venues (or USDT from the cheap ones), transfer the surplus back across
+   * venues — paying realistic withdrawal/stablecoin fees — so the simulation keeps trading
+   * instead of stalling on "insufficient reserve". Throttled and skipped when balances are
+   * healthy. Safe to call frequently (e.g. on a timer).
+   */
+  async maybeRebalance(force = false): Promise<number> {
+    if (this.config.isPaused) return 0;
+
+    const now = Date.now();
+    if (!force && now - this.lastRebalanceAt < 10000) return 0;
+
+    const enabled = this.config.enabledExchanges;
+    if (!this.inventoryManager.needsRebalance(this.wallets, enabled)) return 0;
+
+    const transfers = this.inventoryManager.computeTransfers(this.wallets, enabled);
+    if (transfers.length === 0) return 0;
+
+    this.lastRebalanceAt = now;
+    this.inventoryManager.applyTransfers(this.wallets, transfers);
+
+    for (const t of transfers) {
+      const fromName = EXCHANGES_METADATA[t.from]?.name ?? t.from;
+      const toName = EXCHANGES_METADATA[t.to]?.name ?? t.to;
+      const unit = t.asset === 'BTC' ? 'BTC' : 'USDT';
+      const event: EngineEvent = {
+        id: `evt-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        timestamp: Date.now(),
+        type: 'REBALANCE',
+        message: `Rebalanced ${t.amount.toFixed(t.asset === 'BTC' ? 4 : 2)} ${unit} from ${fromName} → ${toName} (fee ${t.fee} ${unit}).`,
+      };
+      await saveEvent(event);
+      this.logger.info(
+        {
+          eventType: 'INFO',
+          asset: t.asset,
+          from: t.from,
+          to: t.to,
+          amount: t.amount,
+          fee: t.fee,
+        },
+        `♻️ Inventory rebalance: ${t.amount} ${unit} ${t.from} → ${t.to} (fee ${t.fee}).`
+      );
+    }
+
+    await saveBalances(this.wallets);
+    this.wsBroadcaster?.();
+    return transfers.length;
   }
 
   private recordLatency(ms: number) {
@@ -167,8 +228,16 @@ export class ArbitrageEngine {
       return;
     }
 
-    // Detection latency = time from the venue book timestamp to evaluation start.
-    this.recordLatency(Math.max(0, Date.now() - book.updatedAt));
+    // True wire-to-detection latency: time from the exchange's own event stamp
+    // (Binance E / OKX ts / Bybit cts / Kraken level ts / Coinbase timestamp) to the
+    // moment we begin evaluating it. Falls back to local receipt time only if a venue
+    // omits an event stamp. Clock skew between our host and a venue can produce a
+    // negative delta or an implausibly large one; clamp to a sane [0, 60s] window so a
+    // single mis-synced venue can't poison the rolling average.
+    const eventTime = book.eventTimestamp ?? book.updatedAt;
+    const rawLatency = Date.now() - eventTime;
+    const latency = rawLatency >= 0 && rawLatency <= 60000 ? rawLatency : Math.max(0, Date.now() - book.updatedAt);
+    this.recordLatency(latency);
 
     this.isProcessing = true;
     try {
@@ -224,13 +293,23 @@ export class ArbitrageEngine {
 
     if (candidates.length === 0) return;
 
-    // Priority: rank every simultaneous window by net expectation.
-    candidates.sort((a, b) => b.expectedProfitUSD - a.expectedProfitUSD);
+    // Priority ranking across every simultaneous window: maximise net profit, but when two
+    // windows are within 5% on profit, prefer the statistically more anomalous one (higher
+    // z-score) — a mean-reverting dislocation is a higher-conviction capture than a spread
+    // that is only marginally, and perhaps coincidentally, positive.
+    const rank = (a: ArbitrageCandidate, b: ArbitrageCandidate) => {
+      const ref = Math.max(Math.abs(a.expectedProfitUSD), Math.abs(b.expectedProfitUSD), 1e-9);
+      if (Math.abs(a.expectedProfitUSD - b.expectedProfitUSD) / ref < 0.05) {
+        return b.zScore - a.zScore;
+      }
+      return b.expectedProfitUSD - a.expectedProfitUSD;
+    };
+    candidates.sort(rank);
     const best = candidates[0];
 
-    const profitable = candidates.filter((c) => c.profitable);
+    const profitable = candidates.filter((c) => c.profitable).sort(rank);
     if (profitable.length > 0) {
-      // Capture the single most profitable window this cycle.
+      // Capture the single highest-conviction profitable window this cycle.
       await this.executeCandidate(profitable[0]);
       return;
     }
@@ -262,6 +341,12 @@ export class ArbitrageEngine {
     const buyMeta = EXCHANGES_METADATA[buyExchangeId];
     const sellMeta = EXCHANGES_METADATA[sellExchangeId];
     if (!buyMeta || !sellMeta) return null;
+
+    // When the two legs are quoted in different currencies (USD vs USDT) the spread can
+    // only be realised by converting across stablecoin rails — charge the basis cost so
+    // the "Coinbase premium" isn't booked as free profit.
+    const crossQuoteBps =
+      buyMeta.quoteCurrency !== sellMeta.quoteCurrency ? (this.config.usdtUsdBasisBps ?? 8) : 0;
 
     const stepSize = 0.05; // Walk step size in BTC
     const maxBtcCap = Math.min(
@@ -298,6 +383,7 @@ export class ArbitrageEngine {
         slippageSafetyBps: this.config.slippageSafetyBps,
         withdrawalFeeBTC: buyMeta.withdrawalFeeBTC,
         btcPriceQuote: walkBuy.avgPrice,
+        crossQuoteBps,
       });
 
       const netProfitUSD = math.netSpread * testVol - math.withdrawalCostUSD;
@@ -326,6 +412,10 @@ export class ArbitrageEngine {
 
     const profitable = optimalVolume > 0 && expectedProfitUSD >= this.config.minNetProfitUSD;
 
+    // Feed the statistical-arbitrage tracker with the per-BTC net spread for this pair and
+    // capture how anomalous the live dislocation is versus its own rolling history.
+    const { zScore } = this.spreadStats.update(buyExchangeId, sellExchangeId, refMathResult.netSpread);
+
     return {
       buyExchangeId,
       sellExchangeId,
@@ -337,6 +427,7 @@ export class ArbitrageEngine {
       topAsk: buyBook.asks[0].price,
       topBid: sellBook.bids[0].price,
       math: profitable && finalMathResult ? finalMathResult : refMathResult,
+      zScore,
       profitable,
     };
   }
@@ -358,6 +449,7 @@ export class ArbitrageEngine {
       expectedNetProfitUSD: c.expectedProfitUSD,
       status: 'SKIPPED',
       reason: `Unprofitable after fees & buffers: net $${c.expectedProfitUSD.toFixed(2)}/lot (gross +$${grossSpread.toFixed(2)})`,
+      zScore: Number(c.zScore.toFixed(2)),
     };
     this.opportunitiesDetected += 1;
     await saveOpportunity(oppRecord);
@@ -403,6 +495,7 @@ export class ArbitrageEngine {
       expectedNetProfitUSD: c.expectedProfitUSD,
       status: approval.approved ? 'EXECUTED' : 'SKIPPED',
       reason: approval.approved ? undefined : approval.reason,
+      zScore: Number(c.zScore.toFixed(2)),
     };
 
     await saveOpportunity(oppRecord);

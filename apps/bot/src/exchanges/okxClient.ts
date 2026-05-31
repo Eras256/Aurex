@@ -30,6 +30,8 @@ export class OKXClient implements ExchangeAdapter {
   private wsUrl: string;
   private pingTimer: NodeJS.Timeout | null = null;
   private book = new MapOrderBook();
+  // Exchange-stamped order-book generation time (ms) from the channel `ts` field.
+  private lastEventTime = 0;
 
   private logger = createChildLogger({
     component: 'ExchangeClient',
@@ -116,7 +118,7 @@ export class OKXClient implements ExchangeAdapter {
   private handleMessage(payload: {
     event?: string;
     arg?: { channel?: string };
-    data?: { asks: OkxLevel[]; bids: OkxLevel[] }[];
+    data?: { asks: OkxLevel[]; bids: OkxLevel[]; ts?: string }[];
   }): void {
     if (payload.event) {
       if (payload.event === 'error') {
@@ -127,6 +129,11 @@ export class OKXClient implements ExchangeAdapter {
     if (payload.arg?.channel !== 'books5' || !payload.data || payload.data.length === 0) return;
 
     const snap = payload.data[0];
+    // `ts` is OKX's order-book generation time (ms). Capture it for true latency.
+    if (snap.ts) {
+      const ts = Number(snap.ts);
+      if (Number.isFinite(ts)) this.lastEventTime = ts;
+    }
     // books5 always pushes a complete top-5 snapshot.
     this.book.loadSnapshot(
       snap.bids.map((b) => [b[0], b[1]] as [string, string]),
@@ -144,6 +151,7 @@ export class OKXClient implements ExchangeAdapter {
       asks: this.book.topAsks(10),
       lastUpdateId: Date.now().toString(),
       updatedAt: Date.now(),
+      eventTimestamp: this.lastEventTime || undefined,
     };
     this.callback(normalizedBook);
   }

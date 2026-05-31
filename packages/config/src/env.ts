@@ -32,6 +32,7 @@ export const EnvSchema = z.object({
   ENGINE_LATENCY_SAFETY_BPS: z.preprocess((val) => (val === undefined || val === '' ? undefined : Number(val)), z.number().optional()),
   ENGINE_SLIPPAGE_SAFETY_BPS: z.preprocess((val) => (val === undefined || val === '' ? undefined : Number(val)), z.number().optional()),
   ENGINE_MAX_TRADES_PER_MINUTE: z.preprocess((val) => (val === undefined || val === '' ? undefined : Number(val)), z.number().optional()),
+  ENGINE_USDT_USD_BASIS_BPS: z.preprocess((val) => (val === undefined || val === '' ? undefined : Number(val)), z.number().optional()),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
@@ -61,6 +62,7 @@ const getEnv = (): Env => {
     ENGINE_LATENCY_SAFETY_BPS: typeof process !== 'undefined' ? process.env.ENGINE_LATENCY_SAFETY_BPS : undefined,
     ENGINE_SLIPPAGE_SAFETY_BPS: typeof process !== 'undefined' ? process.env.ENGINE_SLIPPAGE_SAFETY_BPS : undefined,
     ENGINE_MAX_TRADES_PER_MINUTE: typeof process !== 'undefined' ? process.env.ENGINE_MAX_TRADES_PER_MINUTE : undefined,
+    ENGINE_USDT_USD_BASIS_BPS: typeof process !== 'undefined' ? process.env.ENGINE_USDT_USD_BASIS_BPS : undefined,
   };
 
   try {
