@@ -248,18 +248,25 @@ export async function loadBalances(): Promise<Record<string, Record<string, { fr
     const { data, error } = await supabase.from('wallet_balances').select('*');
     if (error) {
       logger.error('Supabase loadBalances error:', error.message);
-    } else if (data && data.length > 0) {
+      // Don't fall back to the in-memory seed here: returning it would make the caller
+      // believe balances were restored from the cloud when they weren't. Signal "no
+      // persisted state" so the engine keeps its own initial funding instead.
+      return null;
+    }
+    if (data && data.length > 0) {
       const balances: any = {};
       for (const row of data) {
         if (!balances[row.exchange_id]) balances[row.exchange_id] = {};
-        balances[row.exchange_id][row.asset] = { 
-          free: row.free_amount !== undefined ? row.free_amount : row.free, 
-          locked: row.locked_amount !== undefined ? row.locked_amount : row.locked 
+        balances[row.exchange_id][row.asset] = {
+          free: row.free_amount !== undefined ? row.free_amount : row.free,
+          locked: row.locked_amount !== undefined ? row.locked_amount : row.locked
         };
       }
       dbState.balances = balances;
       return balances;
     }
+    // Supabase reachable but no persisted balances yet (fresh project).
+    return null;
   }
   return dbState.balances;
 }
@@ -283,10 +290,16 @@ export async function loadConfig(): Promise<EngineConfig | null> {
     const { data, error } = await supabase.from('engine_config').select('*').eq('id', 'current').maybeSingle();
     if (error) {
       logger.error('Supabase loadConfig error:', error.message);
-    } else if (data) {
+      // Report "no persisted config" rather than silently masquerading the default as a
+      // DB load — the caller seeds + persists defaults when it gets null.
+      return null;
+    }
+    if (data) {
       dbState.config = typeof data.config === 'string' ? JSON.parse(data.config) : data.config;
       return dbState.config;
     }
+    // Supabase reachable but no config row persisted yet.
+    return null;
   }
   return dbState.config;
 }

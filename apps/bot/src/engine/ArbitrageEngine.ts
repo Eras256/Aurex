@@ -87,12 +87,15 @@ export class ArbitrageEngine {
       this.logger.info({ eventType: 'INFO' }, '⚙️ Loaded active Engine Config from database.');
     } else {
       await saveConfig(this.config);
+      this.logger.info({ eventType: 'INFO' }, '⚙️ No persisted Engine Config found; seeded defaults to database.');
     }
 
     const loadedBalances = await loadBalances();
     if (loadedBalances) {
       this.wallets = loadedBalances;
       this.logger.info({ eventType: 'INFO' }, '💼 Loaded active Wallet Balances from database.');
+    } else {
+      this.logger.info({ eventType: 'INFO' }, '💼 No persisted Wallet Balances found; using initial funding.');
     }
 
     await this.pnlTracker.initialize();
