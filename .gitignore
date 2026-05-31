@@ -28,3 +28,15 @@ coverage/
 .playwright/
 playwright-report/
 test-results/
+
+# Local simulation databases
+db.json
+apps/bot/db.json
+
+# TypeScript build info cache
+*.tsbuildinfo
+
+# Developer and Agent context/skills docs
+claude.md
+CLAUDE.md
+SKILL.md
