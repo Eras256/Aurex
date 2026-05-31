@@ -3,7 +3,7 @@
 import { Settings } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 import { useLanguage } from '../app/LanguageContext';
 
@@ -15,6 +15,55 @@ export const Navigation: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { language, setLanguage, t } = useLanguage();
+
+  const [aiStatus, setAiStatus] = useState({
+    status: 'Simulated',
+    provider: 'OpenAI',
+    model: 'gpt-5',
+  });
+
+  useEffect(() => {
+    const updateAiStatus = () => {
+      if (typeof window !== 'undefined') {
+        const savedStatus = localStorage.getItem('aurex_ai_status') || 'Simulated';
+        const savedProvider = localStorage.getItem('aurex_ai_provider') || 'OpenAI';
+        const savedModel = localStorage.getItem('aurex_ai_model') || 'gpt-5';
+        setAiStatus({
+          status: savedStatus,
+          provider: savedProvider,
+          model: savedModel,
+        });
+      }
+    };
+
+    updateAiStatus();
+    window.addEventListener('storage', updateAiStatus);
+    return () => window.removeEventListener('storage', updateAiStatus);
+  }, []);
+
+  const getAiBadgeText = () => {
+    if (aiStatus.status === 'Simulated') return 'AI: Simulated';
+    if (aiStatus.provider === 'OpenAI') return 'AI: GPT-5';
+    if (aiStatus.provider === 'Anthropic') return 'AI: Claude';
+    if (aiStatus.provider === 'Gemini') return 'AI: Gemini';
+    return `AI: ${aiStatus.model}`;
+  };
+
+  const getAiBadgeClass = () => {
+    if (aiStatus.status === 'Simulated') {
+      return 'bg-slate-800/85 text-slate-400 border-slate-700/50';
+    }
+    if (aiStatus.provider === 'OpenAI') {
+      return 'bg-gold/10 text-gold border-gold/25';
+    }
+    if (aiStatus.provider === 'Anthropic') {
+      return 'bg-orange-500/10 text-orange-400 border-orange-500/25';
+    }
+    if (aiStatus.provider === 'Gemini') {
+      return 'bg-sky-500/10 text-sky-400 border-sky-500/25';
+    }
+    return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25';
+  };
 
   const links = [
     { key: 'nav.overview', path: '/' },
@@ -36,11 +85,16 @@ export const Navigation: React.FC = () => {
           <AurexLogo variant="full" size="sm" />
         </Link>
         
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {/* Active AI Status Badge */}
+          <span className={`text-[9px] font-mono tracking-wider font-extrabold px-1.5 py-0.5 rounded border shrink-0 ${getAiBadgeClass()}`}>
+            {getAiBadgeText()}
+          </span>
+
           {/* AI Settings Gear */}
           <button
             onClick={() => setIsSettingsOpen(true)}
-            className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-all flex items-center justify-center"
+            className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-all flex items-center justify-center shrink-0"
             title="AI Engine Settings"
             aria-label="AI Engine Settings"
           >
@@ -232,6 +286,14 @@ export const Navigation: React.FC = () => {
               >
                 <Settings className="w-4 h-4 text-slate-400 hover:text-white" />
               </button>
+            </div>
+            
+            {/* Active AI Status Badge (Desktop Sidebar) */}
+            <div className="mt-2.5 flex items-center justify-between px-1">
+              <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider">AI COPROCESSOR:</span>
+              <span className={`text-[9px] font-mono tracking-wider font-extrabold px-1.5 py-0.5 rounded border shrink-0 ${getAiBadgeClass()}`}>
+                {getAiBadgeText()}
+              </span>
             </div>
           </div>
         </div>
