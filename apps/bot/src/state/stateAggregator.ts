@@ -69,5 +69,6 @@ export async function buildStatePayload(
     metrics: engine.getMetrics(),
     events,
     uptime: Math.floor((Date.now() - startTime) / 1000),
+    triangular: engine.getTriangularState(),
   };
 }

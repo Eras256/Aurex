@@ -106,6 +106,35 @@ export interface EngineMetrics {
   watchdogRecoveries: number; // Count of self-heal actions (silent-feed reconnects) since boot
 }
 
+/** One hop of a triangular cycle (e.g. BUY BTCUSDT, then BUY ETHBTC, then SELL ETHUSDT). */
+export interface TriangularLeg {
+  action: 'BUY' | 'SELL';
+  pair: string; // 'BTCUSDT' | 'ETHBTC' | 'ETHUSDT'
+  price: number; // Top-of-book price used for the hop
+}
+
+/**
+ * Live single-venue triangular arbitrage state (USDT→BTC→ETH→USDT and its reverse). A
+ * triangular cycle converts a quote currency through two crosses and back, profiting from
+ * an internal mispricing between the three books — net of the three taker fees it pays.
+ * Surfaced live (computed on each book tick) so the dashboard shows the cost-aware edge
+ * even when it is below the ~12bps round-trip fee floor and therefore correctly skipped.
+ */
+export interface TriangularState {
+  venue: string;
+  available: boolean; // true when all three books are present
+  direction: string; // human-readable cycle, e.g. 'USDT→BTC→ETH→USDT'
+  legs: TriangularLeg[];
+  grossEdgeBps: number; // cycle return before fees, in basis points
+  feeBps: number; // total round-trip taker fee cost, in basis points
+  netEdgeBps: number; // grossEdgeBps - feeBps (the executable edge)
+  notionalUSD: number; // test notional used to size the cycle
+  expectedProfitUSD: number; // notionalUSD * netEdge
+  profitable: boolean; // netEdge clears the configured minimum
+  executedCount: number; // triangular cycles executed since boot
+  updatedAt: number;
+}
+
 export interface StatePayload {
   config: EngineConfig;
   connections: Record<string, { connected: boolean; reconnects: number; lastMessageAt: number }>;
@@ -125,4 +154,6 @@ export interface StatePayload {
   metrics: EngineMetrics;
   events: EngineEvent[];
   uptime: number;
+  /** Live single-venue triangular arbitrage cycle (omitted when the venue feeds are absent). */
+  triangular?: TriangularState;
 }

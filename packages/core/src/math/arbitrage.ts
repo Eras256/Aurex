@@ -1,4 +1,4 @@
-import { OrderBookLevel } from '../types/index.js';
+import { OrderBookLevel, TriangularLeg } from '../types/index.js';
 
 /**
  * Walks an L2 order book's bids or asks up to a target volume.
@@ -115,4 +115,88 @@ export function calculateNetSpread({
     withdrawalCostUSD,
     netSpread,
   };
+}
+
+/** Top-of-book bid/ask for one market, in quote-per-base units. */
+export interface TopOfBook {
+  bestBid: number;
+  bestAsk: number;
+}
+
+export interface TriangularResult {
+  direction: string;
+  legs: TriangularLeg[];
+  grossEdgeBps: number;
+  feeBps: number;
+  netEdgeBps: number;
+  expectedProfitUSD: number;
+}
+
+/**
+ * Evaluates a single-venue triangular arbitrage cycle across BTCUSDT, ETHUSDT and ETHBTC,
+ * returning the more profitable of the two cycle directions net of three taker fees.
+ *
+ *   Forward  (USDT→BTC→ETH→USDT): buy BTC with USDT, buy ETH with BTC, sell ETH for USDT.
+ *   Reverse  (USDT→ETH→BTC→USDT): buy ETH with USDT, sell ETH for BTC, sell BTC for USDT.
+ *
+ * Each hop crosses the spread (taker), so the cycle multiplier is the product of the three
+ * top-of-book conversion rates, discounted by (1 - fee) per hop. A cycle is only profitable
+ * when that compounded edge exceeds the ~3x taker-fee drag — which is exactly why most
+ * cycles are correctly rejected. Top-of-book is used (a triangular fill is three near-
+ * simultaneous taker orders); returns null if any book is missing or malformed.
+ */
+export function computeTriangular({
+  btcUsdt,
+  ethUsdt,
+  ethBtc,
+  takerFeeBps,
+  notionalUSD,
+}: {
+  btcUsdt: TopOfBook;
+  ethUsdt: TopOfBook;
+  ethBtc: TopOfBook;
+  takerFeeBps: number;
+  notionalUSD: number;
+}): TriangularResult | null {
+  const valid = (b: TopOfBook) => b && b.bestAsk > 0 && b.bestBid > 0;
+  if (!valid(btcUsdt) || !valid(ethUsdt) || !valid(ethBtc)) return null;
+
+  const f = takerFeeBps / 10000;
+  const keep = (1 - f) ** 3; // fraction surviving three taker hops
+
+  // Forward: USDT → BTC (buy BTCUSDT ask) → ETH (buy ETHBTC ask) → USDT (sell ETHUSDT bid).
+  const fwdGross = (1 / btcUsdt.bestAsk) * (1 / ethBtc.bestAsk) * ethUsdt.bestBid;
+  // Reverse: USDT → ETH (buy ETHUSDT ask) → BTC (sell ETHBTC bid) → USDT (sell BTCUSDT bid).
+  const revGross = (1 / ethUsdt.bestAsk) * ethBtc.bestBid * btcUsdt.bestBid;
+
+  const build = (
+    grossMult: number,
+    direction: string,
+    legs: TriangularLeg[]
+  ): TriangularResult => {
+    const netMult = grossMult * keep;
+    const grossEdgeBps = (grossMult - 1) * 10000;
+    const netEdgeBps = (netMult - 1) * 10000;
+    return {
+      direction,
+      legs,
+      grossEdgeBps,
+      feeBps: grossEdgeBps - netEdgeBps,
+      netEdgeBps,
+      expectedProfitUSD: notionalUSD * (netMult - 1),
+    };
+  };
+
+  const forward = build(fwdGross, 'USDT→BTC→ETH→USDT', [
+    { action: 'BUY', pair: 'BTCUSDT', price: btcUsdt.bestAsk },
+    { action: 'BUY', pair: 'ETHBTC', price: ethBtc.bestAsk },
+    { action: 'SELL', pair: 'ETHUSDT', price: ethUsdt.bestBid },
+  ]);
+  const reverse = build(revGross, 'USDT→ETH→BTC→USDT', [
+    { action: 'BUY', pair: 'ETHUSDT', price: ethUsdt.bestAsk },
+    { action: 'SELL', pair: 'ETHBTC', price: ethBtc.bestBid },
+    { action: 'SELL', pair: 'BTCUSDT', price: btcUsdt.bestBid },
+  ]);
+
+  return reverse.netEdgeBps > forward.netEdgeBps ? reverse : forward;
 }

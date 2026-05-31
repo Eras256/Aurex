@@ -13,6 +13,7 @@ import {
 } from 'recharts';
 
 
+import { TriangularPanel } from '@/components/TriangularPanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -269,6 +270,9 @@ export default function OverviewPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 2b. TRIANGULAR ARBITRAGE (sophisticated single-venue strategy) */}
+      <TriangularPanel />
 
       {/* 3. PERFORMANCE CHART */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

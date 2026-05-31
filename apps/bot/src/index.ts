@@ -55,6 +55,18 @@ async function bootstrap() {
     adapter.subscribeOrderBook('BTCUSDT', (book) => orderBookStore.updateBook(book));
   }
 
+  // 5b. Extra Binance legs (ETHUSDT, ETHBTC) feed the single-venue triangular detector. They
+  // reuse the generic Binance client (same venue/fees, id 'binance') and write into the same
+  // L2 cache under binance:ETHUSDT / binance:ETHBTC. Kept out of the primary venue-health map
+  // (one socket per venue already answers "is Binance reachable"); if they fail to open the
+  // engine simply reports the triangular cycle as unavailable and cross-exchange is untouched.
+  const triangularFeeds: ExchangeAdapter[] = [
+    new BinanceClient(config.BINANCE_WS_URL, config.BINANCE_REST_URL),
+    new BinanceClient(config.BINANCE_WS_URL, config.BINANCE_REST_URL),
+  ];
+  triangularFeeds[0].subscribeOrderBook('ETHUSDT', (book) => orderBookStore.updateBook(book));
+  triangularFeeds[1].subscribeOrderBook('ETHBTC', (book) => orderBookStore.updateBook(book));
+
   // 6. Connect exchange sockets. Each connect() is raced against a timeout: an adapter
   // whose socket never reaches 'open' (e.g. a venue geo-blocking the host region) would
   // otherwise leave its promise pending forever and stall bootstrap before the HTTP
@@ -65,8 +77,10 @@ async function bootstrap() {
   const withTimeout = (p: Promise<void>) =>
     Promise.race([p, new Promise<void>((resolve) => setTimeout(resolve, CONNECT_TIMEOUT_MS))]);
   try {
-    await Promise.allSettled(Object.values(exchanges).map((a) => withTimeout(a.connect())));
-    logger.info('🔌 Exchange WebSocket feed connections initiated.');
+    await Promise.allSettled(
+      [...Object.values(exchanges), ...triangularFeeds].map((a) => withTimeout(a.connect()))
+    );
+    logger.info('🔌 Exchange WebSocket feed connections initiated (incl. Binance triangular legs).');
   } catch (error) {
     logger.error('Failed to establish connections to some exchanges, starting engine fallback...', error);
   }
@@ -113,6 +127,23 @@ async function bootstrap() {
       }
     }
 
+    // Same silent-feed self-heal for the Binance triangular legs (ETHUSDT, ETHBTC).
+    const triLabels = ['binance ETHUSDT', 'binance ETHBTC'];
+    for (let i = 0; i < triangularFeeds.length; i++) {
+      const adapter = triangularFeeds[i];
+      if (adapter.isConnected() && now - adapter.getLastMessageTimestamp() > FEED_STALE_MS) {
+        logger.warn(`🩺 Watchdog: ${triLabels[i]} leg silent; forcing reconnect.`);
+        try {
+          await adapter.disconnect();
+          await adapter.connect();
+          engine.recordWatchdogRecovery();
+          await engine.emitEvent('WARNING', `Auto-recovery: ${triLabels[i]} triangular leg was silent and was reconnected.`);
+        } catch (err) {
+          logger.error(`Watchdog failed to reconnect ${triLabels[i]}`, err);
+        }
+      }
+    }
+
     // Engine stall: feeds are live and the engine is running, yet nothing is being evaluated.
     const connectedCount = Object.values(exchanges).filter((a) => a.isConnected()).length;
     const lastActivity = engine.getLastActivityAt();
@@ -143,6 +174,7 @@ async function bootstrap() {
       exchanges.binance.disconnect(),
       exchanges.kraken.disconnect(),
       exchanges.coinbase.disconnect(),
+      ...triangularFeeds.map((f) => f.disconnect()),
     ]);
 
     logger.info('👋 Arbitrage bot shut down cleanly. Exiting.');

@@ -6,8 +6,10 @@ import {
   EngineEvent,
   EngineConfig,
   EngineMetrics,
+  TriangularState,
   walkOrderBook,
   calculateNetSpread,
+  computeTriangular,
 } from '@arbitrage/core';
 
 import { createChildLogger } from '../core/logging/logger.js';
@@ -71,6 +73,10 @@ export class ArbitrageEngine {
   // Liveness telemetry: epoch ms of the last evaluated book + self-heal action count.
   private lastActivityAt = 0;
   private watchdogRecoveries = 0;
+  // Single-venue triangular arbitrage state (USDT↔BTC↔ETH on Binance).
+  private lastTriangularState: TriangularState | null = null;
+  private triangularExecuted = 0;
+  private lastTriangularExecAt = 0;
 
   private logger = createChildLogger({ component: 'ArbitrageEngine' });
 
@@ -293,6 +299,13 @@ export class ArbitrageEngine {
         this.booksProcessed++;
         await this.evaluateArbitrage(symbol);
         symbol = this.pendingSymbol;
+      }
+
+      // Single-venue triangular arbitrage runs off Binance's three legs (BTCUSDT, ETHUSDT,
+      // ETHBTC). Re-evaluated whenever any Binance book ticks; independent of the directed
+      // cross-exchange pass above.
+      if (book.exchangeId === 'binance') {
+        await this.evaluateTriangular();
       }
     } catch (error) {
       this.logger.error({ eventType: 'ERROR', error }, 'Error running arbitrage valuation loop');
@@ -637,5 +650,135 @@ export class ArbitrageEngine {
       this.wallets[sellExchange].BTC.free -= volume;
       this.wallets[sellExchange].USDT.free += proceedQuote;
     }
+  }
+
+  /** Live single-venue triangular state for the dashboard (undefined before first eval). */
+  getTriangularState(): TriangularState | undefined {
+    return this.lastTriangularState ?? undefined;
+  }
+
+  /**
+   * Evaluates Binance's three-leg triangular cycle on every Binance book tick. Always
+   * refreshes the live display state (so the dashboard shows the cost-aware edge even when
+   * it is below the ~3x taker-fee floor and correctly skipped), and executes the rare
+   * profitable cycle as a USDT round-trip on the venue.
+   */
+  private async evaluateTriangular(): Promise<void> {
+    const NOTIONAL_CAP_USD = 20000;
+    const venue = 'binance';
+    const top = (b?: NormalizedOrderBook | null) =>
+      b && b.asks[0] && b.bids[0] ? { bestBid: b.bids[0].price, bestAsk: b.asks[0].price } : null;
+
+    const btcTop = top(orderBookStore.getBook(venue, 'BTCUSDT'));
+    const ethTop = top(orderBookStore.getBook(venue, 'ETHUSDT'));
+    const ethbtcTop = top(orderBookStore.getBook(venue, 'ETHBTC'));
+
+    if (!btcTop || !ethTop || !ethbtcTop) {
+      // Surface "unavailable" so the UI can distinguish a missing feed from a flat edge.
+      this.lastTriangularState = {
+        venue,
+        available: false,
+        direction: '—',
+        legs: [],
+        grossEdgeBps: 0,
+        feeBps: 0,
+        netEdgeBps: 0,
+        notionalUSD: 0,
+        expectedProfitUSD: 0,
+        profitable: false,
+        executedCount: this.triangularExecuted,
+        updatedAt: Date.now(),
+      };
+      return;
+    }
+
+    const takerFeeBps = EXCHANGES_METADATA[venue]?.takerFeeBps ?? 4;
+    const usdtFree = this.wallets[venue]?.USDT?.free ?? 0;
+    const notionalUSD = Math.max(0, Math.min(NOTIONAL_CAP_USD, usdtFree));
+
+    const result = computeTriangular({
+      btcUsdt: btcTop,
+      ethUsdt: ethTop,
+      ethBtc: ethbtcTop,
+      takerFeeBps,
+      notionalUSD,
+    });
+    if (!result) return;
+
+    const profitable =
+      !this.config.isPaused &&
+      result.netEdgeBps > 0 &&
+      result.expectedProfitUSD >= this.config.minNetProfitUSD;
+
+    this.lastTriangularState = {
+      venue,
+      available: true,
+      direction: result.direction,
+      legs: result.legs,
+      grossEdgeBps: Number(result.grossEdgeBps.toFixed(3)),
+      feeBps: Number(result.feeBps.toFixed(3)),
+      netEdgeBps: Number(result.netEdgeBps.toFixed(3)),
+      notionalUSD,
+      expectedProfitUSD: Number(result.expectedProfitUSD.toFixed(2)),
+      profitable,
+      executedCount: this.triangularExecuted,
+      updatedAt: Date.now(),
+    };
+
+    // Triangular edges on a single efficient venue rarely clear three taker fees — execute
+    // only when they genuinely do, throttled so a sustained dislocation can't spam fills.
+    if (profitable && Date.now() - this.lastTriangularExecAt > 2000) {
+      await this.executeTriangular(result, notionalUSD, btcTop.bestAsk);
+    }
+  }
+
+  /** Simulates a profitable triangular cycle as a single-venue USDT round-trip. */
+  private async executeTriangular(
+    result: ReturnType<typeof computeTriangular> & object,
+    notionalUSD: number,
+    btcAsk: number
+  ): Promise<void> {
+    if (!result) return;
+    this.lastTriangularExecAt = Date.now();
+    const venue = 'binance';
+
+    const netProfit = notionalUSD * (result.netEdgeBps / 10000);
+    const grossProfit = notionalUSD * (result.grossEdgeBps / 10000);
+    const feesPaid = notionalUSD * (result.feeBps / 10000);
+    const btcTurnover = btcAsk > 0 ? notionalUSD / btcAsk : 0;
+
+    // The cycle starts and ends in USDT on the same venue, so its net effect is a USDT gain.
+    if (this.wallets[venue]?.USDT) this.wallets[venue].USDT.free += netProfit;
+
+    const tradeRecord: SimulatedTrade = {
+      id: `trade-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      opportunityId: `tri-${Date.now()}`,
+      timestamp: Date.now(),
+      buyExchange: venue,
+      sellExchange: venue,
+      symbol: `△ ${result.direction}`,
+      buyPrice: btcAsk,
+      sellPrice: btcAsk * (1 + result.netEdgeBps / 10000),
+      volume: btcTurnover,
+      grossProfit,
+      netProfit,
+      feesPaid,
+      slippagePaid: 0,
+    };
+
+    await saveTrade(tradeRecord);
+    await this.pnlTracker.recordTradeProfit(netProfit);
+    this.riskManager.recordTradeResult(netProfit);
+    this.triangularExecuted += 1;
+    await saveBalances(this.wallets);
+
+    this.logger.info(
+      { eventType: 'TRADE_EXECUTION', venue, direction: result.direction, netProfitUSD: netProfit },
+      `🔺 TRIANGULAR EXECUTED on Binance (${result.direction}): +$${netProfit.toFixed(2)} net on $${notionalUSD.toFixed(0)} (${result.netEdgeBps.toFixed(1)} bps).`
+    );
+    await this.emitEvent(
+      'TRADE_EXECUTION',
+      `Triangular cycle executed on Binance (${result.direction}): +$${netProfit.toFixed(2)} net on $${notionalUSD.toFixed(0)} notional (${result.netEdgeBps.toFixed(1)} bps).`
+    );
   }
 }
