@@ -13,12 +13,14 @@ description: >
 This local skill instructs **Antigravity** (our agentic system) to automatically load, parse, and synchronize strategic and technical codebase configurations from `claude.md` and `CLAUDE.md` before executing any development workflows.
 
 - **Live Production Dashboard:** [https://aurex-terminal.vercel.app/](https://aurex-terminal.vercel.app/)
+- **Live Backend Bot API:** [https://bitcoin-arbitrage-bot.fly.dev/](https://bitcoin-arbitrage-bot.fly.dev/)
 
 **Always use this skill when:**
 
 - Initializing a task in the **Aurex** repository.
 - Modifying exchange adapters (Binance, Kraken, Coinbase, OKX, Bybit).
-- Changing risk configurations, database repositories, or math equations.
+- Changing risk configurations, Supabase repositories, or math equations.
+- Reviewing dynamic calibration endpoints, telemetry WebSockets, or secure Next.js proxies.
 - Performing builds, lint runs, or test validations.
 
 ---

@@ -56,7 +56,9 @@ La mayoría de los simuladores calculan spreads de forma ingenua usando precios 
 - **Multi-Exchange L2 Feed:** Concurrent WebSocket connections to Binance, Kraken, Coinbase Advanced, OKX, and Bybit.
 - **Wire vs. Compute Telemetry:** Separates network transit time (measured from exchange matching engine timestamp) from core engine execution time (microsecond scale).
 - **Dual-Strategy Engine:** Scans and ranks both Directed Cross-Exchange spreads (5x5 matrix with rolling z-score confidence) and Binance Triangular Arbitrage (USDT→BTC→ETH→USDT) net of triple fees.
-- **Dynamic Risk Circuit Breakers:** Real-time exposure caps, volatility circuit breakers, and automatic cooldowns for consecutive slippage losses.
+- **Dynamic Risk Circuit Breakers & In-Memory Calibration:** Real-time exposure caps, volatility circuit breakers, and dynamic risk override parameter execution (`POST /api/v1/bot/calibrate`) without container restarts.
+- **Real WebSocket Telemetry Stream:** A secondary dedicated WebSocket feed (`/api/v1/telemetry/logs?token=...`) streaming exact network delays, server processing latency, and skipped opportunities.
+- **Supabase Immutable Audits:** Stores dynamic audit records inside `copilot_audit_trail` protected by an append-only trigger that completely blocks update and delete actions.
 - **Settlement-Style Rebalancing:** Auto-balances exchange inventories via simulated blockchain withdrawals, paying actual network fees.
 - **Bilingual Interface:** Toggle languages instantly between English and Español across all UI components and documentation.
 
@@ -65,7 +67,9 @@ La mayoría de los simuladores calculan spreads de forma ingenua usando precios 
 - **Feeds L2 Multi-Exchange:** Conexiones WebSocket concurrentes a Binance, Kraken, Coinbase Advanced, OKX y Bybit.
 - **Telemetría de Red vs. Cómputo:** Separa el tiempo de tránsito de red (medido desde el timestamp del motor del exchange) del tiempo de cómputo del motor (escala de microsegundos).
 - **Motor de Doble Estrategia:** Escanea y clasifica tanto spreads Cross-Exchange Directos (matriz 5x5 con z-score estadístico) como Arbitraje Triangular en Binance (USDT→BTC→ETH→USDT) neto de tres comisiones.
-- **Circuit Breakers de Riesgo:** Límites de exposición en tiempo real, breakers de volatilidad y enfriamiento automático por pérdidas consecutivas de deslizamiento.
+- **Circuit Breakers y Calibración Dinámica en Memoria:** Límites de exposición, breakers de volatilidad y aplicación dinámica de anulaciones de riesgo (`POST /api/v1/bot/calibrate`) sin reinicios.
+- **Transmisión de Telemetría Real por WebSocket:** Canal WebSocket secundario (`/api/v1/telemetry/logs?token=...`) que transmite demoras exactas de red, latencia de motor y trades omitidos.
+- **Auditorías Inmutables en Supabase:** Guarda registros de calibración en la tabla `copilot_audit_trail` blindada por un trigger de base de datos que prohíbe modificaciones y eliminaciones.
 - **Rebalanceo de Liquidación:** Auto-balancea inventarios de wallets mediante retiros de red simulados, pagando tarifas reales de blockchain.
 - **Interfaz Bilingüe:** Cambio de idioma instantáneo entre English y Español en todos los componentes de la interfaz y documentación.
 

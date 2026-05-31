@@ -143,12 +143,22 @@ The `RiskManager` evaluates every potential arbitrage window against multiple ci
 2. **Consecutive Loss Breaker:** Automatically triggers a 60-second engine cooldown if execution slippage results in 3 consecutive losing simulated trades.
 3. **Volatility Spike Breaker:** Rejects spreads if CEX prices diverge by more than $8\%$, indicating extreme market disequilibrium, API lag, or flash crashes.
 
-#### 3.3 Dual-Engine Failover Storage
+#### 3.3 Dual-Engine Failover Storage & Immutability Trigger
 
-To ensure high accessibility and zero-config deployment during testing:
+To ensure high accessibility, durability, and operational security:
 
 - **Local Persistence Engine:** Default database layer using asynchronous writes to a local `db.json` file. This preserves wallet states, trade history logs, and system events across restarts.
-- **Supabase Cloud Engine:** Triggers on environment variable discovery, piping transaction logs directly to a cloud PostgreSQL table.
+- **Supabase Cloud Engine:** On-demand cloud storage mapping transaction logs and AI agent audits to cloud PostgreSQL tables (`copilot_audit_trail`).
+- **Failover Robustness:** Designed with absolute fault tolerance: if the remote database is unreachable, database repositories seamlessly fallback to write to the local `db.json` log, continuing all trading activities without interruption.
+- **Absolute History Immutability:** Protected at the PostgreSQL engine level using a custom trigger `block_audit_mutations` which intercepts and rejects all `UPDATE` or `DELETE` commands on the audit table, ensuring compliance even when accessed using administrative `service_role` keys.
+
+#### 3.4 Dynamic Risk Calibration API & WS Telemetry Server
+
+To coordinate real-time human-in-the-loop adjustments and live server diagnostics:
+
+- **Dynamic Calibration REST API:** Realized through the Express route `POST /api/v1/bot/calibrate` (guarded by API Key signature). Operators override risk settings (`minNetProfitUSD`, `maxPositionBTCPerExchange`, `latencySafetyBps`) in memory on the fly without causing server downtime or container resets.
+- **WebSocket Telemetry Server:** Exposed at `wss://bitcoin-arbitrage-bot.fly.dev/api/v1/telemetry/logs?token=<API_KEY>`. Using browser-compliant query parameter authorization tokens, browser terminals connect directly to stream core engine compute latencies, exchange feed delays, skipped opportunity logs, and global CEX warnings.
+- **Secure Server-Side API Routing:** To prevent exposing the private `API_KEY` to client-side browser bundles, Next.js implements server-side API route proxies `/api/bot/calibrate` and `/api/copilot/audits` that perform private validation securely before forwarding requests to the Fly.io bot.
 
 ---
 

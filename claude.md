@@ -82,8 +82,16 @@ pnpm validate
 
 ### 6. Supabase & Database Operations
 
-- **Database Schema DDL:** Detailed in [docs/db-schema.md](file:///c:/DaAps/IACHallenge/docs/db-schema.md). Paste and execute this in the Supabase SQL Editor.
+- **Database Schema DDL:** Detailed in [docs/db-schema.md](file:///c:/DaAps/IACHallenge/docs/db-schema.md). Contains schemas for `copilot_audit_trail` and standard arbitrage fills.
 - **Persistence Toggle:** Set `PERSISTENCE_DRIVER=supabase` in `apps/bot/.env` to switch from zero-config local mode (`db.json`) to Supabase PostgreSQL.
+- **Failover Security:** If Supabase is unreachable, the engine seamlessly falls back to local disk storage (`db.json`) to avoid stopping the bot.
+- **Immutability Protection:** The PostgreSQL `block_audit_mutations` trigger rejects all `UPDATE` or `DELETE` commands on the `copilot_audit_trail` table, guaranteeing immutable history even for database administrators using `service_role` credentials.
+
+### 7. AI Quant Copilot Real-Time Integrations
+
+- **Dynamic Calibration Endpoint:** `POST /api/v1/bot/calibrate` (Express Bot API, guarded by `secureGuard`). Updates risk parameters (`minNetProfitUSD`, `maxPositionBTCPerExchange`, `latencySafetyBps`) in memory on the fly and logs the event to the Supabase audit trail.
+- **WebSocket Telemetry Server:** `wss://bitcoin-arbitrage-bot.fly.dev/api/v1/telemetry/logs?token=<API_KEY>`. Streams real-time performance logs including engine latency, feed lag per exchange, skipped trades stats, and warning flags. Connects securely in browsers via query-string authentication.
+- **Secure Server-Side Proxies:** Next.js uses server-side proxies (`/api/bot/calibrate` and `/api/copilot/audits`) to read the private Vercel `API_KEY` entirely server-side, eliminating the exposure of sensitive credentials to the browser console.
 
 ---
 
