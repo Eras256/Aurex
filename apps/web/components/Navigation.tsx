@@ -90,9 +90,9 @@ export const Navigation: React.FC = () => {
               );
             })}
           </nav>
-          
-          <div className="pt-4 border-t border-white/5 px-2 space-y-4">
-            {/* Language Toggle */}
+
+          {/* Language Toggle directly below Documentation link */}
+          <div className="mt-4 px-2 mb-6">
             <div className="flex items-center gap-1.5 bg-white/5 rounded-lg p-1 border border-white/5">
               <button
                 onClick={() => setLanguage('en')}
@@ -115,7 +115,9 @@ export const Navigation: React.FC = () => {
                 ES
               </button>
             </div>
-
+          </div>
+          
+          <div className="pt-4 border-t border-white/5 px-2 mt-auto">
             <div className="flex items-center justify-between text-xs">
               <span className="text-slate-500 font-mono">{t('nav.status')}</span>
               <div className="flex items-center gap-1.5">
@@ -139,7 +141,7 @@ export const Navigation: React.FC = () => {
           </div>
 
           {/* Primary Nav Links */}
-          <nav className="space-y-1">
+          <nav className="space-y-1 mb-4">
             {links.map((link) => {
               const isActive = pathname === link.path;
               return (
@@ -157,34 +159,36 @@ export const Navigation: React.FC = () => {
               );
             })}
           </nav>
+
+          {/* Language Toggle directly below Documentation link */}
+          <div className="px-2 mb-6">
+            <div className="flex items-center gap-1.5 bg-white/5 rounded-lg p-1 border border-white/5">
+              <button
+                onClick={() => setLanguage('en')}
+                className={`flex-1 text-center py-1 rounded text-xs font-mono transition-all ${
+                  language === 'en'
+                    ? 'bg-gold text-darkBg font-bold'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                EN
+              </button>
+              <button
+                onClick={() => setLanguage('es')}
+                className={`flex-1 text-center py-1 rounded text-xs font-mono transition-all ${
+                  language === 'es'
+                    ? 'bg-gold text-darkBg font-bold'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                ES
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Sidebar Footer System status */}
-        <div className="mt-8 pt-4 border-t border-white/5 px-2 space-y-4">
-          {/* Language Toggle */}
-          <div className="flex items-center gap-1.5 bg-white/5 rounded-lg p-1 border border-white/5">
-            <button
-              onClick={() => setLanguage('en')}
-              className={`flex-1 text-center py-1 rounded text-xs font-mono transition-all ${
-                language === 'en'
-                  ? 'bg-gold text-darkBg font-bold'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              EN
-            </button>
-            <button
-              onClick={() => setLanguage('es')}
-              className={`flex-1 text-center py-1 rounded text-xs font-mono transition-all ${
-                language === 'es'
-                  ? 'bg-gold text-darkBg font-bold'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              ES
-            </button>
-          </div>
-
+        <div className="pt-4 border-t border-white/5 px-2">
           <div className="flex items-center justify-between text-xs">
             <span className="text-slate-500 font-mono">{t('nav.status')}</span>
             <div className="flex items-center gap-1.5">
