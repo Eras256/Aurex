@@ -8,6 +8,26 @@ Aurex is an institutional-grade platform for real-time Bitcoin arbitrage detecti
 
 By utilizing high-speed WebSocket market feeds, walking real-time L2 order book depth tables, and incorporating transaction costs, slippage penalties, and network latency buffers, the system provides a highly accurate simulation environment of high-frequency trading (HFT) spread capture.
 
+## Why this project uses real market data with simulated execution
+
+Aurex uses real-time public market data from supported exchanges while keeping execution fully simulated. This design choice is intentional: the goal is to measure live cross-exchange spreads, maintain current order books, estimate net profitability after fees and slippage, and simulate fills under realistic market conditions without placing real orders or depending on private trading credentials.
+
+Using public production market data provides a more credible view of actual market fragmentation than an isolated testnet environment. The challenge is centered on detecting and evaluating arbitrage opportunities in real time across exchanges, and public market feeds are sufficient for that purpose because authentication is not required for these feeds on exchanges such as Kraken, while Coinbase Advanced Trade also provides real-time market data over its WebSocket infrastructure.
+
+Testnet environments are useful for validating authenticated trading flows, order submission, and account-level behavior. However, they are less suitable as the primary foundation for this project because the core objective here is market monitoring and execution simulation, not live order placement, and because testnet liquidity and spread behavior do not reliably reflect live market conditions.
+
+As a result, Aurex follows a hybrid architecture:
+
+Live public order books for market observation
+
+Simulated execution for fills, PnL, and wallet updates
+
+No real trading and no custody risk
+
+No dependency on private exchange API keys for the core demo path
+
+This approach keeps the system aligned with the challenge requirements while maximizing realism, safety, and demo reliability.
+
 ## Cómo cumple los requisitos del Challenge
 
 El proyecto se diseñó para cumplir con el 100% de los lineamientos del reto técnico:
