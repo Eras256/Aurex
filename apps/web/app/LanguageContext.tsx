@@ -38,6 +38,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Header Ticker
     'ticker.btc_spot': 'BTC SPOT:',
     'ticker.detection': 'DETECTION:',
+    'ticker.p99': 'P99:',
     'ticker.feeds': 'FEEDS:',
     'ticker.feeds_suffix': 'live',
     'ticker.sim_equity': 'SIM EQUITY:',
@@ -389,6 +390,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Header Ticker
     'ticker.btc_spot': 'SPOT DE BTC:',
     'ticker.detection': 'DETECCIÓN:',
+    'ticker.p99': 'P99:',
     'ticker.feeds': 'CANALES:',
     'ticker.feeds_suffix': 'activos',
     'ticker.sim_equity': 'PATRIMONIO SIM:',

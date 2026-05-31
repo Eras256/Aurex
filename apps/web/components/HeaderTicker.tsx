@@ -20,6 +20,7 @@ export function HeaderTicker() {
       : null;
 
   const latency = state?.metrics?.detectionLatencyMs ?? null;
+  const p99Latency = state?.metrics?.p99LatencyMs ?? null;
   const equity = 100000 + (state?.pnl?.totalProfitUSD ?? 0);
 
   const connectedVenues = state?.connections
@@ -35,11 +36,18 @@ export function HeaderTicker() {
           {btcSpot ? `$${btcSpot.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
         </span>
       </div>
-      {/* Live detection latency */}
+      {/* Live detection latency (rolling average) */}
       <div className="flex items-center gap-2 text-xs border-l border-white/5 pl-6">
         <span className="text-slate-500 font-mono">{t('ticker.detection')}</span>
         <span className="text-sky-400 font-mono font-medium">
           {latency !== null ? `${latency.toFixed(2)} ms` : '—'}
+        </span>
+      </div>
+      {/* p99 detection latency (tail / worst-case) */}
+      <div className="flex items-center gap-2 text-xs border-l border-white/5 pl-6">
+        <span className="text-slate-500 font-mono">{t('ticker.p99')}</span>
+        <span className="text-sky-400/70 font-mono font-medium">
+          {p99Latency !== null ? `${p99Latency.toFixed(2)} ms` : '—'}
         </span>
       </div>
       {/* Connected live venues */}
