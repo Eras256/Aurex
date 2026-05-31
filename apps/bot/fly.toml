@@ -42,8 +42,5 @@ primary_region = "fra"
   ENGINE_MAX_POSITION_BTC_PER_EXCHANGE = "5"
   ENGINE_LATENCY_SAFETY_BPS = "1"
   ENGINE_SLIPPAGE_SAFETY_BPS = "0"
-  # CORS allowlist (comma-separated). Keep http://localhost:3000 for local dev.
-  # TODO: replace "https://bitcoin-arbitrage-web.vercel.app" with your REAL
-  # Vercel production domain before deploying, or override at deploy time with:
-  #   flyctl secrets set ALLOWED_ORIGINS="https://<your-vercel-domain>,http://localhost:3000" --config apps/bot/fly.toml
-  ALLOWED_ORIGINS = "https://bitcoin-arbitrage-web.vercel.app,http://localhost:3000"
+  # CORS allowlist (comma-separated). Production Vercel frontend + local dev.
+  ALLOWED_ORIGINS = "https://aurex-terminal.vercel.app,http://localhost:3000"
