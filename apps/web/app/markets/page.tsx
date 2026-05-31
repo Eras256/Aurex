@@ -1,5 +1,6 @@
 'use client';
 
+import { OrderBookLevel } from '@arbitrage/core';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   ResponsiveContainer,
@@ -18,9 +19,12 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLanguage } from '../LanguageContext';
 import { useWebSocket } from '../WebSocketContext';
 
+interface DepthTooltipEntry {
+  payload: { price: number; bids: number | null; asks: number | null };
+}
 interface CustomTooltipProps {
   active?: boolean;
-  payload?: any[];
+  payload?: DepthTooltipEntry[];
 }
 
 const DepthTooltip = ({ active, payload }: CustomTooltipProps) => {
@@ -38,7 +42,7 @@ const DepthTooltip = ({ active, payload }: CustomTooltipProps) => {
         <p className="font-bold text-white mb-2">${data.price.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
         <p className="text-slate-500 uppercase text-[9px] mb-0.5">{type}</p>
         <p className={`font-bold ${colorClass} text-sm`}>
-          {qty.toFixed(4)} BTC
+          {(qty ?? 0).toFixed(4)} BTC
         </p>
       </div>
     );
@@ -74,7 +78,7 @@ export default function MarketsPage() {
   const sourceBook = state?.orderBooks?.[sourceEx.key] || { bids: [], asks: [], updatedAt: 0 };
   const targetBook = state?.orderBooks?.[targetEx.key] || { bids: [], asks: [], updatedAt: 0 };
 
-  const formatLevelRow = (level: any, maxQty = 5) => {
+  const formatLevelRow = (level: OrderBookLevel, maxQty = 5) => {
     const qtyPct = Math.min((level.amount / maxQty) * 100, 100);
     return {
       price: level.price,
@@ -223,8 +227,8 @@ export default function MarketsPage() {
             const spread = bestBid > 0 && bestAsk > 0 ? bestAsk - bestBid : 0;
             
             // Calculate total volume in first 10 levels for bid/ask
-            const totalBidVol = book.bids.slice(0, 10).reduce((acc: number, level: any) => acc + level.amount, 0);
-            const totalAskVol = book.asks.slice(0, 10).reduce((acc: number, level: any) => acc + level.amount, 0);
+            const totalBidVol = book.bids.slice(0, 10).reduce((acc: number, level: OrderBookLevel) => acc + level.amount, 0);
+            const totalAskVol = book.asks.slice(0, 10).reduce((acc: number, level: OrderBookLevel) => acc + level.amount, 0);
             const totalL2Vol = totalBidVol + totalAskVol;
 
             // Connection state from WebSocket state

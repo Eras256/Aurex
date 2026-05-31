@@ -51,11 +51,12 @@ export default function RiskSettingsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!state?.config) return;
     setSaving(true);
     setSaveStatus(t('risk.saving_msg'));
 
     const success = await updateConfig({
-      ...state?.config,
+      ...state.config,
       minNetProfitUSD,
       maxPositionBTCPerExchange: maxPositionBTC,
       latencySafetyBps,

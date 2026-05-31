@@ -57,7 +57,10 @@ export default function SystemHealthPage() {
     bybit: 'Bybit Spot WS',
   };
 
-  const renderConnectionCard = (exName: string, stateObj: any) => {
+  const renderConnectionCard = (
+    exName: string,
+    stateObj: { connected: boolean; reconnects: number; lastMessageAt: number }
+  ) => {
     const msSinceLastMsg = Date.now() - stateObj.lastMessageAt;
     const heartbeatStr = stateObj.lastMessageAt > 0 
       ? (t('health.feed_suffix') === 'Canal' ? `hace ${(msSinceLastMsg / 1000).toFixed(1)}s` : `${(msSinceLastMsg / 1000).toFixed(1)}s ago`)

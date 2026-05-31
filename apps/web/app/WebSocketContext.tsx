@@ -1,7 +1,7 @@
 'use client';
 
 import { env } from '@arbitrage/config';
-import { StatePayload } from '@arbitrage/core';
+import { StatePayload, EngineConfig } from '@arbitrage/core';
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 
 interface WebSocketContextType {
@@ -9,7 +9,7 @@ interface WebSocketContextType {
   connected: boolean;
   reconnectCount: number;
   triggerReset: () => Promise<boolean>;
-  updateConfig: (newConfig: any) => Promise<boolean>;
+  updateConfig: (newConfig: EngineConfig) => Promise<boolean>;
   backendUrl: string;
 }
 
@@ -125,7 +125,7 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const updateConfig = async (newConfig: any): Promise<boolean> => {
+  const updateConfig = async (newConfig: EngineConfig): Promise<boolean> => {
     try {
       const res = await fetch(`${backendHost}/config`, {
         method: 'POST',

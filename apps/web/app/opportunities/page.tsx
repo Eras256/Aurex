@@ -37,7 +37,7 @@ export default function OpportunitiesPage() {
         </div>
 
         {/* Tab Filters */}
-        <Tabs value={filter} onValueChange={(val) => setFilter(val as any)} className="self-start">
+        <Tabs value={filter} onValueChange={(val) => setFilter(val as 'ALL' | 'EXECUTED' | 'SKIPPED')} className="self-start">
           <TabsList>
             <TabsTrigger value="ALL">{t('opps.filter_all_label')}</TabsTrigger>
             <TabsTrigger value="EXECUTED">{t('opps.filter_executed_label')}</TabsTrigger>

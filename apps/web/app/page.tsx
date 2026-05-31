@@ -22,9 +22,13 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { useLanguage } from './LanguageContext';
 import { useWebSocket } from './WebSocketContext';
 
+interface EquityTooltipEntry {
+  value: number;
+  payload: { name: string; value: number };
+}
 interface CustomTooltipProps {
   active?: boolean;
-  payload?: any[];
+  payload?: EquityTooltipEntry[];
 }
 
 const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
@@ -289,7 +293,7 @@ export default function OverviewPage() {
           <CardContent className="pt-2">
             <div className="h-[220px] w-full bg-slate-950/20 border border-white/5 rounded-lg p-2 block">
               {mounted ? (
-                typeof window !== 'undefined' && (window as any).IS_PLAYWRIGHT ? (
+                typeof window !== 'undefined' && (window as unknown as { IS_PLAYWRIGHT?: boolean }).IS_PLAYWRIGHT ? (
                   <div className="w-full h-full flex items-center justify-center text-slate-500 font-mono text-xs">
                     📊 Simulation Chart Active (E2E Mocked)
                   </div>
