@@ -77,6 +77,7 @@ const translations: Record<Language, Record<string, string>> = {
     'overview.sharpe_ratio': 'SHARPE RATIO',
     'overview.sharpe_sub': 'Risk-free rate: 0.0%',
     'overview.sharpe_building': 'Building',
+    'overview.compute': 'compute',
 
     // Triangular Arbitrage panel
     'tri.title': 'Triangular Arbitrage',
@@ -330,6 +331,8 @@ const translations: Record<Language, Record<string, string>> = {
     'health.logged_events': 'LOGGED EVENTS',
     'health.records_label': 'records',
     'health.detection_latency': 'DETECTION LATENCY',
+    'health.wire_label': 'wire',
+    'health.compute_label': 'compute',
     'health.engine_status': 'ENGINE STATUS',
     'health.engine_live': 'LIVE · TRADING',
     'health.engine_paused': 'PAUSED',
@@ -449,6 +452,7 @@ const translations: Record<Language, Record<string, string>> = {
     'overview.sharpe_ratio': 'RATIO DE SHARPE',
     'overview.sharpe_sub': 'Tasa libre de riesgo: 0.0%',
     'overview.sharpe_building': 'Acumulando',
+    'overview.compute': 'cómputo',
 
     // Panel de Arbitraje Triangular
     'tri.title': 'Arbitraje Triangular',
@@ -702,6 +706,8 @@ const translations: Record<Language, Record<string, string>> = {
     'health.logged_events': 'EVENTOS REGISTRADOS',
     'health.records_label': 'registros',
     'health.detection_latency': 'LATENCIA DE DETECCIÓN',
+    'health.wire_label': 'red',
+    'health.compute_label': 'cómputo',
     'health.engine_status': 'ESTADO DEL MOTOR',
     'health.engine_live': 'ACTIVO · OPERANDO',
     'health.engine_paused': 'PAUSADO',

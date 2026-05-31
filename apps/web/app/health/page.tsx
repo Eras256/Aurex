@@ -169,9 +169,10 @@ export default function SystemHealthPage() {
           <CardContent className="p-4 pt-1">
             <h3 className="text-lg font-bold font-mono mt-1 text-sky-400 glow-text-blue">
               {(metrics?.detectionLatencyMs ?? 0).toFixed(2)} ms
+              <span className="text-[10px] text-slate-500"> {t('health.wire_label')}</span>
             </h3>
             <span className="text-[10px] text-slate-500 font-mono">
-              p99 {(metrics?.p99LatencyMs ?? 0).toFixed(2)} ms · {metrics?.evalsPerSecond ?? 0} books/s
+              <span className="text-emerald-400/80">~{Math.round((metrics?.computeLatencyMs ?? 0) * 1000)}µs {t('health.compute_label')}</span> · p99 {(metrics?.p99LatencyMs ?? 0).toFixed(2)}ms · {metrics?.evalsPerSecond ?? 0} books/s
             </span>
           </CardContent>
         </Card>

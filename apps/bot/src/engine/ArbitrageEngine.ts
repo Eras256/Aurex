@@ -64,7 +64,8 @@ export class ArbitrageEngine {
   private lastRebalanceAt = 0;
 
   // Observability counters for the speed/latency evaluation criterion.
-  private latencySamples: number[] = [];
+  private latencySamples: number[] = []; // wire-to-detection (network-bound)
+  private computeSamples: number[] = []; // pure in-process evaluation time (the algorithm)
   private evalTimestamps: number[] = [];
   private booksProcessed = 0;
   private opportunitiesDetected = 0;
@@ -139,28 +140,40 @@ export class ArbitrageEngine {
     return this.wallets;
   }
 
+  /** Average and p99 of a sample window (returns zeros for an empty window). */
+  private sampleStats(samples: number[]): { avg: number; p99: number } {
+    if (samples.length === 0) return { avg: 0, p99: 0 };
+    const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
+    const sorted = [...samples].sort((a, b) => a - b);
+    const p99 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.99))];
+    return { avg, p99 };
+  }
+
   getMetrics(): EngineMetrics {
     const now = Date.now();
     // Throughput: order-book snapshots evaluated within the trailing 1s window.
     this.evalTimestamps = this.evalTimestamps.filter((t) => now - t <= 1000);
 
-    const samples = this.latencySamples;
-    const avg = samples.length > 0 ? samples.reduce((a, b) => a + b, 0) / samples.length : 0;
-    let p99 = 0;
-    if (samples.length > 0) {
-      const sorted = [...samples].sort((a, b) => a - b);
-      p99 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.99))];
-    }
+    const wire = this.sampleStats(this.latencySamples);
+    const compute = this.sampleStats(this.computeSamples);
 
     return {
-      detectionLatencyMs: Number(avg.toFixed(3)),
-      p99LatencyMs: Number(p99.toFixed(3)),
+      detectionLatencyMs: Number(wire.avg.toFixed(3)),
+      p99LatencyMs: Number(wire.p99.toFixed(3)),
+      // Reported in ms but sub-millisecond — the UI renders it in microseconds.
+      computeLatencyMs: Number(compute.avg.toFixed(4)),
+      computeP99Ms: Number(compute.p99.toFixed(4)),
       evalsPerSecond: this.evalTimestamps.length,
       booksProcessed: this.booksProcessed,
       opportunitiesDetected: this.opportunitiesDetected,
       lastActivityAt: this.lastActivityAt,
       watchdogRecoveries: this.watchdogRecoveries,
     };
+  }
+
+  private recordComputeLatency(ms: number) {
+    this.computeSamples.push(ms);
+    if (this.computeSamples.length > 300) this.computeSamples.shift();
   }
 
   /** Epoch ms of the last evaluated order book (0 before the first evaluation). */
@@ -202,6 +215,7 @@ export class ArbitrageEngine {
     this.booksProcessed = 0;
     this.opportunitiesDetected = 0;
     this.latencySamples = [];
+    this.computeSamples = [];
     this.evalTimestamps = [];
     this.lastRebalanceAt = 0;
     this.spreadStats.reset();
@@ -325,6 +339,9 @@ export class ArbitrageEngine {
     const enabledExchanges = this.config.enabledExchanges;
     if (enabledExchanges.length < 2) return;
 
+    // Pure compute timer: measures the algorithm itself (depth-walk + cost model + ranking
+    // across every directed venue pair), isolated from network transit and async DB writes.
+    const computeStart = performance.now();
     const candidates: ArbitrageCandidate[] = [];
 
     for (let i = 0; i < enabledExchanges.length; i++) {
@@ -348,7 +365,10 @@ export class ArbitrageEngine {
       }
     }
 
-    if (candidates.length === 0) return;
+    if (candidates.length === 0) {
+      this.recordComputeLatency(performance.now() - computeStart);
+      return;
+    }
 
     // Priority ranking across every simultaneous window: maximise net profit, but when two
     // windows are within 5% on profit, prefer the statistically more anomalous one (higher
@@ -365,6 +385,9 @@ export class ArbitrageEngine {
     const best = candidates[0];
 
     const profitable = candidates.filter((c) => c.profitable).sort(rank);
+    // The detection algorithm has now fully run; record its pure compute cost before any
+    // async persistence/execution I/O is awaited below.
+    this.recordComputeLatency(performance.now() - computeStart);
     if (profitable.length > 0) {
       // Capture the single highest-conviction profitable window this cycle.
       await this.executeCandidate(profitable[0]);

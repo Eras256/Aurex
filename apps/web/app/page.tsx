@@ -68,6 +68,8 @@ export default function OverviewPage() {
   const detectionLatency = state?.metrics?.detectionLatencyMs ?? 0;
   const evalsPerSecond = state?.metrics?.evalsPerSecond ?? 0;
   const opportunitiesDetected = state?.metrics?.opportunitiesDetected ?? 0;
+  // Pure in-process evaluation time (the algorithm), reported sub-millisecond → show in µs.
+  const computeLatencyUs = Math.round((state?.metrics?.computeLatencyMs ?? 0) * 1000);
   
   const trades = state?.trades ?? [];
   const recentTrades = trades.slice(0, 5);
@@ -265,7 +267,7 @@ export default function OverviewPage() {
               {detectionLatency.toFixed(2)}<span className="text-sm text-slate-500"> ms</span>
             </h3>
             <span className="text-[10px] text-slate-500 font-mono">
-              {evalsPerSecond}/s {t('overview.books')} · {opportunitiesDetected.toLocaleString()} {t('overview.windows')}
+              <span className="text-emerald-400/80">~{computeLatencyUs}µs {t('overview.compute')}</span> · {evalsPerSecond}/s {t('overview.books')} · {opportunitiesDetected.toLocaleString()} {t('overview.windows')}
             </span>
           </CardContent>
         </Card>

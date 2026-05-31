@@ -97,8 +97,10 @@ export interface EngineEvent {
 }
 
 export interface EngineMetrics {
-  detectionLatencyMs: number; // Rolling average: book-event timestamp -> opportunity evaluation completion
-  p99LatencyMs: number; // Worst-case (p99) detection latency in the rolling window
+  detectionLatencyMs: number; // Rolling average wire-to-detection: venue event timestamp -> evaluation (network-bound)
+  p99LatencyMs: number; // Worst-case (p99) wire-to-detection latency in the rolling window
+  computeLatencyMs: number; // Rolling average pure in-process evaluation time (the algorithm itself; network-independent)
+  computeP99Ms: number; // Worst-case (p99) in-process evaluation time
   evalsPerSecond: number; // Order-book snapshots evaluated per second
   booksProcessed: number; // Total order-book snapshots evaluated since boot
   opportunitiesDetected: number; // Total profitable windows isolated since boot
