@@ -240,13 +240,17 @@ pnpm dev
 Las siguientes capturas de pantalla ilustran el diseño visual y las capacidades del dashboard interactivo en tiempo real del simulador:
 
 - **Overview Dashboard:** Muestra las métricas principales (KPIs), P&L acumulado y la curva de crecimiento del patrimonio simulado.
-  ![Overview Dashboard](docs/screenshots/overview-dashboard.png)
+<img width="2361" height="979" alt="image" src="https://github.com/user-attachments/assets/6257c3ea-2f29-423c-a70b-1921dc8b1ac1" />
+
 - **Comparative Markets:** Muestra la comparación visual lado a lado de los libros de órdenes de Binance y Kraken.
-  ![Comparative Markets](docs/screenshots/markets-orderbooks.png)
+  <img width="1761" height="1123" alt="image" src="https://github.com/user-attachments/assets/d5c94b8f-d61e-45ed-8a9b-523b39dddadf" />
+
 - **Simulated Trades Ledger:** Historial de ejecuciones simuladas y el enlace de descarga de registros en formato CSV.
-  ![Trades Ledger](docs/screenshots/trades-history.png)
+ <img width="2399" height="1035" alt="image" src="https://github.com/user-attachments/assets/7770b7b6-e4d9-4bf5-9177-dd4e547935b0" />
+
 - **Risk & Settings Panel:** Controles del motor, ajuste de márgenes mínimos y disyuntores de riesgo (Risk Circuit Breakers).
-  ![Risk & Settings Panel](docs/screenshots/risk-settings.png)
+ <img width="2369" height="1004" alt="image" src="https://github.com/user-attachments/assets/9e677531-3f9d-4cf0-b1cd-5b5bdf867509" />
+
 
 ---
 
