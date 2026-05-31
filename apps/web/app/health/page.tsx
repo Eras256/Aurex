@@ -31,6 +31,22 @@ export default function SystemHealthPage() {
   const events = state?.events || [];
   const uptime = state?.uptime || 0;
   const metrics = state?.metrics;
+
+  // Engine liveness: paused (manual), live (evaluating recently), or idle (running but no
+  // recent evaluations — the watchdog self-heals this). Mirrors the backend autostart guard.
+  const isPaused = state?.config?.isPaused ?? false;
+  const lastActivityAt = metrics?.lastActivityAt ?? 0;
+  const msSinceActivity = lastActivityAt > 0 ? Date.now() - lastActivityAt : Infinity;
+  const watchdogRecoveries = metrics?.watchdogRecoveries ?? 0;
+  const engineLive = !isPaused && lastActivityAt > 0 && msSinceActivity < 10000;
+  const engineStatusLabel = isPaused
+    ? t('health.engine_paused')
+    : engineLive
+      ? t('health.engine_live')
+      : t('health.engine_idle');
+  const activityStr = lastActivityAt > 0
+    ? (t('health.feed_suffix') === 'Canal' ? `hace ${(msSinceActivity / 1000).toFixed(1)}s` : `${(msSinceActivity / 1000).toFixed(1)}s ago`)
+    : t('health.no_messages');
   const venueLabels: Record<string, string> = {
     binance: 'Binance Spot WS',
     kraken: 'Kraken Spot WS',
@@ -78,6 +94,34 @@ export default function SystemHealthPage() {
           {t('health.subtitle_header')}
         </p>
       </div>
+
+      {/* ENGINE LIVENESS BANNER */}
+      <Card className={`border ${isPaused ? 'border-amber-500/30' : engineLive ? 'border-emerald-500/30' : 'border-rose-500/30'}`}>
+        <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5">
+          <div className="flex items-center gap-3">
+            <span className="relative flex h-2.5 w-2.5">
+              {engineLive && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />}
+              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isPaused ? 'bg-amber-500' : engineLive ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+            </span>
+            <div>
+              <div className="text-[10px] text-slate-500 font-mono tracking-wider uppercase">{t('health.engine_status')}</div>
+              <div className={`text-lg font-bold font-mono ${isPaused ? 'text-amber-400' : engineLive ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {engineStatusLabel}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-8 text-xs font-mono">
+            <div>
+              <div className="text-[10px] text-slate-500 tracking-wider uppercase">{t('health.last_activity')}</div>
+              <div className="text-white font-bold mt-0.5">{activityStr}</div>
+            </div>
+            <div>
+              <div className="text-[10px] text-slate-500 tracking-wider uppercase">{t('health.self_heals')}</div>
+              <div className="text-white font-bold mt-0.5">{watchdogRecoveries}</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* CORE STATS GRID */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-5">

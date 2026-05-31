@@ -68,6 +68,9 @@ export class ArbitrageEngine {
   private opportunitiesDetected = 0;
   // Throttle for persisting evaluated-but-rejected windows to the opportunities feed.
   private lastWindowRecordAt = 0;
+  // Liveness telemetry: epoch ms of the last evaluated book + self-heal action count.
+  private lastActivityAt = 0;
+  private watchdogRecoveries = 0;
 
   private logger = createChildLogger({ component: 'ArbitrageEngine' });
 
@@ -77,7 +80,7 @@ export class ArbitrageEngine {
     this.pnlTracker = new PnLTracker();
   }
 
-  async initialize(wsBroadcaster: () => void) {
+  async initialize(wsBroadcaster: () => void, opts: { autostart?: boolean } = {}) {
     this.wsBroadcaster = wsBroadcaster;
 
     const loadedConfig = await loadConfig();
@@ -88,6 +91,17 @@ export class ArbitrageEngine {
     } else {
       await saveConfig(this.config);
       this.logger.info({ eventType: 'INFO' }, '⚙️ No persisted Engine Config found; seeded defaults to database.');
+    }
+
+    // Autostart guard: a restart/redeploy must always bring the live demo back trading, so
+    // a stale or forgotten persisted pause can never leave the engine silently dead. A
+    // runtime pause via /config still works — it simply does not survive a reboot.
+    if (opts.autostart && this.config.isPaused) {
+      this.config = { ...this.config, isPaused: false };
+      this.riskManager.updateConfig(this.config);
+      await saveConfig(this.config);
+      this.logger.info({ eventType: 'INFO' }, '▶️ Autostart guard: engine was paused; resumed on boot.');
+      await this.emitEvent('INFO', 'Autostart guard: engine was paused on boot and has been resumed.');
     }
 
     const loadedBalances = await loadBalances();
@@ -138,7 +152,31 @@ export class ArbitrageEngine {
       evalsPerSecond: this.evalTimestamps.length,
       booksProcessed: this.booksProcessed,
       opportunitiesDetected: this.opportunitiesDetected,
+      lastActivityAt: this.lastActivityAt,
+      watchdogRecoveries: this.watchdogRecoveries,
     };
+  }
+
+  /** Epoch ms of the last evaluated order book (0 before the first evaluation). */
+  getLastActivityAt(): number {
+    return this.lastActivityAt;
+  }
+
+  /** Records a watchdog self-heal action (e.g. a silent-feed reconnect) for telemetry. */
+  recordWatchdogRecovery(): void {
+    this.watchdogRecoveries += 1;
+  }
+
+  /** Persists an engine event to the audit trail and pushes a fresh state to the UI. */
+  async emitEvent(type: EngineEvent['type'], message: string): Promise<void> {
+    const event: EngineEvent = {
+      id: `evt-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      timestamp: Date.now(),
+      type,
+      message,
+    };
+    await saveEvent(event);
+    this.wsBroadcaster?.();
   }
 
   async resetSimulation() {
@@ -218,7 +256,10 @@ export class ArbitrageEngine {
   private recordLatency(ms: number) {
     this.latencySamples.push(ms);
     if (this.latencySamples.length > 300) this.latencySamples.shift();
-    this.evalTimestamps.push(Date.now());
+    const now = Date.now();
+    this.evalTimestamps.push(now);
+    // Liveness heartbeat: the watchdog uses this to detect a stalled engine.
+    this.lastActivityAt = now;
   }
 
   private async onBookUpdate(book: NormalizedOrderBook) {

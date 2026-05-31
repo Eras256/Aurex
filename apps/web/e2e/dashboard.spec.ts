@@ -169,7 +169,7 @@ const mockStatePayload = {
     totalProfitUSD: 500.50,
     dailyProfitUSD: 100.25,
     winRate: 75.0,
-    totalTrades: 10,
+    totalTrades: 25,
     sharpeRatio: 2.5,
     equityHistory: [
       { timestamp: Date.now() - 10000, value: 100000 },
@@ -235,9 +235,9 @@ test.describe('📈 Bitcoin Arbitrage Simulator Visual Dashboard E2E Tests', () 
     await expect(page.getByText('WIN RATE', { exact: true })).toBeVisible();
     await expect(page.getByText('75.0%')).toBeVisible();
 
-    // Total Trades: 10
+    // Total Trades: 25
     await expect(page.getByText('TOTAL TRADES', { exact: true })).toBeVisible();
-    await expect(page.getByText('10', { exact: true })).toBeVisible();
+    await expect(page.getByText('25', { exact: true })).toBeVisible();
 
     // Sharpe Ratio: 2.50
     await expect(page.getByText('SHARPE RATIO', { exact: true })).toBeVisible();

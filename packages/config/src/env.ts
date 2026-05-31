@@ -23,6 +23,14 @@ export const EnvSchema = z.object({
   BYBIT_WS_URL: z.string().url().default('wss://stream.bybit.com/v5/public/spot'),
   SQLITE_DB_PATH: z.string().default('db.sqlite'),
   API_KEY: z.string().default('dev-api-key-12345'),
+  // Force the engine to boot unpaused regardless of any persisted pause flag, so a
+  // restart/redeploy always brings the live demo back trading (a forgotten manual pause
+  // can never leave it silently dead). A runtime pause via /config still works; it just
+  // never survives a reboot. Set to 'false' to honour the persisted pause across restarts.
+  ENGINE_AUTOSTART: z.preprocess(
+    (val) => (val === undefined || val === '' ? true : val === 'true' || val === '1'),
+    z.boolean().default(true)
+  ),
   ALLOWED_ORIGINS: z.string().default('http://localhost:3000,http://localhost:3001'),
   NEXT_PUBLIC_BACKEND_URL: z.string().url().default('http://localhost:3001'),
   // Demo control key sent as `x-api-key` from the dashboard to guard /config and
@@ -58,6 +66,7 @@ const getEnv = (): Env => {
     BYBIT_WS_URL: typeof process !== 'undefined' ? process.env.BYBIT_WS_URL : undefined,
     SQLITE_DB_PATH: typeof process !== 'undefined' ? process.env.SQLITE_DB_PATH : undefined,
     API_KEY: typeof process !== 'undefined' ? process.env.API_KEY : undefined,
+    ENGINE_AUTOSTART: typeof process !== 'undefined' ? process.env.ENGINE_AUTOSTART : undefined,
     ALLOWED_ORIGINS: typeof process !== 'undefined' ? process.env.ALLOWED_ORIGINS : undefined,
     NEXT_PUBLIC_BACKEND_URL: typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_BACKEND_URL : undefined,
     NEXT_PUBLIC_API_KEY: typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_API_KEY : undefined,

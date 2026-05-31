@@ -102,6 +102,8 @@ export interface EngineMetrics {
   evalsPerSecond: number; // Order-book snapshots evaluated per second
   booksProcessed: number; // Total order-book snapshots evaluated since boot
   opportunitiesDetected: number; // Total profitable windows isolated since boot
+  lastActivityAt: number; // Epoch ms of the most recent order-book evaluation (engine liveness)
+  watchdogRecoveries: number; // Count of self-heal actions (silent-feed reconnects) since boot
 }
 
 export interface StatePayload {

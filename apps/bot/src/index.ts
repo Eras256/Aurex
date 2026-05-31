@@ -44,10 +44,11 @@ async function bootstrap() {
   // Dashboard WS Server
   const wsServer = new DashboardWebSocketServer(httpServer, engine, exchanges);
 
-  // Bind the engine's broadcast function to push live StatePayload to the UI
+  // Bind the engine's broadcast function to push live StatePayload to the UI. The autostart
+  // guard ensures a restart/redeploy always resumes trading (never boots silently paused).
   await engine.initialize(() => {
     wsServer.broadcast();
-  });
+  }, { autostart: config.ENGINE_AUTOSTART });
 
   // 5. Connect every venue's BTC/USDT book stream into the shared L2 cache.
   for (const adapter of Object.values(exchanges)) {
@@ -89,11 +90,50 @@ async function bootstrap() {
     );
   }, 10000);
 
+  // 8c. Liveness watchdog. The per-socket reconnect cycle only fires on a 'close' event; a
+  // socket that stays open but goes silent (a stalled stream, a half-open TCP connection)
+  // would otherwise feed a stale book forever. Every 15s we force-reconnect any venue that
+  // is marked connected yet hasn't delivered a message in FEED_STALE_MS, and surface an
+  // engine stall (live feeds but no evaluations) so the demo self-heals and stays honest.
+  const FEED_STALE_MS = 30000;
+  const watchdogInterval = setInterval(async () => {
+    const now = Date.now();
+    for (const [id, adapter] of Object.entries(exchanges)) {
+      if (adapter.isConnected() && now - adapter.getLastMessageTimestamp() > FEED_STALE_MS) {
+        const silentForS = ((now - adapter.getLastMessageTimestamp()) / 1000).toFixed(0);
+        logger.warn(`🩺 Watchdog: ${id} feed silent for ${silentForS}s while connected; forcing reconnect.`);
+        try {
+          await adapter.disconnect();
+          await adapter.connect();
+          engine.recordWatchdogRecovery();
+          await engine.emitEvent('WARNING', `Auto-recovery: ${id} feed was silent for ${silentForS}s and was reconnected.`);
+        } catch (err) {
+          logger.error(`Watchdog failed to reconnect ${id}`, err);
+        }
+      }
+    }
+
+    // Engine stall: feeds are live and the engine is running, yet nothing is being evaluated.
+    const connectedCount = Object.values(exchanges).filter((a) => a.isConnected()).length;
+    const lastActivity = engine.getLastActivityAt();
+    if (
+      !engine.getConfig().isPaused &&
+      connectedCount >= 2 &&
+      lastActivity > 0 &&
+      now - lastActivity > FEED_STALE_MS
+    ) {
+      const idleForS = ((now - lastActivity) / 1000).toFixed(0);
+      logger.warn(`🩺 Watchdog: engine idle ${idleForS}s despite ${connectedCount} live feeds.`);
+      await engine.emitEvent('WARNING', `Engine stall detected: no order books evaluated in ${idleForS}s despite ${connectedCount} live feeds.`);
+    }
+  }, 15000);
+
   // 9. Elegant Process termination handlers
   const shutdown = async (signal: string) => {
     logger.info(`🚨 Received signal: ${signal}. Commencing elegant shutdown...`);
     clearInterval(broadcastInterval);
     clearInterval(rebalanceInterval);
+    clearInterval(watchdogInterval);
     
     // Close servers
     httpServer.close();

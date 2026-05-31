@@ -39,20 +39,22 @@ export class PnLTracker {
     const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0;
     const totalProfitUSD = this.currentEquity - this.initialEquity;
 
-    // Calculate Sharpe Ratio of trade series if we have sufficient samples
+    // Sharpe ratio of the trade series. A ratio is only statistically meaningful with a
+    // real sample, so we withhold it (return 0) until at least MIN_SHARPE_TRADES have
+    // executed — rather than seeding a flattering placeholder. The frontend renders 0 as
+    // "building (n/MIN)" so the number is never overstated on a thin history.
+    const MIN_SHARPE_TRADES = 20;
     let sharpeRatio = 0;
-    if (totalTrades >= 3) {
+    if (totalTrades >= MIN_SHARPE_TRADES) {
       const profits = trades.map((t) => t.netProfit);
       const mean = profits.reduce((a, b) => a + b, 0) / totalTrades;
       const variance = profits.map((x) => Math.pow(x - mean, 2)).reduce((a, b) => a + b, 0) / (totalTrades - 1);
       const stdDev = Math.sqrt(variance);
-      
-      // Sharpe = Mean / StdDev. Annualized using standard frequency mapping (e.g. sqrt(3650) assuming 10 trades daily)
+
+      // Sharpe = Mean / StdDev, annualised assuming ~10 trades/day (sqrt(365) frequency map).
       sharpeRatio = stdDev > 0 ? (mean / stdDev) * Math.sqrt(365) : 0;
-      // Cap at reasonable visual limits
+      // Clamp to a sane display window so a near-zero variance can't print an absurd value.
       sharpeRatio = Math.min(Math.max(sharpeRatio, -5), 10);
-    } else if (totalTrades > 0) {
-      sharpeRatio = 2.15; // default positive seed ratio
     }
 
     return {

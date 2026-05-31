@@ -58,6 +58,10 @@ export default function OverviewPage() {
   const winRate = state?.pnl?.winRate ?? 0;
   const sharpeRatio = state?.pnl?.sharpeRatio ?? 0;
   const avgProfit = totalTrades > 0 ? totalProfit / totalTrades : 0;
+  // A Sharpe ratio is only statistically meaningful with a real sample; below this many
+  // trades we show "building (n/MIN)" rather than overstate a figure from a thin history.
+  const SHARPE_MIN_TRADES = 20;
+  const sharpeReady = totalTrades >= SHARPE_MIN_TRADES;
 
   // Real-time engine throughput / latency telemetry (criterion: speed of detection)
   const detectionLatency = state?.metrics?.detectionLatencyMs ?? 0;
@@ -242,9 +246,11 @@ export default function OverviewPage() {
           </CardHeader>
           <CardContent className="p-4 pt-1">
             <h3 className="text-2xl font-bold font-mono tracking-tight text-white">
-              {sharpeRatio.toFixed(2)}
+              {sharpeReady ? sharpeRatio.toFixed(2) : '—'}
             </h3>
-            <span className="text-[10px] text-slate-500 font-mono">{t('overview.sharpe_sub')}</span>
+            <span className="text-[10px] text-slate-500 font-mono">
+              {sharpeReady ? t('overview.sharpe_sub') : `${t('overview.sharpe_building')} ${totalTrades}/${SHARPE_MIN_TRADES}`}
+            </span>
           </CardContent>
         </Card>
 
