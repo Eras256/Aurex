@@ -61,7 +61,7 @@ export const Navigation: React.FC = () => {
           <button
             onClick={() => setIsOpen(!isOpen)}
             className="w-10 h-10 flex flex-col justify-center items-center gap-1.5 focus:outline-none hover:bg-white/5 rounded-lg transition-all"
-            aria-label="Toggle Menu"
+            aria-label={t('nav.toggle_menu')}
           >
             <span className={`w-5 h-0.5 bg-slate-300 transition-all ${isOpen ? 'rotate-45 translate-y-[5px]' : ''}`} />
             <span className={`w-5 h-0.5 bg-slate-300 transition-all ${isOpen ? 'opacity-0' : ''}`} />

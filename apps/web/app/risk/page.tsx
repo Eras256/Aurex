@@ -29,6 +29,7 @@ export default function RiskSettingsPage() {
   const [maxPositionBTC, setMaxPositionBTC] = useState(2.0);
   const [latencySafetyBps, setLatencySafetyBps] = useState(1);
   const [slippageSafetyBps, setSlippageSafetyBps] = useState(0);
+  const [executionLatencyMs, setExecutionLatencyMs] = useState(75);
   const [isPaused, setIsPaused] = useState(false);
 
   const [saving, setSaving] = useState(false);
@@ -45,6 +46,7 @@ export default function RiskSettingsPage() {
       setMaxPositionBTC(state.config.maxPositionBTCPerExchange);
       setLatencySafetyBps(state.config.latencySafetyBps);
       setSlippageSafetyBps(state.config.slippageSafetyBps);
+      setExecutionLatencyMs(state.config.executionLatencyMs);
       setIsPaused(state.config.isPaused);
     }
   }, [state?.config]);
@@ -61,6 +63,7 @@ export default function RiskSettingsPage() {
       maxPositionBTCPerExchange: maxPositionBTC,
       latencySafetyBps,
       slippageSafetyBps,
+      executionLatencyMs,
       isPaused,
     });
 
@@ -123,7 +126,7 @@ export default function RiskSettingsPage() {
           <Switch
             checked={isPaused}
             onCheckedChange={handlePauseToggle}
-            aria-label="Toggle emergency pause"
+            aria-label={t('risk.pause_aria')}
           />
         </Card>
       </div>
@@ -281,6 +284,25 @@ export default function RiskSettingsPage() {
                   className="w-full"
                 />
                 <span className="text-[10px] text-slate-500 font-mono block">{t('risk.slippage_desc')}</span>
+              </div>
+
+              {/* Slider 5: Execution-window latency (drives the adverse-move abort model) */}
+              <div className="space-y-4 bg-slate-950/20 p-4 border border-white/5 rounded-xl">
+                <div className="flex justify-between items-center text-xs font-mono">
+                  <span className="text-slate-400 uppercase tracking-wider block">{t('risk.exec_latency_title')}</span>
+                  <span className="text-amber-500 font-bold text-sm bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                    {executionLatencyMs} ms
+                  </span>
+                </div>
+                <Slider
+                  min={0}
+                  max={300}
+                  step={5}
+                  value={[executionLatencyMs]}
+                  onValueChange={(val) => setExecutionLatencyMs(val[0])}
+                  className="w-full"
+                />
+                <span className="text-[10px] text-slate-500 font-mono block">{t('risk.exec_latency_desc')}</span>
               </div>
 
             </div>

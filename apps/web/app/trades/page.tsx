@@ -99,7 +99,9 @@ export default function TradesPage() {
           <CardDescription className="text-[10px] font-mono">{t('trades.table_sub')}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
-          <Table>
+          {/* 8-column table: min width so the overflow-auto wrapper scrolls on mobile
+              instead of squishing columns. */}
+          <Table className="min-w-[850px]">
             <TableHeader>
               <TableRow>
                 <TableHead className="px-6 py-3">{t('table.timestamp')}</TableHead>
@@ -126,8 +128,10 @@ export default function TradesPage() {
                       {new Date(t.timestamp).toLocaleTimeString()}
                     </TableCell>
                     <TableCell className="px-6 py-2.5">
+                      {/* Triangular trades are single-venue (buy===sell); show the cycle
+                          symbol instead of a confusing "binance → binance" route. */}
                       <Badge variant="secondary">
-                        {t.buyExchange} &rarr; {t.sellExchange}
+                        {t.buyExchange === t.sellExchange ? t.symbol : `${t.buyExchange} → ${t.sellExchange}`}
                       </Badge>
                     </TableCell>
                     <TableCell className="px-6 py-2.5 text-right font-medium text-slate-200">

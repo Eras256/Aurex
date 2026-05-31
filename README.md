@@ -167,7 +167,7 @@ pnpm dev
 
 ## 11. Runtime topology
 
-- **Frontend:** Next.js terminal deployed on Vercel.
+- **Frontend:** Next.js terminal deployed on Vercel — [https://aurex-terminal.vercel.app/](https://aurex-terminal.vercel.app/)
 - **Backend bot:** Market ingestion, opportunity scanning, and execution simulation deployed on Fly.io.
 - **Persistence:** Local JSON fallback for zero-config mode, with optional Supabase Postgres persistence.
 - **Transport:** The frontend consumes backend state and execution events through the live backend interface.

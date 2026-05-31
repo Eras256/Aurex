@@ -53,7 +53,9 @@ export default function OpportunitiesPage() {
           <CardDescription className="text-[10px] font-mono">{t('opps.table_sub')}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
-          <Table>
+          {/* 11-column table: force a min width so the overflow-auto wrapper scrolls
+              horizontally on mobile instead of squishing every column unreadably. */}
+          <Table className="min-w-[1000px]">
             <TableHeader>
               <TableRow>
                 <TableHead className="px-4 py-3">{t('table.timestamp')}</TableHead>
@@ -113,7 +115,7 @@ export default function OpportunitiesPage() {
                             ? 'text-cyan-500/70'
                             : 'text-slate-500'
                       }`}
-                      title="Statistical confidence: z-score of this spread vs the pair's rolling history. Higher = more anomalously wide (stronger mean-reversion signal)."
+                      title={t('opps.zscore_tooltip')}
                     >
                       {opp.zScore !== undefined ? `${opp.zScore.toFixed(2)}σ` : '—'}
                     </TableCell>

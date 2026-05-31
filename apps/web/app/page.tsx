@@ -132,6 +132,10 @@ export default function OverviewPage() {
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                 <span>{t('home.metric_execution')}</span>
               </div>
+              <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400 animate-pulse"></span>
+                <span>{t('home.metric_strategy')}</span>
+              </div>
             </div>
           </div>
           

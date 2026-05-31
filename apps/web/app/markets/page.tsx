@@ -52,7 +52,7 @@ const DepthTooltip = ({ active, payload }: CustomTooltipProps) => {
 
 export default function MarketsPage() {
   const { state } = useWebSocket();
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const [mounted, setMounted] = useState(false);
   const [activeDepthExchange, setActiveDepthExchange] = useState('binance');
 
@@ -104,11 +104,13 @@ export default function MarketsPage() {
   const refPrice = sourceMid || targetMid || 0;
   const estRoundTripCost = refPrice * (sourceEx.fee + targetEx.fee);
 
-  // Stablecoin conversions (USD vs USDT cross basis costs)
+  // Stablecoin conversions (USD vs USDT cross basis costs). Read the live engine basis
+  // (ENGINE_USDT_USD_BASIS_BPS) so this estimator always matches what the bot actually charges.
+  const basisBps = state?.config?.usdtUsdBasisBps ?? 3;
   const isSourceUSD = sourceId === 'coinbase' || sourceId === 'kraken';
   const isTargetUSD = targetId === 'coinbase' || targetId === 'kraken';
   const crossesBasis = isSourceUSD !== isTargetUSD;
-  const basisCost = crossesBasis ? refPrice * 0.0008 : 0; // standard 8 basis points cost
+  const basisCost = crossesBasis ? refPrice * (basisBps / 10000) : 0;
 
   const totalCalculatedCosts = estRoundTripCost + basisCost;
 
@@ -171,7 +173,7 @@ export default function MarketsPage() {
         {/* Dynamic Selector Panel for all 5 CEX Platforms */}
         <div className="flex flex-wrap items-center gap-2 bg-slate-950/40 p-2 border border-white/5 rounded-xl backdrop-blur-md shrink-0">
           <div className="flex flex-col">
-            <span className="text-[9px] font-mono text-slate-500 uppercase px-1 mb-0.5">SOURCE VENUE</span>
+            <span className="text-[9px] font-mono text-slate-500 uppercase px-1 mb-0.5">{t('markets.source_venue')}</span>
             <select
               value={sourceId}
               onChange={(e) => setSourceId(e.target.value)}
@@ -186,13 +188,13 @@ export default function MarketsPage() {
           <button
             onClick={handleSwapExchanges}
             className="w-8 h-8 rounded border border-white/10 bg-white/5 text-slate-300 hover:text-amber-400 hover:bg-white/10 transition-colors flex items-center justify-center self-end"
-            title="Swap route directions"
+            title={t('markets.swap_title')}
           >
             ⇆
           </button>
 
           <div className="flex flex-col">
-            <span className="text-[9px] font-mono text-slate-500 uppercase px-1 mb-0.5">TARGET VENUE</span>
+            <span className="text-[9px] font-mono text-slate-500 uppercase px-1 mb-0.5">{t('markets.target_venue')}</span>
             <select
               value={targetId}
               onChange={(e) => setTargetId(e.target.value)}
@@ -241,7 +243,7 @@ export default function MarketsPage() {
                   <div className="flex items-center gap-1.5 shrink-0">
                     <span className={`w-1.5 h-1.5 rounded-full ${isExConnected ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'}`}></span>
                     <span className="text-[8px] font-mono font-semibold text-slate-500 tracking-wider uppercase">
-                      {isExConnected ? 'LIVE' : 'CONN...'}
+                      {isExConnected ? t('markets.status_live') : t('markets.status_connecting')}
                     </span>
                   </div>
                 </div>
@@ -301,7 +303,7 @@ export default function MarketsPage() {
           <table className="w-full text-left border-collapse min-w-[850px]">
             <thead>
               <tr className="border-b border-white/5 bg-slate-950/40 text-[9px] font-mono text-slate-500 uppercase">
-                <th className="px-4 py-3 font-semibold text-slate-400 tracking-wider">{t('markets.exchange_short')} (ASK &rarr; BID)</th>
+                <th className="px-4 py-3 font-semibold text-slate-400 tracking-wider">{t('markets.exchange_short')} ({t('markets.ask_to_bid')})</th>
                 {EXCHANGES.map((ex) => (
                   <th key={ex.id} className="px-4 py-3 font-semibold text-center tracking-wider">{ex.name.split(' ')[0]}</th>
                 ))}
@@ -344,7 +346,7 @@ export default function MarketsPage() {
                       const isRowUSD = rowEx.id === 'coinbase' || rowEx.id === 'kraken';
                       const isColUSD = colEx.id === 'coinbase' || colEx.id === 'kraken';
                       const crossStableBasis = isRowUSD !== isColUSD;
-                      const basisPenalty = crossStableBasis ? refMid * 0.0008 : 0;
+                      const basisPenalty = crossStableBasis ? refMid * (basisBps / 10000) : 0;
                       
                       const netSpread = rawSpread > 0 ? rawSpread - (exCost + basisPenalty) : 0;
                       const isProfitable = netSpread > 0 && rawSpread > 0;
@@ -371,7 +373,7 @@ export default function MarketsPage() {
                                 </span>
                               </>
                             ) : (
-                              <span className="text-slate-600 text-[10px] font-sans">SIN SPREAD</span>
+                              <span className="text-slate-600 text-[10px] font-sans">{t('markets.no_spread')}</span>
                             )}
                           </div>
                         </td>
@@ -415,7 +417,7 @@ export default function MarketsPage() {
               </p>
             </div>
             <div>
-              <span className="text-[10px] text-slate-500 font-mono block uppercase">CROSS BASIS (8 BPS)</span>
+              <span className="text-[10px] text-slate-500 font-mono block uppercase">{t('markets.cross_basis')} ({basisBps} BPS)</span>
               <p className={`text-base font-bold font-mono mt-1 ${crossesBasis ? 'text-amber-500/80' : 'text-slate-500'}`}>
                 {crossesBasis ? `+$${basisCost.toFixed(2)}` : '—'}
               </p>
@@ -432,7 +434,7 @@ export default function MarketsPage() {
         {/* Active permissable mid values */}
         <Card className="border border-white/5 bg-slate-950/20 backdrop-blur-md flex flex-col justify-between">
           <CardHeader className="pb-1">
-            <CardTitle className="text-[10px] text-slate-500 font-mono uppercase tracking-wider">Exchange Mid Points</CardTitle>
+            <CardTitle className="text-[10px] text-slate-500 font-mono uppercase tracking-wider">{t('markets.mid_points_title')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 pt-2">
             <div className="flex justify-between items-center text-xs">
@@ -444,7 +446,7 @@ export default function MarketsPage() {
               <span className="font-mono font-bold text-emerald-400">${targetMid.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
             </div>
             <div className="border-t border-white/5 pt-3 flex justify-between items-center text-[10px] text-slate-500 font-mono uppercase">
-              <span>Spread differential:</span>
+              <span>{t('markets.spread_differential')}</span>
               <span className="text-slate-300 font-bold">${Math.abs(sourceMid - targetMid).toFixed(2)}</span>
             </div>
           </CardContent>
@@ -530,7 +532,7 @@ export default function MarketsPage() {
         <Card className="border border-white/5 bg-slate-950/10">
           <CardHeader className="flex flex-row items-center justify-between gap-3 pb-3 border-b border-white/5 bg-slate-950/30 rounded-t-xl">
             <div>
-              <span className="text-[10px] text-amber-500 font-mono uppercase font-bold tracking-wider">Source exchange L2 book</span>
+              <span className="text-[10px] text-amber-500 font-mono uppercase font-bold tracking-wider">{t('markets.source_l2')}</span>
               <CardTitle className="text-sm mt-0.5 font-mono">{sourceEx.name}</CardTitle>
             </div>
             <div className="text-right">
@@ -587,7 +589,7 @@ export default function MarketsPage() {
         <Card className="border border-white/5 bg-slate-950/10">
           <CardHeader className="flex flex-row items-center justify-between gap-3 pb-3 border-b border-white/5 bg-slate-950/30 rounded-t-xl">
             <div>
-              <span className="text-[10px] text-emerald-400 font-mono uppercase font-bold tracking-wider">Target exchange L2 book</span>
+              <span className="text-[10px] text-emerald-400 font-mono uppercase font-bold tracking-wider">{t('markets.target_l2')}</span>
               <CardTitle className="text-sm mt-0.5 font-mono">{targetEx.name}</CardTitle>
             </div>
             <div className="text-right">

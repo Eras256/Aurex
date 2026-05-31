@@ -187,3 +187,14 @@ This guarantees robust visual verification pipelines without impacting the rich 
 #### 4.2 Playwright Port Isolation Strategy
 
 To prevent port collisions, Playwright E2E tests target Next.js on an isolated port (`3005`). Real-time WebSocket connectivity is simulated by injecting a `MockWebSocket` class that wraps the original browser `WebSocket` constructor, giving E2E specs complete, deterministic control over simulated CEX streams and trading ledger events.
+
+---
+
+### 5. Deployed Topology and Production Benchmarks
+
+For public evaluation, performance auditing, and end-to-end telemetry capture, **Aurex** is deployed in a high-availability production topology:
+
+- **Frontend User Interface:** Next.js terminal client deployed on **Vercel** with full static page optimization and global edge distribution.
+  - **Live Production URL:** [https://aurex-terminal.vercel.app/](https://aurex-terminal.vercel.app/)
+- **Backend Simulator Engine:** Express-based CEX WebSocket ingestion adapter and memory engine deployed in close physical proximity to core US-East cloud servers on **Fly.io**.
+- **Shared Telemetry Database:** Direct PostgreSQL integration utilizing **Supabase** for real-time trade event capturing, persistent wallet state synchronization, and operational config updates.
