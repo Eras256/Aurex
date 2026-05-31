@@ -24,6 +24,11 @@ export class BinanceClient implements ExchangeAdapter {
   private eventBuffer: any[] = [];
   private isSyncing = false;
   private snapshotReceived = false;
+  // Resync-storm guard: count snapshot resyncs within a rolling window. A lagging WS diff
+  // stream sits permanently behind the real-time REST snapshot sequence space, so re-fetching
+  // snapshots can never reconcile — only a fresh socket realigns the stream to now.
+  private resyncCount = 0;
+  private resyncWindowStart = 0;
   // Exchange-stamped event time (ms) from the most recent diff frame's `E` field.
   private lastEventTime = 0;
 
@@ -126,6 +131,8 @@ export class BinanceClient implements ExchangeAdapter {
 
     this.applyDiffs(payload.b, payload.a);
     this.lastUpdateId = payload.u;
+    // A clean in-sequence diff means the stream is healthy again; clear the desync streak.
+    this.resyncCount = 0;
     // `E` is Binance's event time in ms (per Spot WS diff-depth spec).
     if (typeof payload.E === 'number') this.lastEventTime = payload.E;
     this.notifyListeners();
@@ -245,6 +252,29 @@ export class BinanceClient implements ExchangeAdapter {
     this.isSyncing = true;
     this.eventBuffer = [];
     this.snapshotReceived = false;
+
+    // Count resyncs inside a 10s rolling window.
+    const now = Date.now();
+    if (now - this.resyncWindowStart > 10_000) {
+      this.resyncWindowStart = now;
+      this.resyncCount = 0;
+    }
+    this.resyncCount++;
+
+    // Persistent desync: re-fetching snapshots is futile because the WS stream is lagging
+    // behind real time. Tear the socket down — the 'close' handler drives the backoff
+    // reconnect cycle, which re-snapshots against a fresh, real-time stream.
+    if (this.resyncCount >= 5) {
+      this.logger.warn(
+        { eventType: 'WARNING', resyncCount: this.resyncCount },
+        '⚠️ Persistent Binance diff-stream desync; reconnecting WebSocket to realign.'
+      );
+      this.resyncCount = 0;
+      this.resyncWindowStart = 0;
+      this.ws?.close();
+      return;
+    }
+
     this.fetchSnapshot().catch((err) => {
       this.logger.error({ eventType: 'ERROR', error: err }, 'Failed to resync Binance local order book');
     });
