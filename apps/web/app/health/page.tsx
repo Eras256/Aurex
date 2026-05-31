@@ -38,6 +38,8 @@ export default function SystemHealthPage() {
   const lastActivityAt = metrics?.lastActivityAt ?? 0;
   const msSinceActivity = lastActivityAt > 0 ? Date.now() - lastActivityAt : Infinity;
   const watchdogRecoveries = metrics?.watchdogRecoveries ?? 0;
+  const executionAborts = metrics?.executionAborts ?? 0;
+  const execLatencyMs = state?.config?.executionLatencyMs ?? 0;
   const engineLive = !isPaused && lastActivityAt > 0 && msSinceActivity < 10000;
   const engineStatusLabel = isPaused
     ? t('health.engine_paused')
@@ -118,6 +120,13 @@ export default function SystemHealthPage() {
             <div>
               <div className="text-[10px] text-slate-500 tracking-wider uppercase">{t('health.self_heals')}</div>
               <div className="text-white font-bold mt-0.5">{watchdogRecoveries}</div>
+            </div>
+            <div>
+              <div className="text-[10px] text-slate-500 tracking-wider uppercase">{t('health.fill_aborts')}</div>
+              <div className="text-white font-bold mt-0.5">
+                {executionAborts}
+                <span className="text-slate-500 font-normal"> · {execLatencyMs}ms {t('health.fill_window')}</span>
+              </div>
             </div>
           </div>
         </CardContent>

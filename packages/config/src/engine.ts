@@ -19,6 +19,10 @@ export const EngineConfigSchema = z.object({
   // premium still clears. Set 0 to treat USD≈USDT 1:1.
   usdtUsdBasisBps: z.number().nonnegative().default(3),
   maxTradesPerMinute: z.number().positive().default(30),
+  // Modeled order-routing-to-fill latency (ms). During this window the engine prices the
+  // adverse price drift the taker is exposed to (volatility * sqrt(time)) and aborts a
+  // window whose edge the move would wipe out. 75ms ≈ a realistic cross-venue REST fill path.
+  executionLatencyMs: z.number().nonnegative().default(75),
   enabledExchanges: z.array(z.string()).default(['binance', 'kraken', 'coinbase', 'okx', 'bybit']),
   enabledPairs: z.array(z.string()).default(['BTCUSDT']),
   isPaused: z.boolean().default(false),
@@ -34,6 +38,7 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = EngineConfigSchema.parse({
   slippageSafetyBps: env.ENGINE_SLIPPAGE_SAFETY_BPS !== undefined ? env.ENGINE_SLIPPAGE_SAFETY_BPS : 0,
   usdtUsdBasisBps: env.ENGINE_USDT_USD_BASIS_BPS !== undefined ? env.ENGINE_USDT_USD_BASIS_BPS : 3,
   maxTradesPerMinute: env.ENGINE_MAX_TRADES_PER_MINUTE !== undefined ? env.ENGINE_MAX_TRADES_PER_MINUTE : 30,
+  executionLatencyMs: env.ENGINE_EXECUTION_LATENCY_MS !== undefined ? env.ENGINE_EXECUTION_LATENCY_MS : 75,
   enabledExchanges: ['binance', 'kraken', 'coinbase', 'okx', 'bybit'],
   enabledPairs: ['BTCUSDT'],
   isPaused: false,

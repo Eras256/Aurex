@@ -74,6 +74,9 @@ export interface EngineConfig {
   slippageSafetyBps: number; // Buffer to pad expected fill prices
   usdtUsdBasisBps: number; // USD↔USDT conversion cost charged on cross-quote legs
   maxTradesPerMinute: number;
+  // Modeled time (ms) to route and fill both legs. During this window the market can move
+  // against the detected edge; the engine prices that adverse selection at execution time.
+  executionLatencyMs: number;
   enabledExchanges: string[];
   enabledPairs: string[];
   isPaused: boolean;
@@ -106,6 +109,7 @@ export interface EngineMetrics {
   opportunitiesDetected: number; // Total profitable windows isolated since boot
   lastActivityAt: number; // Epoch ms of the most recent order-book evaluation (engine liveness)
   watchdogRecoveries: number; // Count of self-heal actions (silent-feed reconnects) since boot
+  executionAborts: number; // Windows aborted because adverse price movement during the fill window wiped the edge
 }
 
 /** One hop of a triangular cycle (e.g. BUY BTCUSDT, then BUY ETHBTC, then SELL ETHUSDT). */

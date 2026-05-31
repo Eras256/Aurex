@@ -117,6 +117,53 @@ export function calculateNetSpread({
   };
 }
 
+/**
+ * Realised mid-price dispersion of a short price window, in basis points. A simple,
+ * robust volatility proxy: the standard deviation of the sampled mids divided by their
+ * mean. Returns 0 for fewer than two samples.
+ */
+export function priceDispersionBps(mids: number[]): number {
+  if (mids.length < 2) return 0;
+  const mean = mids.reduce((a, b) => a + b, 0) / mids.length;
+  if (mean <= 0) return 0;
+  const variance = mids.reduce((a, m) => a + (m - mean) ** 2, 0) / (mids.length - 1);
+  return (Math.sqrt(variance) / mean) * 10000;
+}
+
+/**
+ * Models adverse selection over the execution latency window. A detected edge is computed
+ * from a book snapshot, but the fill only lands after the order is routed (executionLatencyMs).
+ * During that window the market drifts; on average it drifts *against* the taker (the side
+ * about to lift the offer / hit the bid is the side most likely to move away).
+ *
+ * The expected adverse move scales with volatility and the square root of elapsed time
+ * (standard diffusion): adverseBps = dispersionBps * sqrt(executionLatencyMs / referenceWindowMs).
+ * It is split across the two legs (buy fills higher, sell fills lower), producing realistic
+ * realised fill prices that erode — and sometimes invert — the detected edge.
+ */
+export function applyExecutionSlippage({
+  buyPrice,
+  sellPrice,
+  dispersionBps,
+  executionLatencyMs,
+  referenceWindowMs = 3000,
+}: {
+  buyPrice: number;
+  sellPrice: number;
+  dispersionBps: number;
+  executionLatencyMs: number;
+  referenceWindowMs?: number;
+}): { realizedBuyPrice: number; realizedSellPrice: number; adverseBps: number } {
+  const scale = Math.sqrt(Math.max(0, executionLatencyMs) / Math.max(1, referenceWindowMs));
+  const adverseBps = Math.max(0, dispersionBps) * scale;
+  const half = adverseBps / 10000 / 2;
+  return {
+    realizedBuyPrice: buyPrice * (1 + half), // we buy slightly higher
+    realizedSellPrice: sellPrice * (1 - half), // we sell slightly lower
+    adverseBps,
+  };
+}
+
 /** Top-of-book bid/ask for one market, in quote-per-base units. */
 export interface TopOfBook {
   bestBid: number;

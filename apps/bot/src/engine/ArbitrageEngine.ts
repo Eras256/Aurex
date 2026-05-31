@@ -10,6 +10,8 @@ import {
   walkOrderBook,
   calculateNetSpread,
   computeTriangular,
+  applyExecutionSlippage,
+  priceDispersionBps,
 } from '@arbitrage/core';
 
 import { createChildLogger } from '../core/logging/logger.js';
@@ -78,6 +80,11 @@ export class ArbitrageEngine {
   private lastTriangularState: TriangularState | null = null;
   private triangularExecuted = 0;
   private lastTriangularExecAt = 0;
+  // Rolling mid-price history per `exchange:symbol` (trailing ~3s) for execution-window
+  // volatility, plus a count of windows aborted when an adverse move wiped the edge.
+  private midHistory = new Map<string, { ts: number; mid: number }[]>();
+  private executionAborts = 0;
+  private static readonly VOL_WINDOW_MS = 3000;
 
   private logger = createChildLogger({ component: 'ArbitrageEngine' });
 
@@ -168,12 +175,33 @@ export class ArbitrageEngine {
       opportunitiesDetected: this.opportunitiesDetected,
       lastActivityAt: this.lastActivityAt,
       watchdogRecoveries: this.watchdogRecoveries,
+      executionAborts: this.executionAborts,
     };
   }
 
   private recordComputeLatency(ms: number) {
     this.computeSamples.push(ms);
     if (this.computeSamples.length > 300) this.computeSamples.shift();
+  }
+
+  /** Appends the book's mid to the trailing volatility window for its `exchange:symbol`. */
+  private trackMid(book: NormalizedOrderBook) {
+    if (!book.bids[0] || !book.asks[0]) return;
+    const mid = (book.bids[0].price + book.asks[0].price) / 2;
+    const key = `${book.exchangeId}:${book.symbol}`;
+    const now = Date.now();
+    const arr = this.midHistory.get(key) ?? [];
+    arr.push({ ts: now, mid });
+    const cutoff = now - ArbitrageEngine.VOL_WINDOW_MS;
+    while (arr.length && arr[0].ts < cutoff) arr.shift();
+    this.midHistory.set(key, arr);
+  }
+
+  /** Realised mid-price dispersion (bps) over the trailing window for a venue's symbol. */
+  private getDispersionBps(exchangeId: string, symbol: string): number {
+    const arr = this.midHistory.get(`${exchangeId}:${symbol}`);
+    if (!arr || arr.length < 2) return 0;
+    return priceDispersionBps(arr.map((p) => p.mid));
   }
 
   /** Epoch ms of the last evaluated order book (0 before the first evaluation). */
@@ -217,6 +245,8 @@ export class ArbitrageEngine {
     this.latencySamples = [];
     this.computeSamples = [];
     this.evalTimestamps = [];
+    this.midHistory.clear();
+    this.executionAborts = 0;
     this.lastRebalanceAt = 0;
     this.spreadStats.reset();
     this.wsBroadcaster?.();
@@ -302,6 +332,7 @@ export class ArbitrageEngine {
     const rawLatency = Date.now() - eventTime;
     const latency = rawLatency >= 0 && rawLatency <= 60000 ? rawLatency : Math.max(0, Date.now() - book.updatedAt);
     this.recordLatency(latency);
+    this.trackMid(book);
 
     this.isProcessing = true;
     try {
@@ -553,12 +584,61 @@ export class ArbitrageEngine {
       grossSpread,
     });
 
-    // Executions always persist; repetitive risk rejections (e.g. once position caps
-    // fill) are throttled so they don't flood the feed/disk every 100ms tick.
-    if (!approval.approved) {
+    // Execution-window adverse selection. Between detection and fill (executionLatencyMs)
+    // the market drifts; on average it drifts against the taker by ~volatility*sqrt(time).
+    // We price the realised fill and ABORT if that move erases the edge — a slippage circuit
+    // that models exactly the "market moves against you during execution" risk.
+    let executed = approval.approved;
+    let abortReason: string | undefined;
+    let realizedBuyPrice = c.finalBuyPrice;
+    let realizedSellPrice = c.finalSellPrice;
+    let realizedNetUSD = c.expectedProfitUSD;
+    let realizedFeeUSD = c.math.feeCostUSD;
+    let adverseBps = 0;
+
+    if (approval.approved) {
+      const dispersionBps =
+        (this.getDispersionBps(c.buyExchangeId, c.symbol) +
+          this.getDispersionBps(c.sellExchangeId, c.symbol)) / 2;
+      const slip = applyExecutionSlippage({
+        buyPrice: c.finalBuyPrice,
+        sellPrice: c.finalSellPrice,
+        dispersionBps,
+        executionLatencyMs: this.config.executionLatencyMs,
+      });
+      realizedBuyPrice = slip.realizedBuyPrice;
+      realizedSellPrice = slip.realizedSellPrice;
+      adverseBps = slip.adverseBps;
+
+      const crossQuoteBps =
+        buyMeta.quoteCurrency !== sellMeta.quoteCurrency ? (this.config.usdtUsdBasisBps ?? 8) : 0;
+      const realizedMath = calculateNetSpread({
+        buyPrice: realizedBuyPrice,
+        sellPrice: realizedSellPrice,
+        buyTakerFeeBps: buyMeta.takerFeeBps,
+        sellTakerFeeBps: sellMeta.takerFeeBps,
+        latencySafetyBps: this.config.latencySafetyBps,
+        slippageSafetyBps: this.config.slippageSafetyBps,
+        withdrawalFeeBTC: buyMeta.withdrawalFeeBTC,
+        btcPriceQuote: realizedBuyPrice,
+        crossQuoteBps,
+      });
+      realizedFeeUSD = realizedMath.feeCostUSD;
+      realizedNetUSD = realizedMath.netSpread * c.optimalVolume - realizedMath.withdrawalCostUSD;
+
+      if (realizedNetUSD <= 0) {
+        executed = false;
+        abortReason = `Aborted at fill: ${adverseBps.toFixed(1)}bps adverse move over ${this.config.executionLatencyMs}ms execution window erased the edge (realized net $${realizedNetUSD.toFixed(2)} vs expected +$${c.expectedProfitUSD.toFixed(2)}).`;
+      }
+    }
+
+    // Executions always persist; non-executions (risk-rejected or fill-aborted) are throttled
+    // so they don't flood the feed/disk every 100ms tick.
+    if (!executed) {
       const now = Date.now();
       if (now - this.lastWindowRecordAt < 3000) return;
       this.lastWindowRecordAt = now;
+      if (abortReason) this.executionAborts += 1;
     }
 
     const oppRecord: ArbitrageOpportunity = {
@@ -570,29 +650,30 @@ export class ArbitrageEngine {
       buyAsk: c.topAsk,
       sellBid: c.topBid,
       grossSpread,
-      netSpread: c.math.netSpread,
+      netSpread: executed && c.optimalVolume > 0 ? realizedNetUSD / c.optimalVolume : c.math.netSpread,
       executableVolume: c.optimalVolume,
-      expectedNetProfitUSD: c.expectedProfitUSD,
-      status: approval.approved ? 'EXECUTED' : 'SKIPPED',
-      reason: approval.approved ? undefined : approval.reason,
+      expectedNetProfitUSD: executed ? realizedNetUSD : c.expectedProfitUSD,
+      status: executed ? 'EXECUTED' : 'SKIPPED',
+      reason: executed ? undefined : (abortReason ?? approval.reason),
       zScore: Number(c.zScore.toFixed(2)),
     };
 
     await saveOpportunity(oppRecord);
     this.opportunitiesDetected += 1;
 
-    if (approval.approved) {
+    if (executed) {
+      // Wallets move at the realised (post-adverse-move) fill prices, not the detected ones.
       this.executeSimulatedBalances(
         c.buyExchangeId,
         c.sellExchangeId,
         c.optimalVolume,
-        c.finalBuyPrice,
-        c.finalSellPrice
+        realizedBuyPrice,
+        realizedSellPrice
       );
 
-      const slippageBuy = (c.finalBuyPrice - c.topAsk) * c.optimalVolume;
-      const slippageSell = (c.topBid - c.finalSellPrice) * c.optimalVolume;
-      const slippagePaid = slippageBuy + slippageSell;
+      // Slippage paid now folds in both depth-walk and execution-window adverse movement.
+      const slippagePaid =
+        (realizedBuyPrice - c.topAsk) * c.optimalVolume + (c.topBid - realizedSellPrice) * c.optimalVolume;
 
       const tradeRecord: SimulatedTrade = {
         id: `trade-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -601,19 +682,19 @@ export class ArbitrageEngine {
         buyExchange: c.buyExchangeId,
         sellExchange: c.sellExchangeId,
         symbol: c.symbol,
-        buyPrice: c.finalBuyPrice,
-        sellPrice: c.finalSellPrice,
+        buyPrice: realizedBuyPrice,
+        sellPrice: realizedSellPrice,
         volume: c.optimalVolume,
         grossProfit: grossSpread * c.optimalVolume,
-        netProfit: c.expectedProfitUSD,
-        feesPaid: c.math.feeCostUSD * c.optimalVolume,
+        netProfit: realizedNetUSD,
+        feesPaid: realizedFeeUSD * c.optimalVolume,
         slippagePaid,
       };
 
       await saveTrade(tradeRecord);
 
-      await this.pnlTracker.recordTradeProfit(c.expectedProfitUSD);
-      this.riskManager.recordTradeResult(c.expectedProfitUSD);
+      await this.pnlTracker.recordTradeProfit(realizedNetUSD);
+      this.riskManager.recordTradeResult(realizedNetUSD);
 
       this.logger.info(
         {
@@ -622,22 +703,36 @@ export class ArbitrageEngine {
           sellExchange: c.sellExchangeId,
           symbol: c.symbol,
           volume: c.optimalVolume,
-          buyPrice: c.finalBuyPrice,
-          sellPrice: c.finalSellPrice,
-          netProfitUSD: c.expectedProfitUSD,
+          buyPrice: realizedBuyPrice,
+          sellPrice: realizedSellPrice,
+          adverseBps: Number(adverseBps.toFixed(2)),
+          netProfitUSD: realizedNetUSD,
         },
-        `💰 ARBITRAGE EXECUTED! Size: ${c.optimalVolume.toFixed(2)} BTC. Net Profit: +$${c.expectedProfitUSD.toFixed(2)} USD. Buy ${c.buyExchangeId} ($${c.finalBuyPrice.toFixed(2)}) -> Sell ${c.sellExchangeId} ($${c.finalSellPrice.toFixed(2)})`
+        `💰 ARBITRAGE EXECUTED! Size: ${c.optimalVolume.toFixed(2)} BTC. Net (realized): +$${realizedNetUSD.toFixed(2)} USD after ${adverseBps.toFixed(1)}bps fill drift. Buy ${c.buyExchangeId} ($${realizedBuyPrice.toFixed(2)}) -> Sell ${c.sellExchangeId} ($${realizedSellPrice.toFixed(2)})`
       );
 
       const event: EngineEvent = {
         id: `evt-${Date.now()}`,
         timestamp: Date.now(),
         type: 'TRADE_EXECUTION',
-        message: `Arbitrage Executed: Bought ${c.optimalVolume.toFixed(4)} BTC on ${buyMeta.name} and sold on ${sellMeta.name} for +$${c.expectedProfitUSD.toFixed(2)} net profit.`,
+        message: `Arbitrage Executed: Bought ${c.optimalVolume.toFixed(4)} BTC on ${buyMeta.name} and sold on ${sellMeta.name} for +$${realizedNetUSD.toFixed(2)} net (after ${adverseBps.toFixed(1)}bps fill drift).`,
       };
       await saveEvent(event);
 
       await saveBalances(this.wallets);
+    } else if (abortReason) {
+      this.logger.warn(
+        {
+          eventType: 'WARNING',
+          buyExchange: c.buyExchangeId,
+          sellExchange: c.sellExchangeId,
+          symbol: c.symbol,
+          adverseBps: Number(adverseBps.toFixed(2)),
+          realizedNetUSD: Number(realizedNetUSD.toFixed(2)),
+        },
+        `🛑 ${abortReason}`
+      );
+      await this.emitEvent('WARNING', `Execution aborted on ${buyMeta.name}→${sellMeta.name}: ${adverseBps.toFixed(1)}bps adverse move during the ${this.config.executionLatencyMs}ms fill window erased the edge.`);
     } else if (oppRecord.reason?.includes('Insufficient')) {
       this.logger.info(
         {
