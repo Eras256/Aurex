@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 
+import { useLanguage } from './LanguageContext';
 import { useWebSocket } from './WebSocketContext';
 
 interface CustomTooltipProps {
@@ -43,6 +44,7 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
 
 export default function OverviewPage() {
   const { state } = useWebSocket();
+  const { t } = useLanguage();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -85,27 +87,95 @@ export default function OverviewPage() {
 
   return (
     <div className="space-y-8 animate-fadeIn">
-      {/* 1. WELCOME BANNER & DESCRIPTION */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-white/5">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-            Aurex Console Overview
-          </h2>
-          <p className="mt-2 text-sm text-slate-400 max-w-3xl">
-            Aurex is an institutional-grade platform for real-time Bitcoin arbitrage detection, execution simulation, and risk-aware market monitoring across multiple exchanges.
-          </p>
+      {/* PREMIUM HERO SECTION */}
+      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-slate-950/40 p-6 md:p-8 backdrop-blur-xl shadow-2xl">
+        {/* Glow Effects */}
+        <div className="absolute -top-24 -left-20 w-80 h-80 rounded-full bg-amber-500/10 blur-3xl -z-10 pointer-events-none"></div>
+        <div className="absolute -bottom-24 -right-20 w-80 h-80 rounded-full bg-emerald-500/10 blur-3xl -z-10 pointer-events-none"></div>
+        
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+          <div className="space-y-4">
+            <div>
+              <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
+                Institutional Terminal
+              </span>
+              <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white mt-3">
+                Aurex
+              </h1>
+              <p className="text-slate-300 text-sm md:text-base font-medium max-w-2xl mt-1.5 leading-relaxed">
+                {t('home.hero_subtitle')}
+              </p>
+            </div>
+            
+            {/* Quick Metrics Strip */}
+            <div className="flex flex-wrap gap-3 text-xs font-mono text-slate-400">
+              <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                <span>{t('home.metric_venues')}</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span>
+                <span>{t('home.metric_books')}</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>{t('home.metric_execution')}</span>
+              </div>
+            </div>
+          </div>
+          
+          {/* CTA Navigation Buttons */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0 self-start lg:self-center">
+            <Link href="/opportunities" passHref legacyBehavior>
+              <Button variant="default" size="lg" className="flex items-center gap-2 shadow-xl shadow-amber-500/10 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold border border-amber-600/30">
+                ⚡ {t('home.cta_opportunities')}
+              </Button>
+            </Link>
+            <Link href="/trades" passHref legacyBehavior>
+              <Button variant="outline" size="lg" className="flex items-center gap-2 border-white/10 bg-white/5 hover:bg-white/10 text-white font-bold backdrop-blur-sm">
+                💼 {t('home.cta_trades')}
+              </Button>
+            </Link>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap shrink-0">
-          <Link href="/markets" passHref legacyBehavior>
-            <Button variant="outline" size="default">
-              Monitor Order Books
-            </Button>
-          </Link>
-          <Link href="/risk" passHref legacyBehavior>
-            <Button variant="default" size="default">
-              Adjust Risk Parameters
-            </Button>
-          </Link>
+      </div>
+
+      {/* INSTITUTIONAL CONTEXT BLOCK */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-950/20 border border-white/5 rounded-xl p-4 md:p-5">
+        <div className="flex gap-3">
+          <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 border border-amber-500/20 text-sm">
+            📡
+          </div>
+          <div>
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider font-mono">{t('home.inst_bullet1_title')}</h4>
+            <p className="text-[11px] text-slate-400 mt-1 leading-normal">
+              {t('home.inst_bullet1_desc')}
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex gap-3">
+          <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-sky-400/10 text-sky-400 border border-sky-400/20 text-sm">
+            🧮
+          </div>
+          <div>
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider font-mono">{t('home.inst_bullet2_title')}</h4>
+            <p className="text-[11px] text-slate-400 mt-1 leading-normal">
+              {t('home.inst_bullet2_desc')}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-3">
+          <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-400/10 text-emerald-400 border border-emerald-400/20 text-sm">
+            📈
+          </div>
+          <div>
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider font-mono">{t('home.inst_bullet3_title')}</h4>
+            <p className="text-[11px] text-slate-400 mt-1 leading-normal">
+              {t('home.inst_bullet3_desc')}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -114,79 +184,81 @@ export default function OverviewPage() {
         {/* Card 1: Equity */}
         <Card glow className="flex flex-col justify-between min-h-[110px]">
           <CardHeader className="p-4 border-b-0 pb-0">
-            <CardTitle className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">PORTFOLIO EQUITY</CardTitle>
+            <CardTitle className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">{t('overview.portfolio_equity')}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1">
             <h3 className="text-2xl font-bold font-mono tracking-tight text-amber-500 glow-text-gold">
               ${equity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
-            <span className="text-[10px] text-slate-500 font-mono">100k USD Initial Reserve</span>
+            <span className="text-[10px] text-slate-500 font-mono">{t('overview.initial_reserve')}</span>
           </CardContent>
         </Card>
 
         {/* Card 2: Accumulated P&L */}
         <Card className="flex flex-col justify-between min-h-[110px]">
           <CardHeader className="p-4 border-b-0 pb-0">
-            <CardTitle className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">SIMULATED NET P&L</CardTitle>
+            <CardTitle className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">{t('overview.sim_net_pnl')}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1">
             <h3 className={`text-2xl font-bold font-mono tracking-tight ${totalProfit >= 0 ? 'text-emerald-400 glow-text-green' : 'text-rose-500'}`}>
               {totalProfit >= 0 ? '+' : ''}${totalProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
-            <span className="text-[10px] text-slate-500 font-mono">After Slippage & Fees</span>
+            <span className="text-[10px] text-slate-500 font-mono">{t('overview.after_slippage_fees')}</span>
           </CardContent>
         </Card>
 
         {/* Card 3: Win Rate */}
         <Card className="flex flex-col justify-between min-h-[110px]">
           <CardHeader className="p-4 border-b-0 pb-0">
-            <CardTitle className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">WIN RATE</CardTitle>
+            <CardTitle className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">{t('overview.win_rate_label')}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1">
             <h3 className="text-2xl font-bold font-mono tracking-tight text-white">
               {winRate.toFixed(1)}%
             </h3>
-            <span className="text-[10px] text-slate-500 font-mono">Slippage loss checks active</span>
+            <span className="text-[10px] text-slate-500 font-mono">{t('overview.win_rate_sub')}</span>
           </CardContent>
         </Card>
 
         {/* Card 4: Total Trades */}
         <Card className="flex flex-col justify-between min-h-[110px]">
           <CardHeader className="p-4 border-b-0 pb-0">
-            <CardTitle className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">TOTAL TRADES</CardTitle>
+            <CardTitle className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">{t('overview.total_trades')}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1">
             <h3 className="text-2xl font-bold font-mono tracking-tight text-white">
               {totalTrades}
             </h3>
-            <span className="text-[10px] text-slate-500 font-mono">Avg: +${avgProfit.toFixed(2)} / trade</span>
+            <span className="text-[10px] text-slate-500 font-mono">
+              {t('overview.avg_trade_prefix')} +${avgProfit.toFixed(2)} {t('overview.avg_trade_suffix')}
+            </span>
           </CardContent>
         </Card>
 
         {/* Card 5: Sharpe Ratio */}
         <Card className="flex flex-col justify-between min-h-[110px]">
           <CardHeader className="p-4 border-b-0 pb-0">
-            <CardTitle className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">SHARPE RATIO</CardTitle>
+            <CardTitle className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">{t('overview.sharpe_ratio')}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1">
             <h3 className="text-2xl font-bold font-mono tracking-tight text-white">
               {sharpeRatio.toFixed(2)}
             </h3>
-            <span className="text-[10px] text-slate-500 font-mono">Risk-free rate: 0.0%</span>
+            <span className="text-[10px] text-slate-500 font-mono">{t('overview.sharpe_sub')}</span>
           </CardContent>
         </Card>
 
         {/* Card 6: Detection Latency (speed criterion) */}
         <Card glow className="flex flex-col justify-between min-h-[110px]">
           <CardHeader className="p-4 border-b-0 pb-0">
-            <CardTitle className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">DETECTION LATENCY</CardTitle>
+            <CardTitle className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">{t('overview.detection_latency')}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1">
             <h3 className="text-2xl font-bold font-mono tracking-tight text-sky-400 glow-text-blue">
               {detectionLatency.toFixed(2)}<span className="text-sm text-slate-500"> ms</span>
             </h3>
             <span className="text-[10px] text-slate-500 font-mono">
-              {evalsPerSecond}/s books · {opportunitiesDetected.toLocaleString()} windows
+              {evalsPerSecond}/s {t('overview.books')} · {opportunitiesDetected.toLocaleString()} {t('overview.windows')}
             </span>
           </CardContent>
         </Card>
@@ -197,10 +269,10 @@ export default function OverviewPage() {
         <Card className="lg:col-span-2 space-y-4">
           <CardHeader className="border-b-0 flex flex-row items-center justify-between pb-0">
             <div>
-              <CardTitle className="text-xs">Cumulative PnL</CardTitle>
-              <CardDescription className="text-[10px] font-mono">Calculated at each simulated execution block</CardDescription>
+              <CardTitle className="text-xs">{t('overview.pnl_chart_title')}</CardTitle>
+              <CardDescription className="text-[10px] font-mono">{t('overview.pnl_chart_sub')}</CardDescription>
             </div>
-            <Badge variant="success">REAL-TIME</Badge>
+            <Badge variant="success">{t('overview.real_time')}</Badge>
           </CardHeader>
           <CardContent className="pt-2">
             <div className="h-[220px] w-full bg-slate-950/20 border border-white/5 rounded-lg p-2 block">
@@ -258,24 +330,24 @@ export default function OverviewPage() {
         {/* SIDE CONTEXT SUMMARY */}
         <Card className="flex flex-col justify-between">
           <CardHeader>
-            <CardTitle className="text-xs">Simulator Context</CardTitle>
+            <CardTitle className="text-xs">{t('overview.sim_context')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-1.5">
-              <span className="text-[10px] text-slate-500 font-mono">CORE ALGORITHM:</span>
+              <span className="text-[10px] text-slate-500 font-mono">{t('overview.core_algorithm')}</span>
               <p className="text-xs text-slate-300 leading-relaxed font-sans">
-                Ranking every directed venue pair across 5 live exchanges (Binance, Kraken, Coinbase, OKX, Bybit), sizing each via L2 depth-walk and verifying spreads net of VIP-tier taker fees, slippage safety, and transfer costs — then executing the most profitable window.
+                {t('overview.core_algorithm_desc')}
               </p>
             </div>
             <div className="space-y-1.5">
-              <span className="text-[10px] text-slate-500 font-mono">SIMULATION RULES:</span>
+              <span className="text-[10px] text-slate-500 font-mono">{t('overview.sim_rules')}</span>
               <p className="text-xs text-slate-300 leading-relaxed font-sans">
-                Trades are strictly non-custodial and simulation-only. Balances automatically reset when reserves drain or positions cap.
+                {t('overview.sim_rules_desc')}
               </p>
             </div>
           </CardContent>
           <CardContent className="text-[10px] font-mono text-slate-500 border-t border-white/5 pt-3 mt-auto">
-            Last Update: {state ? new Date().toLocaleTimeString() : 'Awaiting data...'}
+            {t('overview.last_update')} {state ? new Date().toLocaleTimeString() : t('overview.awaiting_data')}
           </CardContent>
         </Card>
       </div>
@@ -284,12 +356,12 @@ export default function OverviewPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-3">
           <div>
-            <CardTitle className="text-xs">Recent Executions</CardTitle>
-            <CardDescription className="text-[10px] font-mono">Real-time trade ledger logs</CardDescription>
+            <CardTitle className="text-xs">{t('overview.recent_executions')}</CardTitle>
+            <CardDescription className="text-[10px] font-mono">{t('overview.trade_ledger_sub')}</CardDescription>
           </div>
           <Link href="/trades" passHref legacyBehavior>
             <Button variant="link" size="sm">
-              View All Ledger Logs &rarr;
+              {t('overview.view_all_btn')}
             </Button>
           </Link>
         </CardHeader>
@@ -297,20 +369,20 @@ export default function OverviewPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="px-6 py-3">TIMESTAMP</TableHead>
-                <TableHead className="px-6 py-3">ROUTE</TableHead>
-                <TableHead className="px-6 py-3 text-right">VOLUME</TableHead>
-                <TableHead className="px-6 py-3 text-right">BUY PRICE</TableHead>
-                <TableHead className="px-6 py-3 text-right">SELL PRICE</TableHead>
-                <TableHead className="px-6 py-3 text-right">GROSS P&L</TableHead>
-                <TableHead className="px-6 py-3 text-right">NET P&L</TableHead>
+                <TableHead className="px-6 py-3">{t('table.timestamp')}</TableHead>
+                <TableHead className="px-6 py-3">{t('table.route')}</TableHead>
+                <TableHead className="px-6 py-3 text-right">{t('table.volume')}</TableHead>
+                <TableHead className="px-6 py-3 text-right">{t('table.buy_price')}</TableHead>
+                <TableHead className="px-6 py-3 text-right">{t('table.sell_price')}</TableHead>
+                <TableHead className="px-6 py-3 text-right">{t('table.gross_pnl')}</TableHead>
+                <TableHead className="px-6 py-3 text-right">{t('table.net_pnl')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {recentTrades.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="py-8 text-center text-slate-500">
-                    Awaiting candidate trade opportunities... (Adjust risk thresholds to trigger logs)
+                    {t('overview.awaiting_trades')}
                   </TableCell>
                 </TableRow>
               ) : (

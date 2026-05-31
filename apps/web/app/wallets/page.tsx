@@ -6,10 +6,12 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
+import { useLanguage } from '../LanguageContext';
 import { useWebSocket } from '../WebSocketContext';
 
 export default function WalletsPage() {
   const { state } = useWebSocket();
+  const { t } = useLanguage();
 
   const wallets = state?.wallets || {};
 
@@ -46,8 +48,8 @@ export default function WalletsPage() {
     return (
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-3">
-          <CardTitle className="text-xs">{name} Balance Pool</CardTitle>
-          <Badge variant="secondary">ACTIVE RESERVE</Badge>
+          <CardTitle className="text-xs">{name} {t('wallets.pool_title')}</CardTitle>
+          <Badge variant="secondary">{t('wallets.active_reserve')}</Badge>
         </CardHeader>
         <CardContent className="space-y-6 pt-4">
           {/* BTC ASSET BAR */}
@@ -60,8 +62,8 @@ export default function WalletsPage() {
               <div className="h-full bg-gradient-to-r from-amber-600 to-amber-400 rounded-full animate-pulse-slow" style={{ width: `${btcPct}%` }}></div>
             </div>
             <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-              <span>Free: {btcFree.toFixed(4)}</span>
-              <span>Locked: {btcLocked.toFixed(4)}</span>
+              <span>{t('wallets.free_label')}: {btcFree.toFixed(4)}</span>
+              <span>{t('wallets.locked_label')}: {btcLocked.toFixed(4)}</span>
             </div>
           </div>
 
@@ -75,8 +77,8 @@ export default function WalletsPage() {
               <div className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full animate-pulse-slow" style={{ width: `${usdtPct}%` }}></div>
             </div>
             <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-              <span>Free: ${usdtFree.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-              <span>Locked: ${usdtLocked.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+              <span>{t('wallets.free_label')}: ${usdtFree.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+              <span>{t('wallets.locked_label')}: ${usdtLocked.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
             </div>
           </div>
         </CardContent>
@@ -89,10 +91,10 @@ export default function WalletsPage() {
       {/* HEADER */}
       <div className="pb-6 border-b border-white/5">
         <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-          Simulated Capital Reserves
+          {t('wallets.title_header')}
         </h2>
         <p className="mt-2 text-sm text-slate-400">
-          Monitor capital holdings, asset balances, and net quote-base exposures per active exchange.
+          {t('wallets.subtitle_header')}
         </p>
       </div>
 
@@ -108,17 +110,17 @@ export default function WalletsPage() {
       {/* EXPOSURES CARD */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-xs">Asset Allocation Oversight</CardTitle>
+          <CardTitle className="text-xs">{t('wallets.oversight_title')}</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs font-mono pt-2">
           <div className="space-y-1.5">
-            <span className="text-slate-500">AGGREGATE BTC SPOT EXPOSURE:</span>
+            <span className="text-slate-500">{t('wallets.agg_btc')}</span>
             <p className="text-lg font-bold text-amber-500">
               {aggregateBtc.toFixed(4)} BTC
             </p>
           </div>
           <div className="space-y-1.5">
-            <span className="text-slate-500">AGGREGATE QUOTE CASH EXPOSURE:</span>
+            <span className="text-slate-500">{t('wallets.agg_quote')}</span>
             <p className="text-lg font-bold text-emerald-400">
               ${aggregateUsdt.toLocaleString('en-US', { minimumFractionDigits: 2 })} USDT
             </p>

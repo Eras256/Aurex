@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { HeaderTicker } from '@/components/HeaderTicker';
 import { Navigation } from '@/components/Navigation';
 
+import { LanguageProvider } from './LanguageContext';
 import { WebSocketProvider } from './WebSocketContext';
 import './globals.css';
 
@@ -24,10 +25,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="font-sans antialiased bg-darkBg text-slate-100 min-h-screen flex flex-col">
-        <WebSocketProvider>
-          <div className="flex-1 flex flex-col md:flex-row min-h-screen">
-            {/* 1. RESPONSIVE SIDEBAR & MOBILE NAVIGATION */}
-            <Navigation />
+        <LanguageProvider>
+          <WebSocketProvider>
+            <div className="flex-1 flex flex-col md:flex-row min-h-screen">
+              {/* 1. RESPONSIVE SIDEBAR & MOBILE NAVIGATION */}
+              <Navigation />
 
             {/* 2. MAIN LAYOUT WINDOW */}
             <main className="flex-1 flex flex-col overflow-x-hidden min-h-screen">
@@ -72,8 +74,9 @@ export default function RootLayout({
                 </div>
               </footer>
             </main>
-          </div>
-        </WebSocketProvider>
+            </div>
+          </WebSocketProvider>
+        </LanguageProvider>
       </body>
     </html>
   );

@@ -4,21 +4,24 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import React, { useState } from 'react';
 
+import { useLanguage } from '../app/LanguageContext';
+
 import { AurexLogo } from './branding/AurexLogo';
 
 export const Navigation: React.FC = () => {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const { language, setLanguage, t } = useLanguage();
 
   const links = [
-    { name: 'Dashboard Overview', path: '/' },
-    { name: 'Comparative Markets', path: '/markets' },
-    { name: 'Live Opportunities', path: '/opportunities' },
-    { name: 'Executed Trades', path: '/trades' },
-    { name: 'Simulated Wallets', path: '/wallets' },
-    { name: 'Risk & Settings', path: '/risk' },
-    { name: 'System Health', path: '/health' },
-    { name: 'Platform Docs', path: '/docs' },
+    { key: 'nav.overview', path: '/' },
+    { key: 'nav.markets', path: '/markets' },
+    { key: 'nav.opportunities', path: '/opportunities' },
+    { key: 'nav.trades', path: '/trades' },
+    { key: 'nav.wallets', path: '/wallets' },
+    { key: 'nav.risk', path: '/risk' },
+    { key: 'nav.health', path: '/health' },
+    { key: 'nav.docs', path: '/docs' },
   ];
 
   return (
@@ -54,21 +57,45 @@ export const Navigation: React.FC = () => {
                       : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'
                   }`}
                 >
-                  {link.name}
+                  {t(link.key)}
                 </Link>
               );
             })}
           </nav>
           
-          <div className="pt-4 border-t border-white/5 px-2">
+          <div className="pt-4 border-t border-white/5 px-2 space-y-4">
+            {/* Language Toggle */}
+            <div className="flex items-center gap-1.5 bg-white/5 rounded-lg p-1 border border-white/5">
+              <button
+                onClick={() => setLanguage('en')}
+                className={`flex-1 text-center py-1 rounded text-xs font-mono transition-all ${
+                  language === 'en'
+                    ? 'bg-gold text-darkBg font-bold'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                EN
+              </button>
+              <button
+                onClick={() => setLanguage('es')}
+                className={`flex-1 text-center py-1 rounded text-xs font-mono transition-all ${
+                  language === 'es'
+                    ? 'bg-gold text-darkBg font-bold'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                ES
+              </button>
+            </div>
+
             <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-500 font-mono">NODE STATUS:</span>
+              <span className="text-slate-500 font-mono">{t('nav.status')}</span>
               <div className="flex items-center gap-1.5">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
-                <span className="font-mono text-emerald-400 font-medium">LIVE</span>
+                <span className="font-mono text-emerald-400 font-medium">{t('nav.live')}</span>
               </div>
             </div>
           </div>
@@ -97,7 +124,7 @@ export const Navigation: React.FC = () => {
                       : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'
                   }`}
                 >
-                  {link.name}
+                  {t(link.key)}
                 </Link>
               );
             })}
@@ -105,15 +132,39 @@ export const Navigation: React.FC = () => {
         </div>
 
         {/* Sidebar Footer System status */}
-        <div className="mt-8 pt-4 border-t border-white/5 px-2">
+        <div className="mt-8 pt-4 border-t border-white/5 px-2 space-y-4">
+          {/* Language Toggle */}
+          <div className="flex items-center gap-1.5 bg-white/5 rounded-lg p-1 border border-white/5">
+            <button
+              onClick={() => setLanguage('en')}
+              className={`flex-1 text-center py-1 rounded text-xs font-mono transition-all ${
+                language === 'en'
+                  ? 'bg-gold text-darkBg font-bold'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              EN
+            </button>
+            <button
+              onClick={() => setLanguage('es')}
+              className={`flex-1 text-center py-1 rounded text-xs font-mono transition-all ${
+                language === 'es'
+                  ? 'bg-gold text-darkBg font-bold'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              ES
+            </button>
+          </div>
+
           <div className="flex items-center justify-between text-xs">
-            <span className="text-slate-500 font-mono">NODE STATUS:</span>
+            <span className="text-slate-500 font-mono">{t('nav.status')}</span>
             <div className="flex items-center gap-1.5">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <span className="font-mono text-emerald-400 font-medium">LIVE</span>
+              <span className="font-mono text-emerald-400 font-medium">{t('nav.live')}</span>
             </div>
           </div>
         </div>

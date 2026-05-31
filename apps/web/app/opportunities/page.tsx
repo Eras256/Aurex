@@ -8,10 +8,12 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
+import { useLanguage } from '../LanguageContext';
 import { useWebSocket } from '../WebSocketContext';
 
 export default function OpportunitiesPage() {
   const { state } = useWebSocket();
+  const { t } = useLanguage();
   const [filter, setFilter] = useState<'ALL' | 'EXECUTED' | 'SKIPPED'>('ALL');
 
   const opportunities = state?.opportunities || [];
@@ -27,19 +29,19 @@ export default function OpportunitiesPage() {
       <div className="pb-6 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-            Live Arbitrage Opportunities
+            {t('opps.title_header')}
           </h2>
           <p className="mt-2 text-sm text-slate-400">
-            Real-time feed of candidate spreads evaluated by the core valuation loops.
+            {t('opps.subtitle_header')}
           </p>
         </div>
 
         {/* Tab Filters */}
         <Tabs value={filter} onValueChange={(val) => setFilter(val as any)} className="self-start">
           <TabsList>
-            <TabsTrigger value="ALL">All Feeds</TabsTrigger>
-            <TabsTrigger value="EXECUTED">Executed</TabsTrigger>
-            <TabsTrigger value="SKIPPED">Skipped</TabsTrigger>
+            <TabsTrigger value="ALL">{t('opps.filter_all_label')}</TabsTrigger>
+            <TabsTrigger value="EXECUTED">{t('opps.filter_executed_label')}</TabsTrigger>
+            <TabsTrigger value="SKIPPED">{t('opps.filter_skipped_label')}</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
@@ -47,30 +49,30 @@ export default function OpportunitiesPage() {
       {/* OPPORTUNITIES TABLE */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-xs">Live Opportunities</CardTitle>
-          <CardDescription className="text-[10px] font-mono">Calculated from order book snapshots</CardDescription>
+          <CardTitle className="text-xs">{t('opps.title')}</CardTitle>
+          <CardDescription className="text-[10px] font-mono">{t('opps.table_sub')}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="px-4 py-3">TIMESTAMP</TableHead>
-                <TableHead className="px-4 py-3">DIRECTION</TableHead>
-                <TableHead className="px-4 py-3 text-right">ASK (BUY)</TableHead>
-                <TableHead className="px-4 py-3 text-right">BID (SELL)</TableHead>
-                <TableHead className="px-4 py-3 text-right">GROSS SPREAD</TableHead>
-                <TableHead className="px-4 py-3 text-right">NET SPREAD</TableHead>
-                <TableHead className="px-4 py-3 text-right">MAX VOLUME</TableHead>
-                <TableHead className="px-4 py-3 text-right">EST PROFIT</TableHead>
-                <TableHead className="px-4 py-3">STATUS</TableHead>
-                <TableHead className="px-4 py-3">DECISION REASON</TableHead>
+                <TableHead className="px-4 py-3">{t('table.timestamp')}</TableHead>
+                <TableHead className="px-4 py-3">{t('table.route')}</TableHead>
+                <TableHead className="px-4 py-3 text-right">{t('opps.col_ask_buy')}</TableHead>
+                <TableHead className="px-4 py-3 text-right">{t('opps.col_bid_sell')}</TableHead>
+                <TableHead className="px-4 py-3 text-right">{t('opps.col_gross')}</TableHead>
+                <TableHead className="px-4 py-3 text-right">{t('opps.col_net')}</TableHead>
+                <TableHead className="px-4 py-3 text-right">{t('opps.col_volume')}</TableHead>
+                <TableHead className="px-4 py-3 text-right">{t('opps.col_profit')}</TableHead>
+                <TableHead className="px-4 py-3">{t('opps.col_status')}</TableHead>
+                <TableHead className="px-4 py-3">{t('opps.col_reason')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredOpps.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={10} className="py-10 text-center text-slate-500">
-                    No evaluated opportunities found matching active filter.
+                    {t('opps.no_opps_filter')}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -104,11 +106,11 @@ export default function OpportunitiesPage() {
                     </TableCell>
                     <TableCell className="px-4 py-2.5">
                       <Badge variant={opp.status === 'EXECUTED' ? 'success' : 'destructive'}>
-                        {opp.status}
+                        {opp.status === 'EXECUTED' ? t('opps.executed') : t('opps.skipped')}
                       </Badge>
                     </TableCell>
                     <TableCell className="px-4 py-2.5 max-w-[200px] truncate text-slate-400 text-[11px]" title={opp.reason}>
-                      {opp.reason || 'Sized and Executed Successfully'}
+                      {opp.reason || t('opps.success_reason')}
                     </TableCell>
                   </TableRow>
                 ))

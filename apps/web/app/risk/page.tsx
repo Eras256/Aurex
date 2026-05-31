@@ -16,10 +16,12 @@ import {
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 
+import { useLanguage } from '../LanguageContext';
 import { useWebSocket } from '../WebSocketContext';
 
 export default function RiskSettingsPage() {
   const { state, updateConfig, triggerReset } = useWebSocket();
+  const { t } = useLanguage();
 
   // Settings form states (initial values mirror the engine defaults; synced from the
   // live backend config as soon as the first StatePayload arrives).
@@ -50,7 +52,7 @@ export default function RiskSettingsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    setSaveStatus('Saving changes...');
+    setSaveStatus(t('risk.saving_msg'));
 
     const success = await updateConfig({
       ...state?.config,
@@ -63,10 +65,10 @@ export default function RiskSettingsPage() {
 
     setSaving(false);
     if (success) {
-      setSaveStatus('✅ Configuration updated and persisted.');
+      setSaveStatus(t('risk.success_msg'));
       setTimeout(() => setSaveStatus(null), 3000);
     } else {
-      setSaveStatus('❌ Failed to update backend configuration.');
+      setSaveStatus(t('risk.error_msg'));
     }
   };
 
@@ -87,9 +89,9 @@ export default function RiskSettingsPage() {
     setResetting(false);
 
     if (success) {
-      alert('🔄 Simulation database successfully reset to defaults.');
+      alert(t('risk.alert_success'));
     } else {
-      alert('❌ Failed to complete database reset. Check logs.');
+      alert(t('risk.alert_error'));
     }
   };
 
@@ -107,16 +109,16 @@ export default function RiskSettingsPage() {
       <div className="pb-6 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-            Risk Oversight Console
+            {t('risk.title_header')}
           </h2>
           <p className="mt-2 text-sm text-slate-400">
-            Calibrate arbitrage validation parameters, activate system breakers, and manage transaction limits.
+            {t('risk.subtitle_header')}
           </p>
         </div>
 
         {/* Engine emergency freeze control using premium Switch */}
         <Card className="flex items-center gap-4 py-2.5 px-4 bg-slate-950 border border-white/10 shrink-0 self-start shadow-lg">
-          <span className="font-mono text-xs font-semibold text-slate-300">SYSTEM CIRCUIT BREAKER</span>
+          <span className="font-mono text-xs font-semibold text-slate-300">{t('risk.system_breaker')}</span>
           <Switch
             checked={isPaused}
             onCheckedChange={handlePauseToggle}
@@ -129,7 +131,7 @@ export default function RiskSettingsPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className={`border ${riskStatus.status === 'COOLDOWN' ? 'border-rose-500/30 animate-pulse' : 'border-white/5'} md:col-span-2 flex flex-col justify-between`}>
           <CardHeader className="pb-0 border-b-0">
-            <span className="text-[10px] text-slate-500 font-mono tracking-wider uppercase">RISK ENGINE SYSTEM HEALTH</span>
+            <span className="text-[10px] text-slate-500 font-mono tracking-wider uppercase">{t('risk.engine_health')}</span>
             <div className="flex items-center gap-3 mt-2">
               <span className={`w-3 h-3 rounded-full ${
                 riskStatus.status === 'SAFE' 
@@ -139,26 +141,32 @@ export default function RiskSettingsPage() {
                     : 'bg-rose-500 shadow-lg shadow-rose-500/20'
               }`}></span>
               <h3 className="text-lg font-bold text-white font-mono uppercase tracking-wide">
-                CIRCUIT STATUS: {riskStatus.status}
+                {t('risk.circuit_status')}: {
+                  riskStatus.status === 'SAFE' 
+                    ? t('risk.cooldown_inactive') 
+                    : riskStatus.status === 'COOLDOWN' 
+                      ? t('risk.cooldown_active') 
+                      : riskStatus.status
+                }
               </h3>
             </div>
           </CardHeader>
           <CardContent className="pt-4 flex-1">
             <p className="text-xs text-slate-400 font-mono leading-relaxed bg-slate-950/40 p-3 rounded border border-white/5">
-              {riskStatus.reason || 'All circuit parameters running within safe boundaries. Slippage breakers fully armed.'}
+              {riskStatus.reason || t('risk.default_reason')}
             </p>
           </CardContent>
           <CardContent className="border-t border-white/5 pt-4 mt-6 grid grid-cols-2 gap-4 text-xs font-mono text-slate-400 pb-4">
             <div>
-              <span>CONSECUTIVE LOSSES:</span>
+              <span>{t('risk.consecutive_losses')}:</span>
               <p className="text-sm font-bold text-white">{riskStatus.consecutiveLosses} / 3</p>
             </div>
             <div>
-              <span>COOLDOWN TIMER:</span>
+              <span>{t('risk.cooldown_timer')}:</span>
               <p className="text-sm font-bold text-white">
                 {riskStatus.isCoolingDown 
-                  ? `${Math.max(0, Math.ceil((riskStatus.cooldownUntil - Date.now()) / 1000))}s remaining` 
-                  : 'INACTIVE'}
+                  ? `${Math.max(0, Math.ceil((riskStatus.cooldownUntil - Date.now()) / 1000))}${t('risk.seconds_remaining')}` 
+                  : t('risk.inactive')}
               </p>
             </div>
           </CardContent>
@@ -167,12 +175,12 @@ export default function RiskSettingsPage() {
         {/* SIMULATION RESET CARD */}
         <Card className="flex flex-col justify-between border border-rose-500/10 bg-slate-900/50">
           <CardHeader className="pb-0 border-b-0">
-            <span className="text-[10px] text-rose-400 font-mono tracking-wider uppercase">Emergency Operations</span>
-            <h3 className="font-semibold text-sm tracking-wide text-white uppercase mt-1">Rebalance Reserve Pool</h3>
+            <span className="text-[10px] text-rose-400 font-mono tracking-wider uppercase">{t('risk.emergency_ops')}</span>
+            <h3 className="font-semibold text-sm tracking-wide text-white uppercase mt-1">{t('risk.rebalance_title')}</h3>
           </CardHeader>
           <CardContent className="pt-4">
             <p className="text-xs text-slate-400 leading-relaxed font-sans">
-              Flushes trades, opportunities, and logs databases, restoring exchange funds back to default symmetric pools.
+              {t('risk.rebalance_desc')}
             </p>
           </CardContent>
           <CardContent className="pt-0 pb-4 mt-auto">
@@ -182,7 +190,7 @@ export default function RiskSettingsPage() {
               onClick={() => setIsResetDialogOpen(true)}
               disabled={resetting}
             >
-              {resetting ? 'Resetting Balances...' : '🔄 RESET SIMULATED BALANCES'}
+              {resetting ? t('risk.resetting_btn') : `🔄 ${t('risk.reset_balances_btn')}`}
             </Button>
           </CardContent>
         </Card>
@@ -191,8 +199,8 @@ export default function RiskSettingsPage() {
       {/* 3. SETTINGS FORM WITH PREMIUM SLIDERS */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-xs">Risk Oversight Settings</CardTitle>
-          <CardDescription>Calibrate mathematical depth-walk parameters and fee/latency hedges.</CardDescription>
+          <CardTitle className="text-xs">{t('risk.settings_title')}</CardTitle>
+          <CardDescription>{t('risk.settings_desc')}</CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
           <form onSubmit={handleSubmit} className="space-y-8">
@@ -201,7 +209,7 @@ export default function RiskSettingsPage() {
               {/* Slider 1: Min Net Profit */}
               <div className="space-y-4 bg-slate-950/20 p-4 border border-white/5 rounded-xl">
                 <div className="flex justify-between items-center text-xs font-mono">
-                  <span className="text-slate-400 uppercase tracking-wider block">Minimum Net Profit</span>
+                  <span className="text-slate-400 uppercase tracking-wider block">{t('risk.min_profit_title')}</span>
                   <span className="text-amber-500 font-bold text-sm bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
                     ${minNetProfitUSD.toFixed(1)} USD
                   </span>
@@ -214,13 +222,13 @@ export default function RiskSettingsPage() {
                   onValueChange={(val) => setMinNetProfitUSD(val[0])}
                   className="w-full"
                 />
-                <span className="text-[10px] text-slate-500 font-mono block">Spread threshold required to trigger simulated orders</span>
+                <span className="text-[10px] text-slate-500 font-mono block">{t('risk.min_profit_desc')}</span>
               </div>
 
               {/* Slider 2: Max Exposure */}
               <div className="space-y-4 bg-slate-950/20 p-4 border border-white/5 rounded-xl">
                 <div className="flex justify-between items-center text-xs font-mono">
-                  <span className="text-slate-400 uppercase tracking-wider block">Max Allocation Ceiling</span>
+                  <span className="text-slate-400 uppercase tracking-wider block">{t('risk.max_alloc_title')}</span>
                   <span className="text-amber-500 font-bold text-sm bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
                     {maxPositionBTC.toFixed(1)} BTC
                   </span>
@@ -233,13 +241,13 @@ export default function RiskSettingsPage() {
                   onValueChange={(val) => setMaxPositionBTC(val[0])}
                   className="w-full"
                 />
-                <span className="text-[10px] text-slate-500 font-mono block">Exposure roof capping single transaction sizes</span>
+                <span className="text-[10px] text-slate-500 font-mono block">{t('risk.max_alloc_desc')}</span>
               </div>
 
               {/* Slider 3: Latency Buffer */}
               <div className="space-y-4 bg-slate-950/20 p-4 border border-white/5 rounded-xl">
                 <div className="flex justify-between items-center text-xs font-mono">
-                  <span className="text-slate-400 uppercase tracking-wider block">Latency Safety Buffer</span>
+                  <span className="text-slate-400 uppercase tracking-wider block">{t('risk.latency_title')}</span>
                   <span className="text-amber-500 font-bold text-sm bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
                     {latencySafetyBps} BPS
                   </span>
@@ -252,13 +260,13 @@ export default function RiskSettingsPage() {
                   onValueChange={(val) => setLatencySafetyBps(val[0])}
                   className="w-full"
                 />
-                <span className="text-[10px] text-slate-500 font-mono block">1 BPS = 0.01%. Expected profit buffer for WebSocket lag rejections</span>
+                <span className="text-[10px] text-slate-500 font-mono block">{t('risk.latency_desc')}</span>
               </div>
 
               {/* Slider 4: Slippage Buffer */}
               <div className="space-y-4 bg-slate-950/20 p-4 border border-white/5 rounded-xl">
                 <div className="flex justify-between items-center text-xs font-mono">
-                  <span className="text-slate-400 uppercase tracking-wider block">Slippage Safety Buffer</span>
+                  <span className="text-slate-400 uppercase tracking-wider block">{t('risk.slippage_title')}</span>
                   <span className="text-amber-500 font-bold text-sm bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
                     {slippageSafetyBps} BPS
                   </span>
@@ -271,7 +279,7 @@ export default function RiskSettingsPage() {
                   onValueChange={(val) => setSlippageSafetyBps(val[0])}
                   className="w-full"
                 />
-                <span className="text-[10px] text-slate-500 font-mono block">Extra safety buffer used to deduct simulated fill prices</span>
+                <span className="text-[10px] text-slate-500 font-mono block">{t('risk.slippage_desc')}</span>
               </div>
 
             </div>
@@ -279,7 +287,7 @@ export default function RiskSettingsPage() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-t border-white/5 pt-6 mt-8">
               <span className="text-xs text-slate-400 font-mono font-medium">{saveStatus || ''}</span>
               <Button type="submit" disabled={saving} className="w-full sm:w-auto">
-                {saving ? 'Persisting changes...' : 'Save Configuration Changes'}
+                {saving ? t('risk.persisting_btn') : t('risk.save_config_btn')}
               </Button>
             </div>
           </form>
@@ -291,21 +299,21 @@ export default function RiskSettingsPage() {
         <DialogContent className="max-w-md border border-rose-500/20 bg-slate-950 text-slate-100 font-sans shadow-2xl shadow-rose-950/10">
           <DialogHeader>
             <DialogTitle className="text-sm tracking-wider uppercase font-mono text-rose-500 flex items-center gap-2">
-              🚨 Reset Simulation State
+              {t('risk.dialog_title')}
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-400 mt-2 font-sans leading-relaxed">
-              WARNING: This action will flush all transaction history, opportunities, and log databases, resetting exchange wallet assets back to initial allocations.
+              {t('risk.dialog_desc')}
             </DialogDescription>
           </DialogHeader>
           <div className="py-3 text-xs font-mono text-slate-500 bg-slate-900/40 p-3.5 border border-white/5 rounded-lg leading-relaxed">
-            This execution clears simulated ledger data and restores baseline allocations. This action is irreversible.
+            {t('risk.dialog_body')}
           </div>
           <DialogFooter className="flex gap-2">
             <Button variant="outline" onClick={() => setIsResetDialogOpen(false)} disabled={resetting}>
-              Cancel
+              {t('risk.cancel')}
             </Button>
             <Button variant="destructive" onClick={executeReset} disabled={resetting}>
-              {resetting ? 'Resetting Balances...' : 'Confirm Reset'}
+              {resetting ? t('risk.resetting_btn') : t('risk.confirm_reset')}
             </Button>
           </DialogFooter>
         </DialogContent>

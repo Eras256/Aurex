@@ -8,10 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 
+import { useLanguage } from '../LanguageContext';
 import { useWebSocket } from '../WebSocketContext';
 
 export default function TradesPage() {
   const { state, backendUrl } = useWebSocket();
+  const { t } = useLanguage();
 
   const trades = state?.trades || [];
   const totalTrades = state?.pnl?.totalTrades || 0;
@@ -28,17 +30,17 @@ export default function TradesPage() {
       <div className="pb-6 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-            Simulated Trade Ledger
+            {t('trades.title_header')}
           </h2>
           <p className="mt-2 text-sm text-slate-400">
-            Audit logs of all risk-mitigated cross-venue arbitrage executions completed by the engine.
+            {t('trades.subtitle_header')}
           </p>
         </div>
 
         {/* CSV Export Trigger */}
         <a href={`${backendUrl}/trades/export`} download className="self-start">
           <Button variant="default" className="flex items-center gap-2">
-            📥 Export Trades CSV
+            📥 {t('trades.export_btn')}
           </Button>
         </a>
       </div>
@@ -47,7 +49,7 @@ export default function TradesPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
         <Card>
           <CardHeader className="p-4 border-b-0 pb-0">
-            <CardTitle className="text-[10px] text-slate-500 font-mono tracking-wider uppercase">SIM ACCUMULATED P&L</CardTitle>
+            <CardTitle className="text-[10px] text-slate-500 font-mono tracking-wider uppercase">{t('trades.accumulated_pnl')}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1">
             <h3 className={`text-xl font-bold font-mono mt-1 ${accumulatedPnl >= 0 ? 'text-emerald-400 glow-text-green' : 'text-rose-400'}`}>
@@ -58,18 +60,18 @@ export default function TradesPage() {
 
         <Card>
           <CardHeader className="p-4 border-b-0 pb-0">
-            <CardTitle className="text-[10px] text-slate-500 font-mono tracking-wider uppercase">WIN RATE / COUNT</CardTitle>
+            <CardTitle className="text-[10px] text-slate-500 font-mono tracking-wider uppercase">{t('trades.win_rate_count')}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1">
             <h3 className="text-xl font-bold font-mono mt-1 text-white">
-              {winRate.toFixed(1)}% <span className="text-xs text-slate-500 font-normal font-sans">({totalTrades} trades)</span>
+              {winRate.toFixed(1)}% <span className="text-xs text-slate-500 font-normal font-sans">({totalTrades} {t('opps.filter_executed_label').toLowerCase()})</span>
             </h3>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="p-4 border-b-0 pb-0">
-            <CardTitle className="text-[10px] text-slate-500 font-mono tracking-wider uppercase">TOTAL TAKER FEES PAID</CardTitle>
+            <CardTitle className="text-[10px] text-slate-500 font-mono tracking-wider uppercase">{t('trades.total_fees')}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1">
             <h3 className="text-xl font-bold font-mono mt-1 text-slate-400">
@@ -80,7 +82,7 @@ export default function TradesPage() {
 
         <Card>
           <CardHeader className="p-4 border-b-0 pb-0">
-            <CardTitle className="text-[10px] text-slate-500 font-mono tracking-wider uppercase">SLIPPAGE SLIDE LOSS</CardTitle>
+            <CardTitle className="text-[10px] text-slate-500 font-mono tracking-wider uppercase">{t('trades.slippage_loss')}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1">
             <h3 className="text-xl font-bold font-mono mt-1 text-slate-400">
@@ -93,28 +95,28 @@ export default function TradesPage() {
       {/* TRADES LIST TABLE */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-xs">Execution Ledger</CardTitle>
-          <CardDescription className="text-[10px] font-mono">Real-time trade ledger logs</CardDescription>
+          <CardTitle className="text-xs">{t('trades.table_title')}</CardTitle>
+          <CardDescription className="text-[10px] font-mono">{t('trades.table_sub')}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="px-6 py-3">TIMESTAMP</TableHead>
-                <TableHead className="px-6 py-3">ROUTE</TableHead>
-                <TableHead className="px-6 py-3 text-right">VOLUME</TableHead>
-                <TableHead className="px-6 py-3 text-right">BUY PRICE</TableHead>
-                <TableHead className="px-6 py-3 text-right">SELL PRICE</TableHead>
-                <TableHead className="px-6 py-3 text-right">TAKER FEES</TableHead>
-                <TableHead className="px-6 py-3 text-right">SLIPPAGE PAID</TableHead>
-                <TableHead className="px-6 py-3 text-right font-semibold">NET PROFIT</TableHead>
+                <TableHead className="px-6 py-3">{t('table.timestamp')}</TableHead>
+                <TableHead className="px-6 py-3">{t('table.route')}</TableHead>
+                <TableHead className="px-6 py-3 text-right">{t('trades.col_volume').toUpperCase()}</TableHead>
+                <TableHead className="px-6 py-3 text-right">{t('trades.col_buy_price').toUpperCase()}</TableHead>
+                <TableHead className="px-6 py-3 text-right">{t('trades.col_sell_price').toUpperCase()}</TableHead>
+                <TableHead className="px-6 py-3 text-right">{t('trades.col_fees').toUpperCase()}</TableHead>
+                <TableHead className="px-6 py-3 text-right">{t('trades.col_slippage').toUpperCase()}</TableHead>
+                <TableHead className="px-6 py-3 text-right font-semibold">{t('table.net_pnl')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {trades.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="py-10 text-center text-slate-500">
-                    No transactions executed yet. Awaiting a cross-venue window that clears all costs — adjust risk thresholds in Settings to widen the capture band.
+                    {t('trades.no_trades_message')}
                   </TableCell>
                 </TableRow>
               ) : (

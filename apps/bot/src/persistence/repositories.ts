@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import fs from 'fs/promises';
 
 import { INITIAL_WALLET_BALANCES, DEFAULT_ENGINE_CONFIG } from '@arbitrage/config';
@@ -6,6 +7,17 @@ import { ArbitrageOpportunity, SimulatedTrade, EngineEvent, EngineConfig } from 
 import { logger } from '../logging.js';
 
 import { supabase } from './supabaseClient.js';
+
+export function stringToUUID(str: string): string {
+  const hash = crypto.createHash('sha256').update(str).digest('hex');
+  return [
+    hash.substring(0, 8),
+    hash.substring(8, 12),
+    hash.substring(12, 16),
+    hash.substring(16, 20),
+    hash.substring(20, 32),
+  ].join('-');
+}
 
 
 const DB_FILE = 'db.json';
@@ -71,21 +83,19 @@ export async function saveOpportunity(opp: ArbitrageOpportunity): Promise<void> 
 
   if (supabase) {
     const { error } = await supabase.from('arbitrage_opportunities').insert({
-      id: opp.id,
-      timestamp: new Date(opp.timestamp).toISOString(),
+      id: stringToUUID(opp.id),
+      detected_at: new Date(opp.timestamp).toISOString(),
       buy_exchange: opp.buyExchange,
       sell_exchange: opp.sellExchange,
       symbol: opp.symbol,
-      buy_ask: opp.buyAsk,
-      sell_bid: opp.sellBid,
       gross_spread: opp.grossSpread,
       net_spread: opp.netSpread,
-      executable_volume: opp.executableVolume,
-      expected_net_profit_usd: opp.expectedNetProfitUSD,
+      volume: opp.executableVolume,
+      estimated_profit_usd: opp.expectedNetProfitUSD,
       status: opp.status,
       reason: opp.reason || null,
     });
-    if (error) logger.error('Supabase saveOpportunity error:', error);
+    if (error) logger.error('Supabase saveOpportunity error:', error.message);
   }
 }
 
@@ -96,21 +106,26 @@ export async function saveTrade(trade: SimulatedTrade): Promise<void> {
 
   if (supabase) {
     const { error } = await supabase.from('simulated_trades').insert({
-      id: trade.id,
-      opportunity_id: trade.opportunityId,
-      timestamp: new Date(trade.timestamp).toISOString(),
+      id: stringToUUID(trade.id),
+      opportunity_id: stringToUUID(trade.opportunityId),
+      executed_at: new Date(trade.timestamp).toISOString(),
       buy_exchange: trade.buyExchange,
       sell_exchange: trade.sellExchange,
       symbol: trade.symbol,
       buy_price: trade.buyPrice,
       sell_price: trade.sellPrice,
       volume: trade.volume,
-      gross_profit: trade.grossProfit,
-      net_profit: trade.netProfit,
-      fees_paid: trade.feesPaid,
-      slippage_paid: trade.slippagePaid,
+      gross_profit_usd: trade.grossProfit,
+      net_profit_usd: trade.netProfit,
+      fees_paid_usd: trade.feesPaid,
+      slippage_paid_usd: trade.slippagePaid,
+      latency_cost_usd: 0,
+      buy_fill_ratio: 1.0,
+      sell_fill_ratio: 1.0,
+      status: 'SUCCESS',
+      error_message: null,
     });
-    if (error) logger.error('Supabase saveTrade error:', error);
+    if (error) logger.error('Supabase saveTrade error:', error.message);
   }
 }
 
@@ -126,7 +141,7 @@ export async function saveEvent(event: EngineEvent): Promise<void> {
       type: event.type,
       message: event.message,
     });
-    if (error) logger.error('Supabase saveEvent error:', error);
+    if (error) logger.info('Supabase saveEvent info (table may be missing): ' + error.message);
   }
 }
 
@@ -138,13 +153,14 @@ export async function saveBalances(balances: Record<string, Record<string, { fre
     for (const [exchangeId, assets] of Object.entries(balances)) {
       for (const [asset, bal] of Object.entries(assets)) {
         const { error } = await supabase.from('wallet_balances').upsert({
+          id: stringToUUID(`${exchangeId}-${asset}`),
           exchange_id: exchangeId,
           asset: asset,
-          free: bal.free,
-          locked: bal.locked,
+          free_amount: bal.free,
+          locked_amount: bal.locked,
           updated_at: new Date().toISOString(),
         });
-        if (error) logger.error('Supabase saveBalances error:', error);
+        if (error) logger.error('Supabase saveBalances error:', error.message);
       }
     }
   }
@@ -154,12 +170,15 @@ export async function loadBalances(): Promise<Record<string, Record<string, { fr
   if (supabase) {
     const { data, error } = await supabase.from('wallet_balances').select('*');
     if (error) {
-      logger.error('Supabase loadBalances error:', error);
+      logger.error('Supabase loadBalances error:', error.message);
     } else if (data && data.length > 0) {
       const balances: any = {};
       for (const row of data) {
         if (!balances[row.exchange_id]) balances[row.exchange_id] = {};
-        balances[row.exchange_id][row.asset] = { free: row.free, locked: row.locked };
+        balances[row.exchange_id][row.asset] = { 
+          free: row.free_amount !== undefined ? row.free_amount : row.free, 
+          locked: row.locked_amount !== undefined ? row.locked_amount : row.locked 
+        };
       }
       dbState.balances = balances;
       return balances;
@@ -178,7 +197,7 @@ export async function saveConfig(cfg: EngineConfig): Promise<void> {
       config: JSON.stringify(cfg),
       updated_at: new Date().toISOString(),
     });
-    if (error) logger.error('Supabase saveConfig error:', error);
+    if (error) logger.error('Supabase saveConfig error:', error.message);
   }
 }
 
@@ -186,7 +205,7 @@ export async function loadConfig(): Promise<EngineConfig | null> {
   if (supabase) {
     const { data, error } = await supabase.from('engine_config').select('*').eq('id', 'current').maybeSingle();
     if (error) {
-      logger.error('Supabase loadConfig error:', error);
+      logger.error('Supabase loadConfig error:', error.message);
     } else if (data) {
       dbState.config = typeof data.config === 'string' ? JSON.parse(data.config) : data.config;
       return dbState.config;
@@ -205,7 +224,7 @@ export async function savePnlSnapshot(value: number): Promise<void> {
       timestamp: new Date().toISOString(),
       value: value,
     });
-    if (error) logger.error('Supabase savePnlSnapshot error:', error);
+    if (error) logger.info('Supabase savePnlSnapshot info (table may be missing): ' + error.message);
   }
 }
 
@@ -234,8 +253,8 @@ export async function resetSimulation(): Promise<void> {
   await flushToDisk();
 
   if (supabase) {
-    await supabase.from('arbitrage_opportunities').delete().neq('id', 'placeholder');
-    await supabase.from('simulated_trades').delete().neq('id', 'placeholder');
+    await supabase.from('arbitrage_opportunities').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    await supabase.from('simulated_trades').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     await supabase.from('engine_events').delete().neq('id', 'placeholder');
     await supabase.from('pnl_snapshots').delete().neq('id', 'placeholder');
     
@@ -243,10 +262,11 @@ export async function resetSimulation(): Promise<void> {
     for (const [exchangeId, assets] of Object.entries(INITIAL_WALLET_BALANCES)) {
       for (const [asset, bal] of Object.entries(assets)) {
         await supabase.from('wallet_balances').upsert({
+          id: stringToUUID(`${exchangeId}-${asset}`),
           exchange_id: exchangeId,
           asset: asset,
-          free: bal.free,
-          locked: bal.locked,
+          free_amount: bal.free,
+          locked_amount: bal.locked,
           updated_at: new Date().toISOString(),
         });
       }

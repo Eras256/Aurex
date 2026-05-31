@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
+import { useLanguage } from '../LanguageContext';
 import { useWebSocket } from '../WebSocketContext';
 
 interface CustomTooltipProps {
@@ -24,16 +25,17 @@ interface CustomTooltipProps {
 }
 
 const DepthTooltip = ({ active, payload }: CustomTooltipProps) => {
+  const { t } = useLanguage();
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     const isBid = data.bids !== null;
-    const type = isBid ? 'Cumulative Bid (Buy)' : 'Cumulative Ask (Sell)';
+    const type = isBid ? t('markets.top_bids') : t('markets.top_asks');
     const qty = isBid ? data.bids : data.asks;
     const colorClass = isBid ? 'text-emerald-400' : 'text-rose-400';
 
     return (
       <div className="bg-slate-950 border border-white/10 p-3 rounded-lg shadow-2xl font-mono text-[11px] text-slate-100">
-        <p className="text-slate-500 uppercase text-[9px] mb-0.5">Price</p>
+        <p className="text-slate-500 uppercase text-[9px] mb-0.5">{t('markets.price')}</p>
         <p className="font-bold text-white mb-2">${data.price.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
         <p className="text-slate-500 uppercase text-[9px] mb-0.5">{type}</p>
         <p className={`font-bold ${colorClass} text-sm`}>
@@ -47,6 +49,7 @@ const DepthTooltip = ({ active, payload }: CustomTooltipProps) => {
 
 export default function MarketsPage() {
   const { state } = useWebSocket();
+  const { t } = useLanguage();
   const [mounted, setMounted] = useState(false);
   const [activeDepthExchange, setActiveDepthExchange] = useState('binance');
 
@@ -128,10 +131,10 @@ export default function MarketsPage() {
       {/* HEADER TITLE */}
       <div className="pb-6 border-b border-white/5">
         <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-          Comparative Order Books
+          {t('markets.title')}
         </h2>
         <p className="mt-2 text-sm text-slate-400">
-          Live L2 order books across 5 venues — Binance (BTC/USDT), Kraken (XBT/USD), Coinbase (BTC/USD), OKX & Bybit (BTC/USDT). Binance vs Kraken are shown side-by-side below (the USDT-vs-USD basis is itself part of the dislocation); the engine ranks spreads across every venue pair net of simulated fees.
+          {t('markets.subtitle')}
         </p>
       </div>
 
@@ -141,30 +144,30 @@ export default function MarketsPage() {
         <Card className={`border ${grossBtoK > 0 ? 'border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.05)]' : 'border-white/5'}`}>
           <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2">
             <div>
-              <CardTitle className="text-[10px] text-slate-500 font-mono tracking-wider">ROUTE permutation</CardTitle>
+              <CardTitle className="text-[10px] text-slate-500 font-mono tracking-wider">{t('markets.route_permutation')}</CardTitle>
               <h3 className="font-bold text-sm tracking-wide text-white uppercase mt-1">Binance &rarr; Kraken</h3>
             </div>
             <Badge variant={grossBtoK > 0 ? 'success' : 'secondary'} className="self-start sm:self-auto">
-              {grossBtoK > 0 ? 'ARBITRAGE WINDOW' : 'NO SPREAD'}
+              {grossBtoK > 0 ? t('markets.arb_window') : t('markets.no_spread')}
             </Badge>
           </CardHeader>
           <CardContent className="mt-4 grid grid-cols-3 gap-4">
             <div>
-              <span className="text-[10px] text-slate-500 font-mono">GROSS SPREAD</span>
+              <span className="text-[10px] text-slate-500 font-mono">{t('markets.gross_spread')}</span>
               <p className={`text-lg font-bold font-mono ${grossBtoK > 0 ? 'text-emerald-400 glow-text-green' : 'text-slate-400'}`}>
                 {grossBtoK > 0 ? `+$${grossBtoK.toFixed(2)}` : `-$${Math.abs(grossBtoK).toFixed(2)}`}
               </p>
             </div>
             <div>
-              <span className="text-[10px] text-slate-500 font-mono">EST FEES & COST</span>
+              <span className="text-[10px] text-slate-500 font-mono">{t('markets.est_fees')}</span>
               <p className="text-lg font-bold font-mono text-slate-400">
                 ~${estRoundTripCost.toFixed(2)}
               </p>
             </div>
             <div>
-              <span className="text-[10px] text-slate-500 font-mono">NET ESTIMATE</span>
+              <span className="text-[10px] text-slate-500 font-mono">{t('markets.net_estimate')}</span>
               <p className={`text-lg font-bold font-mono ${grossBtoK > estRoundTripCost ? 'text-emerald-400 font-semibold' : 'text-slate-500'}`}>
-                {grossBtoK > estRoundTripCost ? `+$${(grossBtoK - estRoundTripCost).toFixed(2)}` : 'UNPROFITABLE'}
+                {grossBtoK > estRoundTripCost ? `+$${(grossBtoK - estRoundTripCost).toFixed(2)}` : t('markets.unprofitable')}
               </p>
             </div>
           </CardContent>
@@ -174,30 +177,30 @@ export default function MarketsPage() {
         <Card className={`border ${grossKtoB > 0 ? 'border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.05)]' : 'border-white/5'}`}>
           <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2">
             <div>
-              <CardTitle className="text-[10px] text-slate-500 font-mono tracking-wider">ROUTE permutation</CardTitle>
+              <CardTitle className="text-[10px] text-slate-500 font-mono tracking-wider">{t('markets.route_permutation')}</CardTitle>
               <h3 className="font-bold text-sm tracking-wide text-white uppercase mt-1">Kraken &rarr; Binance</h3>
             </div>
             <Badge variant={grossKtoB > 0 ? 'success' : 'secondary'} className="self-start sm:self-auto">
-              {grossKtoB > 0 ? 'ARBITRAGE WINDOW' : 'NO SPREAD'}
+              {grossKtoB > 0 ? t('markets.arb_window') : t('markets.no_spread')}
             </Badge>
           </CardHeader>
           <CardContent className="mt-4 grid grid-cols-3 gap-4">
             <div>
-              <span className="text-[10px] text-slate-500 font-mono">GROSS SPREAD</span>
+              <span className="text-[10px] text-slate-500 font-mono">{t('markets.gross_spread')}</span>
               <p className={`text-lg font-bold font-mono ${grossKtoB > 0 ? 'text-emerald-400 glow-text-green' : 'text-slate-400'}`}>
                 {grossKtoB > 0 ? `+$${grossKtoB.toFixed(2)}` : `-$${Math.abs(grossKtoB).toFixed(2)}`}
               </p>
             </div>
             <div>
-              <span className="text-[10px] text-slate-500 font-mono">EST FEES & COST</span>
+              <span className="text-[10px] text-slate-500 font-mono">{t('markets.est_fees')}</span>
               <p className="text-lg font-bold font-mono text-slate-400">
                 ~${estRoundTripCost.toFixed(2)}
               </p>
             </div>
             <div>
-              <span className="text-[10px] text-slate-500 font-mono">NET ESTIMATE</span>
+              <span className="text-[10px] text-slate-500 font-mono">{t('markets.net_estimate')}</span>
               <p className={`text-lg font-bold font-mono ${grossKtoB > estRoundTripCost ? 'text-emerald-400' : 'text-slate-500'}`}>
-                {grossKtoB > estRoundTripCost ? `+$${(grossKtoB - estRoundTripCost).toFixed(2)}` : 'UNPROFITABLE'}
+                {grossKtoB > estRoundTripCost ? `+$${(grossKtoB - estRoundTripCost).toFixed(2)}` : t('markets.unprofitable')}
               </p>
             </div>
           </CardContent>
@@ -208,8 +211,8 @@ export default function MarketsPage() {
       <Card>
         <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-0 border-b-0">
           <div>
-            <CardTitle className="text-xs">Liquidity Depth Analysis</CardTitle>
-            <CardDescription className="text-[10px] font-mono">Cumulative bids vs asks quantity meeting at mid-price</CardDescription>
+            <CardTitle className="text-xs">{t('markets.liquidity_title')}</CardTitle>
+            <CardDescription className="text-[10px] font-mono">{t('markets.liquidity_sub')}</CardDescription>
           </div>
           <Tabs value={activeDepthExchange} onValueChange={setActiveDepthExchange} className="w-auto self-start sm:self-auto">
             <TabsList>
@@ -265,7 +268,7 @@ export default function MarketsPage() {
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="text-slate-500 font-mono text-xs">Awaiting live WebSocket order book updates...</div>
+              <div className="text-slate-500 font-mono text-xs">{t('markets.awaiting_books')}</div>
             )}
           </div>
         </CardContent>
@@ -277,11 +280,11 @@ export default function MarketsPage() {
         <Card>
           <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3">
             <div>
-              <CardTitle className="text-xs">Binance Spot L2 (BTC/USDT)</CardTitle>
-              <CardDescription className="text-[10px] font-mono">VIP Taker Fee: 0.04% | Refreshed every 100ms</CardDescription>
+              <CardTitle className="text-xs">{t('markets.binance_l2')}</CardTitle>
+              <CardDescription className="text-[10px] font-mono">{t('markets.binance_l2_desc')}</CardDescription>
             </div>
             <div className="text-left sm:text-right">
-              <span className="text-[10px] text-slate-500 font-mono block">MID PRICE</span>
+              <span className="text-[10px] text-slate-500 font-mono block">{t('markets.mid_price')}</span>
               <p className="text-sm font-bold font-mono text-amber-500">${binanceMid.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
             </div>
           </CardHeader>
@@ -289,9 +292,9 @@ export default function MarketsPage() {
             <div className="grid grid-cols-2 gap-6">
               {/* Binance Bids (Buy Orders) */}
               <div className="space-y-1">
-                <h4 className="text-[10px] text-slate-500 font-mono uppercase tracking-wider mb-2 border-b border-white/5 pb-1">Bids (Buy)</h4>
+                <h4 className="text-[10px] text-slate-500 font-mono uppercase tracking-wider mb-2 border-b border-white/5 pb-1">{t('markets.bids_buy')}</h4>
                 {binanceBook.bids.length === 0 ? (
-                  <div className="py-6 text-center text-slate-500 text-xs font-mono">Awaiting WebSocket...</div>
+                  <div className="py-6 text-center text-slate-500 text-xs font-mono">{t('markets.awaiting_ws')}</div>
                 ) : (
                   binanceBook.bids.slice(0, 10).map((b, idx) => {
                     const data = formatLevelRow(b);
@@ -309,9 +312,9 @@ export default function MarketsPage() {
 
               {/* Binance Asks (Sell Orders) */}
               <div className="space-y-1">
-                <h4 className="text-[10px] text-slate-500 font-mono uppercase tracking-wider mb-2 border-b border-white/5 pb-1">Asks (Sell)</h4>
+                <h4 className="text-[10px] text-slate-500 font-mono uppercase tracking-wider mb-2 border-b border-white/5 pb-1">{t('markets.asks_sell')}</h4>
                 {binanceBook.asks.length === 0 ? (
-                  <div className="py-6 text-center text-slate-500 text-xs font-mono">Awaiting WebSocket...</div>
+                  <div className="py-6 text-center text-slate-500 text-xs font-mono">{t('markets.awaiting_ws')}</div>
                 ) : (
                   binanceBook.asks.slice(0, 10).map((a, idx) => {
                     const data = formatLevelRow(a);
@@ -334,11 +337,11 @@ export default function MarketsPage() {
         <Card>
           <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3">
             <div>
-              <CardTitle className="text-xs">Kraken Spot L2 (XBT/USD)</CardTitle>
-              <CardDescription className="text-[10px] font-mono">VIP Taker Fee: 0.10% | CRC32 Checksums Valid</CardDescription>
+              <CardTitle className="text-xs">{t('markets.kraken_l2')}</CardTitle>
+              <CardDescription className="text-[10px] font-mono">{t('markets.kraken_l2_desc')}</CardDescription>
             </div>
             <div className="text-left sm:text-right">
-              <span className="text-[10px] text-slate-500 font-mono block">MID PRICE</span>
+              <span className="text-[10px] text-slate-500 font-mono block">{t('markets.mid_price')}</span>
               <p className="text-sm font-bold font-mono text-amber-500">${krakenMid.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
             </div>
           </CardHeader>
@@ -346,9 +349,9 @@ export default function MarketsPage() {
             <div className="grid grid-cols-2 gap-6">
               {/* Kraken Bids (Buy Orders) */}
               <div className="space-y-1">
-                <h4 className="text-[10px] text-slate-500 font-mono uppercase tracking-wider mb-2 border-b border-white/5 pb-1">Bids (Buy)</h4>
+                <h4 className="text-[10px] text-slate-500 font-mono uppercase tracking-wider mb-2 border-b border-white/5 pb-1">{t('markets.bids_buy')}</h4>
                 {krakenBook.bids.length === 0 ? (
-                  <div className="py-6 text-center text-slate-500 text-xs font-mono">Awaiting WebSocket...</div>
+                  <div className="py-6 text-center text-slate-500 text-xs font-mono">{t('markets.awaiting_ws')}</div>
                 ) : (
                   krakenBook.bids.slice(0, 10).map((b, idx) => {
                     const data = formatLevelRow(b);
@@ -365,9 +368,9 @@ export default function MarketsPage() {
 
               {/* Kraken Asks (Sell Orders) */}
               <div className="space-y-1">
-                <h4 className="text-[10px] text-slate-500 font-mono uppercase tracking-wider mb-2 border-b border-white/5 pb-1">Asks (Sell)</h4>
+                <h4 className="text-[10px] text-slate-500 font-mono uppercase tracking-wider mb-2 border-b border-white/5 pb-1">{t('markets.asks_sell')}</h4>
                 {krakenBook.asks.length === 0 ? (
-                  <div className="py-6 text-center text-slate-500 text-xs font-mono">Awaiting WebSocket...</div>
+                  <div className="py-6 text-center text-slate-500 text-xs font-mono">{t('markets.awaiting_ws')}</div>
                 ) : (
                   krakenBook.asks.slice(0, 10).map((a, idx) => {
                     const data = formatLevelRow(a);
@@ -390,8 +393,8 @@ export default function MarketsPage() {
       <Card>
         <CardContent className="flex flex-col md:flex-row md:items-center justify-between gap-6 py-5">
           <div>
-            <h3 className="font-semibold text-xs tracking-wider text-white uppercase font-mono">Reference External Aggregators</h3>
-            <p className="text-xs text-slate-400 mt-1">Cross-check live spot spreads and liquidity volume structures against global reference charts.</p>
+            <h3 className="font-semibold text-xs tracking-wider text-white uppercase font-mono">{t('markets.reference_aggregators')}</h3>
+            <p className="text-xs text-slate-400 mt-1">{t('markets.reference_desc')}</p>
           </div>
           <div className="flex flex-wrap gap-3">
             <a
