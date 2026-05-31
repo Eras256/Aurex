@@ -105,3 +105,8 @@ pnpm validate
 
 - **Pre-commit Checks:** Husky and lint-staged execute ESLint and Prettier on staged files prior to all commits. Never bypass these checks.
 - **Preserve Documentation & Comments:** Maintain all existing comments and docstrings that are unrelated to your current edits.
+
+### 5. Commit Authorship
+
+- **Sole author:** Every commit must be authored **and** committed by `Eras256 <neuralsol7@gmail.com>`. Configure once with `git config user.name "Eras256"` and `git config user.email "neuralsol7@gmail.com"`.
+- **No co-authors:** Do **not** add any `Co-Authored-By:` trailer (no AI/assistant attribution) to commit messages.
