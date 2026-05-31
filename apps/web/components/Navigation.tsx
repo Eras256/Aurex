@@ -1,16 +1,19 @@
 'use client';
 
+import { Settings } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import React, { useState } from 'react';
 
 import { useLanguage } from '../app/LanguageContext';
 
+import { AiEngineSettingsModal } from './AiEngineSettingsModal';
 import { AurexLogo } from './branding/AurexLogo';
 
 export const Navigation: React.FC = () => {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { language, setLanguage, t } = useLanguage();
 
   const links = [
@@ -34,6 +37,16 @@ export const Navigation: React.FC = () => {
         </Link>
         
         <div className="flex items-center gap-3">
+          {/* AI Settings Gear */}
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-all flex items-center justify-center"
+            title="AI Engine Settings"
+            aria-label="AI Engine Settings"
+          >
+            <Settings className="w-5 h-5 text-slate-400 hover:text-white hover:rotate-45 transition-transform duration-300" />
+          </button>
+
           {/* Mobile Language Toggle */}
           <div className="flex items-center bg-white/5 rounded-lg p-0.5 border border-white/5 text-[10px]">
             <button
@@ -122,6 +135,18 @@ export const Navigation: React.FC = () => {
               >
                 ES
               </button>
+              {/* AI Settings Gear */}
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  setIsSettingsOpen(true);
+                }}
+                className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center"
+                title="AI Engine Settings"
+                aria-label="AI Engine Settings"
+              >
+                <Settings className="w-4 h-4 text-slate-400 hover:text-white" />
+              </button>
             </div>
           </div>
           
@@ -198,6 +223,15 @@ export const Navigation: React.FC = () => {
               >
                 ES
               </button>
+              {/* AI Settings Gear */}
+              <button
+                onClick={() => setIsSettingsOpen(true)}
+                className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center"
+                title="AI Engine Settings"
+                aria-label="AI Engine Settings"
+              >
+                <Settings className="w-4 h-4 text-slate-400 hover:text-white" />
+              </button>
             </div>
           </div>
         </div>
@@ -216,6 +250,9 @@ export const Navigation: React.FC = () => {
           </div>
         </div>
       </aside>
+
+      {/* 4. AI ENGINE SETTINGS MODAL */}
+      <AiEngineSettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </>
   );
 };
