@@ -168,3 +168,20 @@ export interface IAICopilotClient {
 ```
 
 This guarantees **zero changes to component presentation markup** during backend plug-in!
+
+---
+
+## ⚠️ Technical Caveats & Production Guidelines
+
+### 1. localStorage Synchronisation & Tab Contexts
+
+- **Synchronisation Scope:** The HTML5 `storage` event listener reacts natively when a change is committed from a _different_ browser tab or window. It does not automatically trigger on the same document context that performed the write.
+- **Local Dispatch Workaround:** In `AiEngineSettingsModal.tsx`, we manually dispatch a local event `window.dispatchEvent(new Event('storage'))` immediately after calling `localStorage.setItem(...)`. This ensures immediate local React state updates within the active view while retaining tab-wide synchronization. Future architectures should continue using this pattern to ensure uniform state transitions.
+
+### 2. First Load JS Metrics vs. Real-Time Telemetry
+
+- **Excellent Static Indicator:** The low First Load JS sizes achieved in Phase 1 (e.g., `87.4 kB` shared bundle) are excellent static design signals indicating light bundle footprints, robust tree-shaking, and efficient code-splitting.
+- **No Substitute for Live Monitoring:** However, static build metrics do _not_ substitute real-time performance telemetry. In production, the operations team must monitor:
+  - **Dynamic Latencies:** Real LLM inference and API call roundtrip delays.
+  - **Core Web Vitals:** Live CLS (Cumulative Layout Shift) and FID (First Input Delay) on mobile drawers.
+  - **Active Error Boundaries:** Capturing connection timeouts or credential invalidations via logging aggregators (e.g., Sentry) to prevent client-side failures in critical trading windows.
