@@ -138,6 +138,53 @@ const GROUPS: ChangeGroup[] = [
         en: 'Full English/Spanish localisation across the terminal, plus responsive fixes (mobile bottom-sheet modal, header ticker, overflow tables).',
         es: 'Localización completa inglés/español en todo el terminal, más correcciones responsivas (modal bottom-sheet móvil, ticker de cabecera, tablas con overflow).',
       },
+      {
+        en: 'Markets grid and spread matrix across the 5 venues, wallet/CEX coverage view, logo-to-home links and repositioned language selectors.',
+        es: 'Grid de mercados y matriz de spreads en los 5 venues, vista de cobertura wallets/CEX, logos enlazados al inicio y selectores de idioma reposicionados.',
+      },
+    ],
+  },
+  {
+    tag: 'TESTS & QA',
+    title: {
+      en: 'Tests & quality',
+      es: 'Pruebas y calidad',
+    },
+    items: [
+      {
+        en: 'Integration test suite for the Express bot API (HTTP routes, secure-guard auth, calibration and audit endpoints) on top of the existing unit tests — 41 tests passing.',
+        es: 'Suite de pruebas de integración para la API del bot en Express (rutas HTTP, auth con secure-guard, endpoints de calibración y auditoría) sobre las pruebas unitarias existentes — 41 pruebas en verde.',
+      },
+    ],
+  },
+  {
+    tag: 'DOCS & LEGAL',
+    title: {
+      en: 'Documentation & legal',
+      es: 'Documentación y legal',
+    },
+    items: [
+      {
+        en: 'Bilingual README rewrite, technical paper, operational runbook and AI Copilot phase roadmaps; absolute claims softened for technical honesty.',
+        es: 'Reescritura bilingüe del README, paper técnico, runbook operativo y roadmaps de fase del Copiloto IA; afirmaciones absolutas suavizadas por honestidad técnica.',
+      },
+      {
+        en: 'Aurex-specific Terms & Privacy plus the official Coding Challenge Mexico policy pages, routed from the footer.',
+        es: 'Términos y Privacidad propios de Aurex más las páginas oficiales de política de Coding Challenge Mexico, enrutadas desde el pie de página.',
+      },
+    ],
+  },
+  {
+    tag: 'TOOLING / CI',
+    title: {
+      en: 'Tooling, CI & refactors',
+      es: 'Tooling, CI y refactors',
+    },
+    items: [
+      {
+        en: 'CI workflow YAML fix, removal of dead i18n scaffolding, elimination of `any` types for stricter typing, and assorted build/config cleanups.',
+        es: 'Corrección de YAML del workflow de CI, eliminación de andamiaje i18n muerto, supresión de tipos `any` para tipado más estricto y limpiezas varias de build/config.',
+      },
     ],
   },
 ];
