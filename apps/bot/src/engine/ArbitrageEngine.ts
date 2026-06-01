@@ -584,6 +584,19 @@ export class ArbitrageEngine {
     this.wsBroadcaster?.();
   }
 
+  /**
+   * Standard-normal sample via the Box–Muller transform. Drives the stochastic
+   * execution-window price drift so realised fills — and therefore the win rate — are not
+   * deterministic. Rejecting exact 0 avoids log(0) = -Infinity.
+   */
+  private sampleGaussian(): number {
+    let u = 0;
+    let v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
   private async executeCandidate(c: ArbitrageCandidate) {
     const buyMeta = EXCHANGES_METADATA[c.buyExchangeId];
     const sellMeta = EXCHANGES_METADATA[c.sellExchangeId];
@@ -602,9 +615,11 @@ export class ArbitrageEngine {
     });
 
     // Execution-window adverse selection. Between detection and fill (executionLatencyMs)
-    // the market drifts; on average it drifts against the taker by ~volatility*sqrt(time).
-    // We price the realised fill and ABORT if that move erases the edge — a slippage circuit
-    // that models exactly the "market moves against you during execution" risk.
+    // the market drifts. applyExecutionSlippage gives the EXPECTED magnitude of that move
+    // (~volatility*sqrt(time)); the REALISED move is a stochastic draw around it. Adverse
+    // selection biases fills against the taker, so the draw is centred on the modeled cost
+    // with a mild adverse bias and a fat tail: usually a small drag, sometimes the market
+    // moves in our favour (a larger win), occasionally a sharp spike against us.
     let executed = approval.approved;
     let abortReason: string | undefined;
     let realizedBuyPrice = c.finalBuyPrice;
@@ -617,15 +632,25 @@ export class ArbitrageEngine {
       const dispersionBps =
         (this.getDispersionBps(c.buyExchangeId, c.symbol) +
           this.getDispersionBps(c.sellExchangeId, c.symbol)) / 2;
-      const slip = applyExecutionSlippage({
+      // Modeled (expected) adverse magnitude for this window — deterministic, see math pkg.
+      const modeledAdverseBps = applyExecutionSlippage({
         buyPrice: c.finalBuyPrice,
         sellPrice: c.finalSellPrice,
         dispersionBps,
         executionLatencyMs: this.config.executionLatencyMs,
-      });
-      realizedBuyPrice = slip.realizedBuyPrice;
-      realizedSellPrice = slip.realizedSellPrice;
-      adverseBps = slip.adverseBps;
+      }).adverseBps;
+
+      // Realised drift: mean ≈ the modeled cost (ADVERSE_BIAS) with a Gaussian spread that
+      // can turn negative (a favourable move). This two-sided realisation is what produces a
+      // realistic sub-100% win rate instead of a deterministic, always-winning fill.
+      const ADVERSE_BIAS = 1.0;
+      const ADVERSE_VOL = 0.9;
+      const realizedDriftBps = modeledAdverseBps * (ADVERSE_BIAS + this.sampleGaussian() * ADVERSE_VOL);
+      adverseBps = realizedDriftBps;
+
+      const half = realizedDriftBps / 10000 / 2;
+      realizedBuyPrice = c.finalBuyPrice * (1 + half); // adverse: buy higher (favourable if <0)
+      realizedSellPrice = c.finalSellPrice * (1 - half); // adverse: sell lower
 
       const crossQuoteBps =
         buyMeta.quoteCurrency !== sellMeta.quoteCurrency ? (this.config.usdtUsdBasisBps ?? 8) : 0;
@@ -643,9 +668,15 @@ export class ArbitrageEngine {
       realizedFeeUSD = realizedMath.feeCostUSD;
       realizedNetUSD = realizedMath.netSpread * c.optimalVolume - realizedMath.withdrawalCostUSD;
 
-      if (realizedNetUSD <= 0) {
+      // Slippage circuit breaker: ONLY a catastrophic, detectable adverse spike (drift far
+      // beyond the modeled expectation that also wipes the edge) is caught before the second
+      // leg fills — the order is pulled, no loss booked (SKIPPED). A merely-eroded edge is
+      // already committed and is booked at its realised value, INCLUDING the occasional small
+      // realised loss; that is the honest reason the win rate sits below 100%.
+      const CIRCUIT_BREAKER_MULT = 2.5;
+      if (realizedDriftBps > modeledAdverseBps * CIRCUIT_BREAKER_MULT && realizedNetUSD <= 0) {
         executed = false;
-        abortReason = `Aborted at fill: ${adverseBps.toFixed(1)}bps adverse move over ${this.config.executionLatencyMs}ms execution window erased the edge (realized net $${realizedNetUSD.toFixed(2)} vs expected +$${c.expectedProfitUSD.toFixed(2)}).`;
+        abortReason = `Slippage circuit breaker tripped: ${realizedDriftBps.toFixed(1)}bps adverse spike over ${this.config.executionLatencyMs}ms window (vs ~${modeledAdverseBps.toFixed(1)}bps modeled) — order pulled before the second leg filled.`;
       }
     }
 
@@ -713,6 +744,11 @@ export class ArbitrageEngine {
       await this.pnlTracker.recordTradeProfit(realizedNetUSD);
       this.riskManager.recordTradeResult(realizedNetUSD);
 
+      // Realised net can now be negative (a committed trade whose edge the fill eroded), so
+      // format the sign explicitly rather than assuming a profit.
+      const isWin = realizedNetUSD >= 0;
+      const netLabel = `${isWin ? '+' : '-'}$${Math.abs(realizedNetUSD).toFixed(2)}`;
+
       this.logger.info(
         {
           eventType: 'TRADE_EXECUTION',
@@ -724,15 +760,16 @@ export class ArbitrageEngine {
           sellPrice: realizedSellPrice,
           adverseBps: Number(adverseBps.toFixed(2)),
           netProfitUSD: realizedNetUSD,
+          outcome: isWin ? 'WIN' : 'LOSS',
         },
-        `💰 ARBITRAGE EXECUTED! Size: ${c.optimalVolume.toFixed(2)} BTC. Net (realized): +$${realizedNetUSD.toFixed(2)} USD after ${adverseBps.toFixed(1)}bps fill drift. Buy ${c.buyExchangeId} ($${realizedBuyPrice.toFixed(2)}) -> Sell ${c.sellExchangeId} ($${realizedSellPrice.toFixed(2)})`
+        `${isWin ? '💰' : '📉'} ARBITRAGE ${isWin ? 'EXECUTED' : 'EXECUTED (realised loss)'}! Size: ${c.optimalVolume.toFixed(2)} BTC. Net (realized): ${netLabel} USD after ${adverseBps.toFixed(1)}bps fill drift. Buy ${c.buyExchangeId} ($${realizedBuyPrice.toFixed(2)}) -> Sell ${c.sellExchangeId} ($${realizedSellPrice.toFixed(2)})`
       );
 
       const event: EngineEvent = {
         id: `evt-${Date.now()}`,
         timestamp: Date.now(),
         type: 'TRADE_EXECUTION',
-        message: `Arbitrage Executed: Bought ${c.optimalVolume.toFixed(4)} BTC on ${buyMeta.name} and sold on ${sellMeta.name} for +$${realizedNetUSD.toFixed(2)} net (after ${adverseBps.toFixed(1)}bps fill drift).`,
+        message: `Arbitrage Executed: Bought ${c.optimalVolume.toFixed(4)} BTC on ${buyMeta.name} and sold on ${sellMeta.name} for ${netLabel} net (after ${adverseBps.toFixed(1)}bps fill drift).`,
       };
       await saveEvent(event);
 
