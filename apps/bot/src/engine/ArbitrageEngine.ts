@@ -73,6 +73,12 @@ export class ArbitrageEngine {
   private opportunitiesDetected = 0;
   // Throttle for persisting evaluated-but-rejected windows to the opportunities feed.
   private lastWindowRecordAt = 0;
+  // Per directed venue-pair execution cooldown. Once we capture a dislocation that capital is
+  // deployed and the spread consumed, so we do NOT re-fire the same pair every ~100ms tick —
+  // otherwise the simulator farms one persistent apparent spread thousands of times per minute
+  // and compounds an unrealistic return. Models the real capital-recycling time between fills.
+  private lastExecAtByPair = new Map<string, number>();
+  private readonly EXECUTION_COOLDOWN_MS = 60000;
   // Liveness telemetry: epoch ms of the last evaluated book + self-heal action count.
   private lastActivityAt = 0;
   private watchdogRecoveries = 0;
@@ -420,16 +426,29 @@ export class ArbitrageEngine {
     // async persistence/execution I/O is awaited below.
     this.recordComputeLatency(performance.now() - computeStart);
     if (profitable.length > 0) {
-      // Capture the single highest-conviction profitable window this cycle.
-      await this.executeCandidate(profitable[0]);
+      const top = profitable[0];
+      const pairKey = `${top.buyExchangeId}->${top.sellExchangeId}`;
+      const now = Date.now();
 
-      // A real engine evaluates ~N directed venue pairs per cycle and clears only the
-      // best one; the rest fail the cost gate. Surface the top sub-threshold window
-      // (throttled) as a SKIPPED record even on executing cycles, so the feed reflects
-      // the full evaluate-many / execute-few reality instead of looking like every
-      // window it sees gets filled.
-      const rejected = candidates.find((c) => !c.profitable);
-      if (rejected) await this.maybeRecordRejectedWindow(rejected);
+      if (now - (this.lastExecAtByPair.get(pairKey) ?? 0) >= this.EXECUTION_COOLDOWN_MS) {
+        // Capture the single highest-conviction profitable window this cycle.
+        this.lastExecAtByPair.set(pairKey, now);
+        await this.executeCandidate(top);
+
+        // A real engine evaluates ~N directed venue pairs per cycle and clears only the best
+        // one; the rest fail the cost gate. Surface the top sub-threshold window (throttled)
+        // as a SKIPPED record even on executing cycles, so the feed reflects the full
+        // evaluate-many / execute-few reality instead of looking like every window fills.
+        const rejected = candidates.find((c) => !c.profitable);
+        if (rejected) await this.maybeRecordRejectedWindow(rejected);
+      } else {
+        // Spread is still visible but this pair is cooling down post-capture — capital from
+        // the prior fill is still cycling, so we transparently skip rather than re-farm it.
+        await this.maybeRecordRejectedWindow(
+          top,
+          `Pair on post-capture cooldown (${(this.EXECUTION_COOLDOWN_MS / 1000).toFixed(0)}s): spread still visible but prior-fill capital is still cycling.`
+        );
+      }
       return;
     }
 
@@ -446,11 +465,11 @@ export class ArbitrageEngine {
    * every 3s. Executions are unthrottled here (they persist individually), so the display
    * layer is responsible for balancing the two statuses — see getBlendedOpportunities.
    */
-  private async maybeRecordRejectedWindow(c: ArbitrageCandidate) {
+  private async maybeRecordRejectedWindow(c: ArbitrageCandidate, reasonOverride?: string) {
     const now = Date.now();
     if (now - this.lastWindowRecordAt < 3000) return;
     this.lastWindowRecordAt = now;
-    await this.recordRejectedWindow(c);
+    await this.recordRejectedWindow(c, reasonOverride);
   }
 
   /**
@@ -561,7 +580,7 @@ export class ArbitrageEngine {
   }
 
   /** Persists an evaluated gross window that was correctly rejected after costs. */
-  private async recordRejectedWindow(c: ArbitrageCandidate) {
+  private async recordRejectedWindow(c: ArbitrageCandidate, reasonOverride?: string) {
     const grossSpread = c.topBid - c.topAsk;
     const oppRecord: ArbitrageOpportunity = {
       id: `opp-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -576,7 +595,9 @@ export class ArbitrageEngine {
       executableVolume: c.optimalVolume,
       expectedNetProfitUSD: c.expectedProfitUSD,
       status: 'SKIPPED',
-      reason: `Unprofitable after fees & buffers: net $${c.expectedProfitUSD.toFixed(2)}/lot (gross +$${grossSpread.toFixed(2)})`,
+      reason:
+        reasonOverride ??
+        `Unprofitable after fees & buffers: net $${c.expectedProfitUSD.toFixed(2)}/lot (gross +$${grossSpread.toFixed(2)})`,
       zScore: Number(c.zScore.toFixed(2)),
     };
     this.opportunitiesDetected += 1;
