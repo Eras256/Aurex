@@ -622,6 +622,7 @@ export class ArbitrageEngine {
     // moves in our favour (a larger win), occasionally a sharp spike against us.
     let executed = approval.approved;
     let abortReason: string | undefined;
+    let legFailed = false;
     let realizedBuyPrice = c.finalBuyPrice;
     let realizedSellPrice = c.finalSellPrice;
     let realizedNetUSD = c.expectedProfitUSD;
@@ -678,6 +679,19 @@ export class ArbitrageEngine {
         executed = false;
         abortReason = `Slippage circuit breaker tripped: ${realizedDriftBps.toFixed(1)}bps adverse spike over ${this.config.executionLatencyMs}ms window (vs ~${modeledAdverseBps.toFixed(1)}bps modeled) — order pulled before the second leg filled.`;
       }
+
+      // Leg-execution risk: a fraction of approved, non-broken trades fill one leg but miss
+      // the other (the second venue's price runs past our marketable limit before our order
+      // lands). We're left holding inventory and must unwind it immediately at the adverse
+      // price — capturing NO spread and booking a realised loss (fees + unwind slippage) that
+      // is independent of how wide the original window was. Cross-venue leg risk is the
+      // dominant real-world loss source and the main reason the win rate is well under 100%.
+      const LEG_FILL_FAILURE_PROB = 0.07;
+      if (executed && Math.random() < LEG_FILL_FAILURE_PROB) {
+        legFailed = true;
+        const unwindSlippageUSD = (Math.abs(realizedDriftBps) / 10000) * realizedBuyPrice * c.optimalVolume;
+        realizedNetUSD = -(realizedFeeUSD * c.optimalVolume + unwindSlippageUSD);
+      }
     }
 
     // Executions always persist; non-executions (risk-rejected or fill-aborted) are throttled
@@ -710,18 +724,24 @@ export class ArbitrageEngine {
     this.opportunitiesDetected += 1;
 
     if (executed) {
-      // Wallets move at the realised (post-adverse-move) fill prices, not the detected ones.
-      this.executeSimulatedBalances(
-        c.buyExchangeId,
-        c.sellExchangeId,
-        c.optimalVolume,
-        realizedBuyPrice,
-        realizedSellPrice
-      );
+      // A completed (both-leg) arb moves wallets at the realised fill prices. A leg-failed
+      // trade was round-tripped on the single filled venue (net-zero inventory), so balances
+      // are left unchanged and only the realised cash loss (booked below) hits equity.
+      if (!legFailed) {
+        this.executeSimulatedBalances(
+          c.buyExchangeId,
+          c.sellExchangeId,
+          c.optimalVolume,
+          realizedBuyPrice,
+          realizedSellPrice
+        );
+      }
 
-      // Slippage paid now folds in both depth-walk and execution-window adverse movement.
-      const slippagePaid =
-        (realizedBuyPrice - c.topAsk) * c.optimalVolume + (c.topBid - realizedSellPrice) * c.optimalVolume;
+      // Slippage paid folds in depth-walk + execution-window movement; for a leg-failed
+      // trade the entire negative net beyond fees is unwind cost.
+      const slippagePaid = legFailed
+        ? -realizedNetUSD - realizedFeeUSD * c.optimalVolume
+        : (realizedBuyPrice - c.topAsk) * c.optimalVolume + (c.topBid - realizedSellPrice) * c.optimalVolume;
 
       const tradeRecord: SimulatedTrade = {
         id: `trade-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -733,7 +753,7 @@ export class ArbitrageEngine {
         buyPrice: realizedBuyPrice,
         sellPrice: realizedSellPrice,
         volume: c.optimalVolume,
-        grossProfit: grossSpread * c.optimalVolume,
+        grossProfit: legFailed ? 0 : grossSpread * c.optimalVolume,
         netProfit: realizedNetUSD,
         feesPaid: realizedFeeUSD * c.optimalVolume,
         slippagePaid,
@@ -744,10 +764,16 @@ export class ArbitrageEngine {
       await this.pnlTracker.recordTradeProfit(realizedNetUSD);
       this.riskManager.recordTradeResult(realizedNetUSD);
 
-      // Realised net can now be negative (a committed trade whose edge the fill eroded), so
-      // format the sign explicitly rather than assuming a profit.
+      // Realised net can now be negative (a committed trade whose edge the fill eroded, or a
+      // leg miss unwound at a loss), so format the sign explicitly rather than assuming profit.
       const isWin = realizedNetUSD >= 0;
       const netLabel = `${isWin ? '+' : '-'}$${Math.abs(realizedNetUSD).toFixed(2)}`;
+      const outcome = legFailed ? 'LEG_FAIL_LOSS' : isWin ? 'WIN' : 'LOSS';
+      const execLabel = legFailed
+        ? 'EXECUTED (leg miss — unwound at a loss)'
+        : isWin
+          ? 'EXECUTED'
+          : 'EXECUTED (realised loss)';
 
       this.logger.info(
         {
@@ -760,16 +786,18 @@ export class ArbitrageEngine {
           sellPrice: realizedSellPrice,
           adverseBps: Number(adverseBps.toFixed(2)),
           netProfitUSD: realizedNetUSD,
-          outcome: isWin ? 'WIN' : 'LOSS',
+          outcome,
         },
-        `${isWin ? '💰' : '📉'} ARBITRAGE ${isWin ? 'EXECUTED' : 'EXECUTED (realised loss)'}! Size: ${c.optimalVolume.toFixed(2)} BTC. Net (realized): ${netLabel} USD after ${adverseBps.toFixed(1)}bps fill drift. Buy ${c.buyExchangeId} ($${realizedBuyPrice.toFixed(2)}) -> Sell ${c.sellExchangeId} ($${realizedSellPrice.toFixed(2)})`
+        `${isWin ? '💰' : '📉'} ARBITRAGE ${execLabel}! Size: ${c.optimalVolume.toFixed(2)} BTC. Net (realized): ${netLabel} USD after ${adverseBps.toFixed(1)}bps fill drift. Buy ${c.buyExchangeId} ($${realizedBuyPrice.toFixed(2)}) -> Sell ${c.sellExchangeId} ($${realizedSellPrice.toFixed(2)})`
       );
 
       const event: EngineEvent = {
         id: `evt-${Date.now()}`,
         timestamp: Date.now(),
         type: 'TRADE_EXECUTION',
-        message: `Arbitrage Executed: Bought ${c.optimalVolume.toFixed(4)} BTC on ${buyMeta.name} and sold on ${sellMeta.name} for ${netLabel} net (after ${adverseBps.toFixed(1)}bps fill drift).`,
+        message: legFailed
+          ? `Leg miss on ${sellMeta.name}: ${c.optimalVolume.toFixed(4)} BTC bought on ${buyMeta.name} unwound at a ${netLabel} loss.`
+          : `Arbitrage Executed: Bought ${c.optimalVolume.toFixed(4)} BTC on ${buyMeta.name} and sold on ${sellMeta.name} for ${netLabel} net (after ${adverseBps.toFixed(1)}bps fill drift).`,
       };
       await saveEvent(event);
 
