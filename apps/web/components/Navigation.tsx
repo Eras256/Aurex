@@ -75,6 +75,7 @@ export const Navigation: React.FC = () => {
     { key: 'nav.risk', path: '/risk' },
     { key: 'nav.health', path: '/health' },
     { key: 'nav.docs', path: '/docs' },
+    { key: 'nav.changelog', path: '/changelog' },
   ];
 
   return (
