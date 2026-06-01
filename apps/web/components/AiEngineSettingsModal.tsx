@@ -299,8 +299,15 @@ export const AiEngineSettingsModal: React.FC<AiEngineSettingsModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      {/* Mobile-first: bottom-sheet on mobile (bottom-0 top-auto translate-y-0 rounded-t-2xl), centered modal on desktop (sm:top-[50%] sm:translate-y-[-50%]) */}
-      <DialogContent className="fixed bottom-0 top-auto translate-y-0 left-0 right-0 sm:bottom-auto sm:top-[50%] sm:left-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] z-50 grid w-full sm:max-w-lg gap-4 border border-white/10 bg-slate-950 p-6 shadow-2xl duration-200 rounded-t-2xl sm:rounded-xl text-slate-100 font-sans max-h-[92vh] overflow-y-auto">
+      {/*
+        Mobile-first: full-width bottom-sheet on mobile, centered modal on desktop.
+        IMPORTANT: the base DialogContent applies an unprefixed `translate-x-[-50%]` / `translate-y-[-50%]`.
+        twMerge does NOT override an unprefixed class with a `sm:`-prefixed one, so we MUST reset the
+        transform with unprefixed `translate-x-0 translate-y-0` here — otherwise the sheet is shifted
+        50% of its width off-screen on mobile (it appears "cut in half" and is unscrollable).
+        We then re-center on desktop with the `sm:` variants.
+      */}
+      <DialogContent className="fixed bottom-0 top-auto left-0 right-0 translate-x-0 translate-y-0 sm:bottom-auto sm:top-[50%] sm:left-[50%] sm:right-auto sm:translate-x-[-50%] sm:translate-y-[-50%] z-50 grid w-full sm:max-w-lg gap-4 border border-white/10 bg-slate-950 p-4 sm:p-6 shadow-2xl duration-200 rounded-t-2xl sm:rounded-xl text-slate-100 font-sans max-h-[92dvh] sm:max-h-[90vh] overflow-y-auto overscroll-contain">
         <DialogHeader className="border-b border-white/5 pb-3">
           <div className="flex items-center gap-2 text-gold">
             <Cpu className="w-5 h-5 animate-pulse" />
