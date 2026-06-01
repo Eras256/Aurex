@@ -422,6 +422,14 @@ export class ArbitrageEngine {
     if (profitable.length > 0) {
       // Capture the single highest-conviction profitable window this cycle.
       await this.executeCandidate(profitable[0]);
+
+      // A real engine evaluates ~N directed venue pairs per cycle and clears only the
+      // best one; the rest fail the cost gate. Surface the top sub-threshold window
+      // (throttled) as a SKIPPED record even on executing cycles, so the feed reflects
+      // the full evaluate-many / execute-few reality instead of looking like every
+      // window it sees gets filled.
+      const rejected = candidates.find((c) => !c.profitable);
+      if (rejected) await this.maybeRecordRejectedWindow(rejected);
       return;
     }
 
@@ -429,11 +437,20 @@ export class ArbitrageEngine {
     // transparently-rejected opportunity so the feed reflects the cost-aware
     // intelligence rather than appearing idle — exactly the false-positive
     // filtering the challenge rewards.
+    await this.maybeRecordRejectedWindow(best);
+  }
+
+  /**
+   * Throttled wrapper around recordRejectedWindow. Rejected windows recur every ~100ms
+   * tick; persisting all of them would flood the feed and disk, so we surface at most one
+   * every 3s. Executions are unthrottled here (they persist individually), so the display
+   * layer is responsible for balancing the two statuses — see getBlendedOpportunities.
+   */
+  private async maybeRecordRejectedWindow(c: ArbitrageCandidate) {
     const now = Date.now();
-    if (now - this.lastWindowRecordAt >= 3000) {
-      this.lastWindowRecordAt = now;
-      await this.recordRejectedWindow(best);
-    }
+    if (now - this.lastWindowRecordAt < 3000) return;
+    this.lastWindowRecordAt = now;
+    await this.recordRejectedWindow(c);
   }
 
   /**

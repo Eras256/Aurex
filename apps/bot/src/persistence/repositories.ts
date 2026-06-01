@@ -325,6 +325,25 @@ export async function getOpportunities(limit = 100): Promise<ArbitrageOpportunit
   return dbState.opportunities.slice(0, limit);
 }
 
+/**
+ * Returns up to `limit` recent opportunities with a status-balanced blend. Executions
+ * persist on every tick while cost-rejected (SKIPPED) windows are throttled, so a plain
+ * recency slice is almost entirely EXECUTED and the SKIPPED feed looks empty. This reserves
+ * up to half the feed for the most recent SKIPPED windows and backfills the remainder with
+ * executions, then restores chronological order. Falls back to plain recency when either
+ * status is scarce. The frontend status filter operates on this blended set.
+ */
+export async function getBlendedOpportunities(limit = 50): Promise<ArbitrageOpportunity[]> {
+  const all = dbState.opportunities; // already newest-first (unshift on save)
+  const skipped = all.filter((o) => o.status === 'SKIPPED');
+  const executed = all.filter((o) => o.status === 'EXECUTED');
+
+  const skippedSlice = skipped.slice(0, Math.min(Math.floor(limit / 2), skipped.length));
+  const execSlice = executed.slice(0, limit - skippedSlice.length);
+
+  return [...skippedSlice, ...execSlice].sort((a, b) => b.timestamp - a.timestamp);
+}
+
 export async function getTrades(limit = 100): Promise<SimulatedTrade[]> {
   return dbState.trades.slice(0, limit);
 }

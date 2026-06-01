@@ -4,7 +4,7 @@ import { ArbitrageEngine } from '../engine/ArbitrageEngine.js';
 import { ExchangeAdapter } from '../exchanges/index.js';
 import { orderBookStore } from '../orderbooks/normalizedOrderBookStore.js';
 import {
-  getOpportunities,
+  getBlendedOpportunities,
   getTrades,
   getEvents,
   getPnlSnapshots
@@ -21,7 +21,7 @@ export async function buildStatePayload(
   exchanges: Record<string, ExchangeAdapter>
 ): Promise<StatePayload> {
   const [opportunities, trades, events, pnlHistory] = await Promise.all([
-    getOpportunities(50),
+    getBlendedOpportunities(50),
     getTrades(50),
     getEvents(30),
     getPnlSnapshots(),
