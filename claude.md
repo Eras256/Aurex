@@ -129,14 +129,23 @@ pnpm validate
 
 - **Frozen submission:** the code judged for the Coding Challenge is frozen at the deadline commit (`9eb95a4`). Do not alter that judged baseline.
 - **Live deploy:** the public deployment kept iterating after the freeze. Every change the live system carries over the frozen submission is listed, fully and honestly, on the in-app **Build Notes** page ([apps/web/app/changelog/page.tsx](apps/web/app/changelog/page.tsx)). Keep that page authoritative.
-- **Working discipline:** until the official extension window is open, the repo and deploy stay frozen. Do all new work on a dedicated branch; never commit or push outside the window.
+- **Working discipline (extension window is OPEN):** Option B won the finalist vote, so the extension window is open with a deadline of **Sun 12 Jul 2026, 23:59**. Active development happens on the `final-phase` branch; merge to `main` and redeploy only when stable, then update the submission on the portal. Keep `main`/deploy green at all times.
 
-## 🗺️ Roadmap — planned for the extension window (NOT yet implemented)
+## 🗺️ Extension-window status
 
-> These are planned enhancements, **not** current behavior. Keep docs and code in sync: only describe a feature as live once it actually ships. Private strategy and sequencing live in `PLAN-PODIO.md` (gitignored — do not commit).
+> Keep docs and code in sync: only describe a feature as live once it actually ships (per the core-context skill). Private strategy and sequencing live in `PLAN-PODIO.md` (gitignored — do not commit).
 
-- **Multi-asset arbitrage:** extend beyond BTC to liquid altcoins (ETH, SOL, AVAX/LINK) via `supportedSymbols` in [packages/config/src/metadata.ts](packages/config/src/metadata.ts) and per-symbol book scanning.
-- **Statistical arbitrage (first-class):** wire the existing `SpreadStatistics` z-score (`apps/bot/src/engine/SpreadStatistics.ts`) into opportunity ranking/gating, surfaced in the UI.
-- **Latency benchmarking:** measured end-to-end figures (book update → opportunity detected), mean and p99.
+### Implemented (on the `final-phase` branch)
+
+- **Deep runtime parametrization** (single source of truth `EngineConfig`, Zod-validated, persisted, hot-applied from the Risk page): sizing step, per-pair execution cooldown, circuit-breaker multiple, leg-fill probability, volatility-breaker %, consecutive-loss limit, loss/volatility cooldowns, inventory rebalancing thresholds, the z-score gate, and per-exchange taker-fee overrides with Retail/VIP presets.
+- **Statistical-arbitrage z-score gate:** `SpreadStatistics` (`apps/bot/src/engine/SpreadStatistics.ts`) gates and ranks executions when enabled, with a configurable threshold.
+- **Robustness coverage:** deterministic unit tests for the configurable circuit breakers (`apps/bot/src/tests/unit/engine.test.ts`).
+- **Rebalancing visibility:** the Wallets page surfaces active thresholds + recent `REBALANCE` activity.
+- **Analytics:** a max-drawdown metric alongside the existing equity curve, win rate and Sharpe.
+- **Real testnet/demo execution (`executionMode: 'testnet'`):** routes binance↔okx windows to real IOC orders on Binance Spot Testnet + OKX Demo via [apps/bot/src/exchanges/testnetExecutor.ts](apps/bot/src/exchanges/testnetExecutor.ts), booking real fills with graceful per-trade fallback to sim. Credentials are optional env vars (see `apps/bot/.env.example`); the toggle lives in the Risk page. Default stays `sim`.
+
+### Still planned (NOT yet implemented)
+
+- **Multi-asset arbitrage:** extend beyond BTC to liquid altcoins (ETH, SOL, AVAX/LINK) via `supportedSymbols` in [packages/config/src/metadata.ts](packages/config/src/metadata.ts) and per-symbol scanning. Requires generalising the base asset across `RiskManager`, balance moves and `InventoryManager` (currently BTC/USDT-specific).
 - **Backtesting harness:** replay recorded L2 books and report realized-vs-modeled net to validate the cost model.
-- **AI Quant Copilot — real model:** the Copilot is currently mock-driven ([apps/web/lib/ai/mock/mockAiAgent.ts](apps/web/lib/ai/mock/mockAiAgent.ts), scripted scenarios). Planned: a server-side Next.js route (`app/api/copilot/chat/route.ts`) that calls OpenAI with `OPENAI_API_KEY` read from `.env.local` (already gitignored), streaming real tokens with graceful fallback to the mock. The key must **never** reach the client bundle — mirror the existing secure server-side proxy pattern (`/api/bot/calibrate`, `/api/copilot/audits`). Rotate any key that has been exposed.
+- **AI Quant Copilot — real model:** the Copilot is still mock-driven ([apps/web/lib/ai/mock/mockAiAgent.ts](apps/web/lib/ai/mock/mockAiAgent.ts), scripted scenarios). Planned: a server-side Next.js route (`app/api/copilot/chat/route.ts`) calling OpenAI with `OPENAI_API_KEY` from `.env.local`, streaming with graceful fallback to the mock. The key must **never** reach the client bundle — mirror the existing secure proxy pattern (`/api/bot/calibrate`, `/api/copilot/audits`). Rotate any exposed key.

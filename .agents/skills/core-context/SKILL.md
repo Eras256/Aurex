@@ -53,7 +53,7 @@ Upon completing any development task:
 
 ### 4. Submission Freeze Discipline
 
-- The judged submission is frozen at the deadline commit (`9eb95a4`). Until the official extension window is open, do **NOT** modify the submission baseline — no commits, no pushes. Perform any exploratory work on a dedicated branch only.
+- The original judged submission is frozen at the deadline commit (`9eb95a4`). The finalist extension window is now **OPEN** (deadline Sun 12 Jul 2026, 23:59): active development happens on the `final-phase` branch; merge to `main` and redeploy only when stable, then update the submission on the portal. Keep `main`/deploy green.
 - The live-deploy delta over the frozen submission is documented on the Build Notes page (`apps/web/app/changelog/page.tsx`). Keep that page authoritative and honest; never let it claim "docs-only" changes when engine code also moved.
 
 ### 5. AI Copilot Reality
