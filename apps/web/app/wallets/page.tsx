@@ -10,7 +10,7 @@ import { useWebSocket } from '../WebSocketContext';
 
 export default function WalletsPage() {
   const { state } = useWebSocket();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   const wallets = state?.wallets || {};
 
@@ -30,6 +30,19 @@ export default function WalletsPage() {
 
   const aggregateBtc = venueIds.reduce((sum, id) => sum + (wallets[id]?.BTC?.free || 0), 0);
   const aggregateUsdt = venueIds.reduce((sum, id) => sum + (wallets[id]?.USDT?.free || 0), 0);
+
+  // Active rebalancing thresholds (configurable from the Risk page) + recent activity.
+  const reb = state?.config as unknown as
+    | {
+        rebalanceLowBTC?: number;
+        rebalanceLowQuote?: number;
+        rebalanceMinTransferBTC?: number;
+        rebalanceMinTransferQuote?: number;
+      }
+    | undefined;
+  const rebalanceEvents = (state?.events ?? [])
+    .filter((e) => e.type === 'REBALANCE')
+    .slice(0, 6);
 
   const renderExchangeBalances = (exchangeId: string, name: string) => {
     const assets = wallets[exchangeId] || { BTC: { free: 0, locked: 0 }, USDT: { free: 0, locked: 0 } };
@@ -119,6 +132,59 @@ export default function WalletsPage() {
             <p className="text-2xl font-bold text-emerald-400 glow-text-green">
               ${aggregateUsdt.toLocaleString('en-US', { minimumFractionDigits: 2 })} USDT
             </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* INVENTORY REBALANCING — active thresholds + recent settlement activity */}
+      <Card className="border border-white/5 bg-slate-950/15 backdrop-blur-md">
+        <CardHeader className="border-b border-white/5 bg-slate-950/10">
+          <CardTitle className="text-xs font-mono font-bold text-white uppercase tracking-wider">
+            {language === 'es' ? 'Rebalanceo de Inventario' : 'Inventory Rebalancing'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-5 pb-5 space-y-5">
+          {/* Active, operator-configurable thresholds */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs font-mono">
+            <div className="p-3 bg-slate-950/20 border border-white/5 rounded-lg">
+              <span className="text-slate-500 uppercase tracking-widest text-[9px] block">{language === 'es' ? 'Umbral bajo BTC' : 'Low BTC'}</span>
+              <p className="text-sm font-bold text-amber-500 mt-1">{(reb?.rebalanceLowBTC ?? 0.5).toFixed(2)} BTC</p>
+            </div>
+            <div className="p-3 bg-slate-950/20 border border-white/5 rounded-lg">
+              <span className="text-slate-500 uppercase tracking-widest text-[9px] block">{language === 'es' ? 'Umbral bajo Quote' : 'Low quote'}</span>
+              <p className="text-sm font-bold text-emerald-400 mt-1">${(reb?.rebalanceLowQuote ?? 50000).toLocaleString('en-US')}</p>
+            </div>
+            <div className="p-3 bg-slate-950/20 border border-white/5 rounded-lg">
+              <span className="text-slate-500 uppercase tracking-widest text-[9px] block">{language === 'es' ? 'Transferencia mín. BTC' : 'Min transfer BTC'}</span>
+              <p className="text-sm font-bold text-amber-500 mt-1">{(reb?.rebalanceMinTransferBTC ?? 0.1).toFixed(2)} BTC</p>
+            </div>
+            <div className="p-3 bg-slate-950/20 border border-white/5 rounded-lg">
+              <span className="text-slate-500 uppercase tracking-widest text-[9px] block">{language === 'es' ? 'Transferencia mín. Quote' : 'Min transfer quote'}</span>
+              <p className="text-sm font-bold text-emerald-400 mt-1">${(reb?.rebalanceMinTransferQuote ?? 5000).toLocaleString('en-US')}</p>
+            </div>
+          </div>
+
+          {/* Recent rebalance activity from the engine event stream */}
+          <div>
+            <span className="text-[10px] text-slate-500 font-mono uppercase tracking-wider block mb-2">
+              {language === 'es' ? 'Actividad reciente' : 'Recent activity'}
+            </span>
+            {rebalanceEvents.length === 0 ? (
+              <p className="text-[11px] text-slate-500 font-mono bg-slate-950/20 border border-white/5 rounded-lg p-3 leading-relaxed">
+                {language === 'es'
+                  ? 'Sin transferencias recientes — el inventario está balanceado por encima de los umbrales.'
+                  : 'No recent transfers — inventory is balanced above the thresholds.'}
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                {rebalanceEvents.map((e) => (
+                  <div key={e.id} className="flex items-start gap-2 text-[11px] font-mono bg-slate-950/20 border border-white/5 rounded-lg p-2.5">
+                    <span className="text-sky-400 shrink-0">⇄</span>
+                    <span className="text-slate-300 leading-snug">{e.message}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
