@@ -1,4 +1,4 @@
-import { EXCHANGES_METADATA } from '@arbitrage/config';
+import { EXCHANGES_METADATA, DEFAULT_ENGINE_CONFIG } from '@arbitrage/config';
 import {
   NormalizedOrderBook,
   ArbitrageOpportunity,
@@ -78,7 +78,6 @@ export class ArbitrageEngine {
   // otherwise the simulator farms one persistent apparent spread thousands of times per minute
   // and compounds an unrealistic return. Models the real capital-recycling time between fills.
   private lastExecAtByPair = new Map<string, number>();
-  private readonly EXECUTION_COOLDOWN_MS = 60000;
   // Liveness telemetry: epoch ms of the last evaluated book + self-heal action count.
   private lastActivityAt = 0;
   private watchdogRecoveries = 0;
@@ -97,6 +96,7 @@ export class ArbitrageEngine {
   constructor(initialConfig: EngineConfig) {
     this.config = initialConfig;
     this.riskManager = new RiskManager(initialConfig);
+    this.inventoryManager.updateConfig(initialConfig);
     this.pnlTracker = new PnLTracker();
   }
 
@@ -105,8 +105,11 @@ export class ArbitrageEngine {
 
     const loadedConfig = await loadConfig();
     if (loadedConfig) {
-      this.config = loadedConfig;
-      this.riskManager.updateConfig(loadedConfig);
+      // Merge over defaults so a config persisted before new parameters existed still gets
+      // sane values for the new knobs instead of undefined.
+      this.config = { ...DEFAULT_ENGINE_CONFIG, ...loadedConfig };
+      this.riskManager.updateConfig(this.config);
+      this.inventoryManager.updateConfig(this.config);
       this.logger.info({ eventType: 'INFO' }, '⚙️ Loaded active Engine Config from database.');
     } else {
       await saveConfig(this.config);
@@ -145,12 +148,19 @@ export class ArbitrageEngine {
   async updateConfig(newCfg: EngineConfig) {
     this.config = newCfg;
     this.riskManager.updateConfig(newCfg);
+    this.inventoryManager.updateConfig(newCfg);
     await saveConfig(newCfg);
     this.logger.info({ eventType: 'INFO' }, '⚙️ Engine Config updated and persisted.');
   }
 
   getWallets(): Wallets {
     return this.wallets;
+  }
+
+  /** Effective taker fee (bps) for a venue: per-exchange override if set, else venue default. */
+  private takerBps(exchangeId: string, fallback: number): number {
+    const override = this.config.takerFeeBpsOverrides?.[exchangeId];
+    return typeof override === 'number' ? override : fallback;
   }
 
   /** Average and p99 of a sample window (returns zeros for an empty window). */
@@ -430,7 +440,7 @@ export class ArbitrageEngine {
       const pairKey = `${top.buyExchangeId}->${top.sellExchangeId}`;
       const now = Date.now();
 
-      if (now - (this.lastExecAtByPair.get(pairKey) ?? 0) >= this.EXECUTION_COOLDOWN_MS) {
+      if (now - (this.lastExecAtByPair.get(pairKey) ?? 0) >= this.config.executionCooldownMs) {
         // Capture the single highest-conviction profitable window this cycle.
         this.lastExecAtByPair.set(pairKey, now);
         await this.executeCandidate(top);
@@ -446,7 +456,7 @@ export class ArbitrageEngine {
         // the prior fill is still cycling, so we transparently skip rather than re-farm it.
         await this.maybeRecordRejectedWindow(
           top,
-          `Pair on post-capture cooldown (${(this.EXECUTION_COOLDOWN_MS / 1000).toFixed(0)}s): spread still visible but prior-fill capital is still cycling.`
+          `Pair on post-capture cooldown (${(this.config.executionCooldownMs / 1000).toFixed(0)}s): spread still visible but prior-fill capital is still cycling.`
         );
       }
       return;
@@ -495,7 +505,7 @@ export class ArbitrageEngine {
     const crossQuoteBps =
       buyMeta.quoteCurrency !== sellMeta.quoteCurrency ? (this.config.usdtUsdBasisBps ?? 8) : 0;
 
-    const stepSize = 0.05; // Walk step size in BTC
+    const stepSize = this.config.sizingStepBTC; // Walk step size in BTC (configurable)
     const maxBtcCap = Math.min(
       this.config.maxPositionBTCPerExchange,
       this.wallets[sellExchangeId]?.BTC?.free ?? 0
@@ -524,8 +534,8 @@ export class ArbitrageEngine {
       const math = calculateNetSpread({
         buyPrice: walkBuy.avgPrice,
         sellPrice: walkSell.avgPrice,
-        buyTakerFeeBps: buyMeta.takerFeeBps,
-        sellTakerFeeBps: sellMeta.takerFeeBps,
+        buyTakerFeeBps: this.takerBps(buyExchangeId, buyMeta.takerFeeBps),
+        sellTakerFeeBps: this.takerBps(sellExchangeId, sellMeta.takerFeeBps),
         latencySafetyBps: this.config.latencySafetyBps,
         slippageSafetyBps: this.config.slippageSafetyBps,
         withdrawalFeeBTC: buyMeta.withdrawalFeeBTC,
@@ -679,8 +689,8 @@ export class ArbitrageEngine {
       const realizedMath = calculateNetSpread({
         buyPrice: realizedBuyPrice,
         sellPrice: realizedSellPrice,
-        buyTakerFeeBps: buyMeta.takerFeeBps,
-        sellTakerFeeBps: sellMeta.takerFeeBps,
+        buyTakerFeeBps: this.takerBps(c.buyExchangeId, buyMeta.takerFeeBps),
+        sellTakerFeeBps: this.takerBps(c.sellExchangeId, sellMeta.takerFeeBps),
         latencySafetyBps: this.config.latencySafetyBps,
         slippageSafetyBps: this.config.slippageSafetyBps,
         withdrawalFeeBTC: buyMeta.withdrawalFeeBTC,
@@ -695,7 +705,7 @@ export class ArbitrageEngine {
       // leg fills — the order is pulled, no loss booked (SKIPPED). A merely-eroded edge is
       // already committed and is booked at its realised value, INCLUDING the occasional small
       // realised loss; that is the honest reason the win rate sits below 100%.
-      const CIRCUIT_BREAKER_MULT = 2.5;
+      const CIRCUIT_BREAKER_MULT = this.config.circuitBreakerMult;
       if (realizedDriftBps > modeledAdverseBps * CIRCUIT_BREAKER_MULT && realizedNetUSD <= 0) {
         executed = false;
         abortReason = `Slippage circuit breaker tripped: ${realizedDriftBps.toFixed(1)}bps adverse spike over ${this.config.executionLatencyMs}ms window (vs ~${modeledAdverseBps.toFixed(1)}bps modeled) — order pulled before the second leg filled.`;
@@ -707,7 +717,7 @@ export class ArbitrageEngine {
       // price — capturing NO spread and booking a realised loss (fees + unwind slippage) that
       // is independent of how wide the original window was. Cross-venue leg risk is the
       // dominant real-world loss source and the main reason the win rate is well under 100%.
-      const LEG_FILL_FAILURE_PROB = 0.07;
+      const LEG_FILL_FAILURE_PROB = this.config.legFillFailureProb;
       if (executed && Math.random() < LEG_FILL_FAILURE_PROB) {
         legFailed = true;
         const unwindSlippageUSD = (Math.abs(realizedDriftBps) / 10000) * realizedBuyPrice * c.optimalVolume;

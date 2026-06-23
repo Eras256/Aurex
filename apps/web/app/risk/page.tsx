@@ -22,6 +22,53 @@ import { RiskAIOutput } from '@/lib/ai/types';
 import { useLanguage } from '../LanguageContext';
 import { useWebSocket } from '../WebSocketContext';
 
+/** Runtime-configurable advanced engine parameters (mirrors the new EngineConfig knobs). */
+interface AdvParams {
+  sizingStepBTC: number;
+  executionCooldownMs: number;
+  circuitBreakerMult: number;
+  legFillFailureProb: number;
+  volatilityBreakerPct: number;
+  consecutiveLossLimit: number;
+  lossCooldownSeconds: number;
+  volatilityCooldownSeconds: number;
+  rebalanceLowBTC: number;
+  rebalanceLowQuote: number;
+  rebalanceMinTransferBTC: number;
+  rebalanceMinTransferQuote: number;
+  zScoreGateEnabled: boolean;
+  zScoreGateThreshold: number;
+  takerFeeBpsOverrides: Record<string, number>;
+}
+
+const ADV_DEFAULTS: AdvParams = {
+  sizingStepBTC: 0.05,
+  executionCooldownMs: 60000,
+  circuitBreakerMult: 2.5,
+  legFillFailureProb: 0.07,
+  volatilityBreakerPct: 8,
+  consecutiveLossLimit: 3,
+  lossCooldownSeconds: 60,
+  volatilityCooldownSeconds: 120,
+  rebalanceLowBTC: 0.5,
+  rebalanceLowQuote: 50000,
+  rebalanceMinTransferBTC: 0.1,
+  rebalanceMinTransferQuote: 5000,
+  zScoreGateEnabled: false,
+  zScoreGateThreshold: 1.0,
+  takerFeeBpsOverrides: {},
+};
+
+const FEE_VENUES = ['binance', 'kraken', 'coinbase', 'okx', 'bybit'] as const;
+// Published retail (non-VIP) taker fees in bps, for the "Retail" fee preset.
+const RETAIL_TAKER_BPS: Record<string, number> = {
+  binance: 10,
+  kraken: 26,
+  coinbase: 60,
+  okx: 10,
+  bybit: 10,
+};
+
 export default function RiskSettingsPage() {
   const { state, updateConfig, triggerReset } = useWebSocket();
   const { t, language } = useLanguage();
@@ -33,6 +80,12 @@ export default function RiskSettingsPage() {
   const [slippageSafetyBps, setSlippageSafetyBps] = useState(0);
   const [executionLatencyMs, setExecutionLatencyMs] = useState(75);
   const [isPaused, setIsPaused] = useState(false);
+
+  // Advanced parametrization (deep engine knobs) — the differentiator the committee
+  // flagged as most important for this final phase.
+  const [adv, setAdv] = useState<AdvParams>(ADV_DEFAULTS);
+  const [advSaving, setAdvSaving] = useState(false);
+  const [advStatus, setAdvStatus] = useState<string | null>(null);
 
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -94,6 +147,24 @@ export default function RiskSettingsPage() {
       setSlippageSafetyBps(state.config.slippageSafetyBps);
       setExecutionLatencyMs(state.config.executionLatencyMs);
       setIsPaused(state.config.isPaused);
+      const c = state.config as unknown as Partial<AdvParams>;
+      setAdv({
+        sizingStepBTC: c.sizingStepBTC ?? ADV_DEFAULTS.sizingStepBTC,
+        executionCooldownMs: c.executionCooldownMs ?? ADV_DEFAULTS.executionCooldownMs,
+        circuitBreakerMult: c.circuitBreakerMult ?? ADV_DEFAULTS.circuitBreakerMult,
+        legFillFailureProb: c.legFillFailureProb ?? ADV_DEFAULTS.legFillFailureProb,
+        volatilityBreakerPct: c.volatilityBreakerPct ?? ADV_DEFAULTS.volatilityBreakerPct,
+        consecutiveLossLimit: c.consecutiveLossLimit ?? ADV_DEFAULTS.consecutiveLossLimit,
+        lossCooldownSeconds: c.lossCooldownSeconds ?? ADV_DEFAULTS.lossCooldownSeconds,
+        volatilityCooldownSeconds: c.volatilityCooldownSeconds ?? ADV_DEFAULTS.volatilityCooldownSeconds,
+        rebalanceLowBTC: c.rebalanceLowBTC ?? ADV_DEFAULTS.rebalanceLowBTC,
+        rebalanceLowQuote: c.rebalanceLowQuote ?? ADV_DEFAULTS.rebalanceLowQuote,
+        rebalanceMinTransferBTC: c.rebalanceMinTransferBTC ?? ADV_DEFAULTS.rebalanceMinTransferBTC,
+        rebalanceMinTransferQuote: c.rebalanceMinTransferQuote ?? ADV_DEFAULTS.rebalanceMinTransferQuote,
+        zScoreGateEnabled: c.zScoreGateEnabled ?? ADV_DEFAULTS.zScoreGateEnabled,
+        zScoreGateThreshold: c.zScoreGateThreshold ?? ADV_DEFAULTS.zScoreGateThreshold,
+        takerFeeBpsOverrides: c.takerFeeBpsOverrides ?? {},
+      });
     }
   }, [state?.config]);
 
@@ -144,6 +215,62 @@ export default function RiskSettingsPage() {
       alert(t('risk.alert_error'));
     }
   };
+
+  // --- Advanced parametrization handlers ---
+  const setAdvField = <K extends keyof AdvParams>(key: K, value: AdvParams[K]) => {
+    setAdv((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const setFeeOverride = (ex: string, raw: string) => {
+    setAdv((prev) => {
+      const next = { ...prev.takerFeeBpsOverrides };
+      if (raw === '') delete next[ex];
+      else next[ex] = Number(raw);
+      return { ...prev, takerFeeBpsOverrides: next };
+    });
+  };
+
+  const applyFeePreset = (preset: 'venue' | 'retail') => {
+    setAdvField('takerFeeBpsOverrides', preset === 'retail' ? { ...RETAIL_TAKER_BPS } : {});
+  };
+
+  const resetAdvanced = () => setAdv(ADV_DEFAULTS);
+
+  const saveAdvanced = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!state?.config) return;
+    setAdvSaving(true);
+    setAdvStatus(t('risk.saving_msg'));
+    const success = await updateConfig({ ...state.config, ...adv });
+    setAdvSaving(false);
+    if (success) {
+      setAdvStatus(t('risk.success_msg'));
+      setTimeout(() => setAdvStatus(null), 3000);
+    } else {
+      setAdvStatus(t('risk.error_msg'));
+    }
+  };
+
+  /** Compact labelled numeric input (plain JSX, not a component, to preserve focus). */
+  const numField = (
+    label: string,
+    value: number,
+    onChange: (v: number) => void,
+    step = 1,
+    hint?: string
+  ) => (
+    <div className="space-y-1.5 bg-slate-950/20 p-3 border border-white/5 rounded-lg">
+      <label className="text-[10px] text-slate-400 uppercase tracking-wider font-mono block">{label}</label>
+      <input
+        type="number"
+        step={step}
+        value={Number.isFinite(value) ? value : ''}
+        onChange={(e) => onChange(e.target.value === '' ? 0 : Number(e.target.value))}
+        className="w-full bg-slate-900 border border-white/10 rounded px-2 py-1.5 text-sm text-white font-mono focus:outline-none focus:border-amber-500/40"
+      />
+      {hint ? <span className="text-[9px] text-slate-500 font-mono block leading-snug">{hint}</span> : null}
+    </div>
+  );
 
   const riskStatus = state?.risk || {
     status: 'SAFE' as const,
@@ -448,6 +575,137 @@ export default function RiskSettingsPage() {
               <Button type="submit" disabled={saving} className="w-full sm:w-auto">
                 {saving ? t('risk.persisting_btn') : t('risk.save_config_btn')}
               </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* 3b. ADVANCED PARAMETRIZATION — deep, hot-applied engine configurability */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xs">
+            {language === 'es' ? 'Parametrización Avanzada del Motor' : 'Advanced Engine Parametrization'}
+          </CardTitle>
+          <CardDescription>
+            {language === 'es'
+              ? 'Control total de estrategia, riesgo, rebalanceo y comisiones — aplicado en caliente, sin reinicios.'
+              : 'Full control of strategy, risk, rebalancing and fees — applied live, no restarts.'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <form onSubmit={saveAdvanced} className="space-y-8">
+
+            {/* Execution & sizing */}
+            <div>
+              <h4 className="text-[10px] uppercase tracking-wider text-amber-500/80 font-mono font-bold mb-3">
+                {language === 'es' ? 'Ejecución y Sizing' : 'Execution & Sizing'}
+              </h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {numField(language === 'es' ? 'Paso sizing (BTC)' : 'Sizing step (BTC)', adv.sizingStepBTC, (v) => setAdvField('sizingStepBTC', v), 0.01)}
+                {numField(language === 'es' ? 'Cooldown por par (ms)' : 'Per-pair cooldown (ms)', adv.executionCooldownMs, (v) => setAdvField('executionCooldownMs', v), 1000)}
+                {numField(language === 'es' ? 'Circuit breaker (x)' : 'Circuit breaker (x)', adv.circuitBreakerMult, (v) => setAdvField('circuitBreakerMult', v), 0.1)}
+                {numField(language === 'es' ? 'Prob. leg-fail (0-1)' : 'Leg-fail prob (0-1)', adv.legFillFailureProb, (v) => setAdvField('legFillFailureProb', v), 0.01)}
+              </div>
+            </div>
+
+            {/* Risk breakers */}
+            <div>
+              <h4 className="text-[10px] uppercase tracking-wider text-amber-500/80 font-mono font-bold mb-3">
+                {language === 'es' ? 'Circuit Breakers de Riesgo' : 'Risk Circuit Breakers'}
+              </h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {numField(language === 'es' ? 'Breaker volatilidad (%)' : 'Volatility breaker (%)', adv.volatilityBreakerPct, (v) => setAdvField('volatilityBreakerPct', v), 0.5)}
+                {numField(language === 'es' ? 'Pérdidas consecutivas' : 'Consecutive losses', adv.consecutiveLossLimit, (v) => setAdvField('consecutiveLossLimit', v), 1)}
+                {numField(language === 'es' ? 'Cooldown pérdidas (s)' : 'Loss cooldown (s)', adv.lossCooldownSeconds, (v) => setAdvField('lossCooldownSeconds', v), 5)}
+                {numField(language === 'es' ? 'Cooldown volatilidad (s)' : 'Volatility cooldown (s)', adv.volatilityCooldownSeconds, (v) => setAdvField('volatilityCooldownSeconds', v), 5)}
+              </div>
+            </div>
+
+            {/* Rebalancing thresholds */}
+            <div>
+              <h4 className="text-[10px] uppercase tracking-wider text-amber-500/80 font-mono font-bold mb-3">
+                {language === 'es' ? 'Umbrales de Rebalanceo' : 'Rebalancing Thresholds'}
+              </h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {numField(language === 'es' ? 'BTC bajo' : 'Low BTC', adv.rebalanceLowBTC, (v) => setAdvField('rebalanceLowBTC', v), 0.1)}
+                {numField(language === 'es' ? 'Quote bajo (USDT)' : 'Low quote (USDT)', adv.rebalanceLowQuote, (v) => setAdvField('rebalanceLowQuote', v), 1000)}
+                {numField(language === 'es' ? 'Transferencia mín. BTC' : 'Min transfer BTC', adv.rebalanceMinTransferBTC, (v) => setAdvField('rebalanceMinTransferBTC', v), 0.01)}
+                {numField(language === 'es' ? 'Transferencia mín. Quote' : 'Min transfer quote', adv.rebalanceMinTransferQuote, (v) => setAdvField('rebalanceMinTransferQuote', v), 500)}
+              </div>
+            </div>
+
+            {/* Statistical-arbitrage gate */}
+            <div>
+              <h4 className="text-[10px] uppercase tracking-wider text-amber-500/80 font-mono font-bold mb-3">
+                {language === 'es' ? 'Gate de Arbitraje Estadístico' : 'Statistical-Arbitrage Gate'}
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch">
+                <div className="flex items-center justify-between bg-slate-950/20 p-3 border border-white/5 rounded-lg">
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-mono">
+                    {language === 'es' ? 'Activar gate por z-score' : 'Enable z-score gate'}
+                  </span>
+                  <Switch checked={adv.zScoreGateEnabled} onCheckedChange={(c) => setAdvField('zScoreGateEnabled', c)} />
+                </div>
+                {numField(
+                  language === 'es' ? 'Umbral de z-score' : 'Z-score threshold',
+                  adv.zScoreGateThreshold,
+                  (v) => setAdvField('zScoreGateThreshold', v),
+                  0.1,
+                  language === 'es'
+                    ? 'Solo ejecuta dislocaciones más anómalas que este z-score.'
+                    : 'Only execute dislocations more anomalous than this z-score.'
+                )}
+              </div>
+            </div>
+
+            {/* Per-exchange taker fee overrides */}
+            <div>
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <h4 className="text-[10px] uppercase tracking-wider text-amber-500/80 font-mono font-bold">
+                  {language === 'es' ? 'Comisiones Taker por Exchange (bps)' : 'Per-Exchange Taker Fees (bps)'}
+                </h4>
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" className="text-[10px] px-2 py-1 h-auto" onClick={() => applyFeePreset('venue')}>
+                    {language === 'es' ? 'Default (VIP)' : 'Default (VIP)'}
+                  </Button>
+                  <Button type="button" variant="outline" className="text-[10px] px-2 py-1 h-auto" onClick={() => applyFeePreset('retail')}>
+                    Retail
+                  </Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                {FEE_VENUES.map((ex) => (
+                  <div key={ex} className="space-y-1.5 bg-slate-950/20 p-3 border border-white/5 rounded-lg">
+                    <label className="text-[10px] text-slate-400 uppercase tracking-wider font-mono block">{ex}</label>
+                    <input
+                      type="number"
+                      step={1}
+                      placeholder="default"
+                      value={adv.takerFeeBpsOverrides[ex] ?? ''}
+                      onChange={(e) => setFeeOverride(ex, e.target.value)}
+                      className="w-full bg-slate-900 border border-white/10 rounded px-2 py-1.5 text-sm text-white font-mono focus:outline-none focus:border-amber-500/40"
+                    />
+                  </div>
+                ))}
+              </div>
+              <span className="text-[9px] text-slate-500 font-mono block mt-2">
+                {language === 'es'
+                  ? 'Vacío = usar la comisión por defecto del venue. "Retail" carga las tarifas estándar publicadas.'
+                  : 'Empty = use the venue default fee. "Retail" loads standard published rates.'}
+              </span>
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-t border-white/5 pt-6">
+              <span className="text-xs text-slate-400 font-mono font-medium">{advStatus || ''}</span>
+              <div className="flex gap-2 self-end">
+                <Button type="button" variant="outline" onClick={resetAdvanced}>
+                  {language === 'es' ? 'Restablecer' : 'Reset to defaults'}
+                </Button>
+                <Button type="submit" disabled={advSaving}>
+                  {advSaving ? t('risk.persisting_btn') : language === 'es' ? 'Guardar avanzado' : 'Save advanced'}
+                </Button>
+              </div>
             </div>
           </form>
         </CardContent>

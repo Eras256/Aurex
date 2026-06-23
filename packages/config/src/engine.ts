@@ -23,6 +23,49 @@ export const EngineConfigSchema = z.object({
   // adverse price drift the taker is exposed to (volatility * sqrt(time)) and aborts a
   // window whose edge the move would wipe out. 75ms ≈ a realistic cross-venue REST fill path.
   executionLatencyMs: z.number().nonnegative().default(75),
+
+  // --- Execution & sizing (parametrizable) ---
+  // Depth-walk volume step (BTC) used when searching for the net-profit-maximizing size.
+  sizingStepBTC: z.number().positive().default(0.05),
+  // Per-pair post-capture cooldown (ms): once a dislocation is captured the pair is not
+  // re-fired every tick, so cumulative returns stay realistic.
+  executionCooldownMs: z.number().nonnegative().default(60000),
+  // Multiple of the modeled adverse move beyond which a catastrophic spike pulls the order
+  // before the second leg fills (slippage circuit breaker).
+  circuitBreakerMult: z.number().positive().default(2.5),
+  // Probability that an approved trade fills one leg and misses the other (leg-execution
+  // risk), unwound at a realised loss. 0 disables modeled leg risk.
+  legFillFailureProb: z.number().min(0).max(1).default(0.07),
+
+  // --- Risk circuit breakers (parametrizable) ---
+  // Gross spread as % of mid above which a window is treated as data lag / flash crash and
+  // the engine halts (volatility spike breaker).
+  volatilityBreakerPct: z.number().positive().default(8),
+  // Consecutive realised losses that trip the cooldown breaker.
+  consecutiveLossLimit: z.number().int().positive().default(3),
+  // Cooldown (seconds) after the consecutive-loss breaker trips.
+  lossCooldownSeconds: z.number().nonnegative().default(60),
+  // Cooldown (seconds) after the volatility-spike breaker trips.
+  volatilityCooldownSeconds: z.number().nonnegative().default(120),
+
+  // --- Inventory rebalancing thresholds (parametrizable) ---
+  // Trigger a rebalance once any venue's free balance drops below these.
+  rebalanceLowBTC: z.number().nonnegative().default(0.5),
+  rebalanceLowQuote: z.number().nonnegative().default(50000),
+  // Don't move dust — minimum economically-sensible transfer size per asset.
+  rebalanceMinTransferBTC: z.number().nonnegative().default(0.1),
+  rebalanceMinTransferQuote: z.number().nonnegative().default(5000),
+
+  // --- Statistical-arbitrage gating (parametrizable) ---
+  // When enabled, only windows whose rolling z-score exceeds the threshold are executed,
+  // prioritising anomalous, mean-reverting dislocations over merely-positive spreads.
+  zScoreGateEnabled: z.boolean().default(false),
+  zScoreGateThreshold: z.number().default(1.0),
+
+  // Per-exchange taker fee overrides (bps). Empty = use venue defaults (VIP-tier). Lets the
+  // operator switch to retail tiers or custom fees at runtime without a redeploy.
+  takerFeeBpsOverrides: z.record(z.string(), z.number().nonnegative()).default({}),
+
   enabledExchanges: z.array(z.string()).default(['binance', 'kraken', 'coinbase', 'okx', 'bybit']),
   enabledPairs: z.array(z.string()).default(['BTCUSDT']),
   isPaused: z.boolean().default(false),
