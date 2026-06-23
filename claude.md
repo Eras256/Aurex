@@ -122,3 +122,21 @@ pnpm validate
 
 - **Sole author:** Every commit must be authored **and** committed by `Eras256 <neuralsol7@gmail.com>`. Configure once with `git config user.name "Eras256"` and `git config user.email "neuralsol7@gmail.com"`.
 - **No co-authors:** Do **not** add any `Co-Authored-By:` trailer (no AI/assistant attribution) to commit messages.
+
+---
+
+## 🧊 Submission Freeze & Live-Deploy Delta
+
+- **Frozen submission:** the code judged for the Coding Challenge is frozen at the deadline commit (`9eb95a4`). Do not alter that judged baseline.
+- **Live deploy:** the public deployment kept iterating after the freeze. Every change the live system carries over the frozen submission is listed, fully and honestly, on the in-app **Build Notes** page ([apps/web/app/changelog/page.tsx](apps/web/app/changelog/page.tsx)). Keep that page authoritative.
+- **Working discipline:** until the official extension window is open, the repo and deploy stay frozen. Do all new work on a dedicated branch; never commit or push outside the window.
+
+## 🗺️ Roadmap — planned for the extension window (NOT yet implemented)
+
+> These are planned enhancements, **not** current behavior. Keep docs and code in sync: only describe a feature as live once it actually ships. Private strategy and sequencing live in `PLAN-PODIO.md` (gitignored — do not commit).
+
+- **Multi-asset arbitrage:** extend beyond BTC to liquid altcoins (ETH, SOL, AVAX/LINK) via `supportedSymbols` in [packages/config/src/metadata.ts](packages/config/src/metadata.ts) and per-symbol book scanning.
+- **Statistical arbitrage (first-class):** wire the existing `SpreadStatistics` z-score (`apps/bot/src/engine/SpreadStatistics.ts`) into opportunity ranking/gating, surfaced in the UI.
+- **Latency benchmarking:** measured end-to-end figures (book update → opportunity detected), mean and p99.
+- **Backtesting harness:** replay recorded L2 books and report realized-vs-modeled net to validate the cost model.
+- **AI Quant Copilot — real model:** the Copilot is currently mock-driven ([apps/web/lib/ai/mock/mockAiAgent.ts](apps/web/lib/ai/mock/mockAiAgent.ts), scripted scenarios). Planned: a server-side Next.js route (`app/api/copilot/chat/route.ts`) that calls OpenAI with `OPENAI_API_KEY` read from `.env.local` (already gitignored), streaming real tokens with graceful fallback to the mock. The key must **never** reach the client bundle — mirror the existing secure server-side proxy pattern (`/api/bot/calibrate`, `/api/copilot/audits`). Rotate any key that has been exposed.
