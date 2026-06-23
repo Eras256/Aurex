@@ -567,11 +567,18 @@ export class ArbitrageEngine {
 
     if (refVolume === 0 || !refMathResult) return null; // No fillable depth.
 
-    const profitable = optimalVolume > 0 && expectedProfitUSD >= this.config.minNetProfitUSD;
-
     // Feed the statistical-arbitrage tracker with the per-BTC net spread for this pair and
     // capture how anomalous the live dislocation is versus its own rolling history.
     const { zScore } = this.spreadStats.update(buyExchangeId, sellExchangeId, refMathResult.netSpread);
+
+    // Base profitability: clears the configured minimum net profit after all costs.
+    let profitable = optimalVolume > 0 && expectedProfitUSD >= this.config.minNetProfitUSD;
+    // Statistical-arbitrage gate (optional): only execute windows whose dislocation is
+    // anomalously wide vs its own rolling history (z-score >= threshold), prioritising
+    // mean-reverting edges over merely-positive spreads.
+    if (profitable && this.config.zScoreGateEnabled && zScore < this.config.zScoreGateThreshold) {
+      profitable = false;
+    }
 
     return {
       buyExchangeId,
