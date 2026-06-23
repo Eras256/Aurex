@@ -39,6 +39,7 @@ interface AdvParams {
   zScoreGateEnabled: boolean;
   zScoreGateThreshold: number;
   takerFeeBpsOverrides: Record<string, number>;
+  executionMode: 'sim' | 'testnet';
 }
 
 const ADV_DEFAULTS: AdvParams = {
@@ -57,6 +58,7 @@ const ADV_DEFAULTS: AdvParams = {
   zScoreGateEnabled: false,
   zScoreGateThreshold: 1.0,
   takerFeeBpsOverrides: {},
+  executionMode: 'sim',
 };
 
 const FEE_VENUES = ['binance', 'kraken', 'coinbase', 'okx', 'bybit'] as const;
@@ -164,6 +166,7 @@ export default function RiskSettingsPage() {
         zScoreGateEnabled: c.zScoreGateEnabled ?? ADV_DEFAULTS.zScoreGateEnabled,
         zScoreGateThreshold: c.zScoreGateThreshold ?? ADV_DEFAULTS.zScoreGateThreshold,
         takerFeeBpsOverrides: c.takerFeeBpsOverrides ?? {},
+        executionMode: c.executionMode ?? ADV_DEFAULTS.executionMode,
       });
     }
   }, [state?.config]);
@@ -594,6 +597,35 @@ export default function RiskSettingsPage() {
         </CardHeader>
         <CardContent className="pt-6">
           <form onSubmit={saveAdvanced} className="space-y-8">
+
+            {/* Execution mode (sim vs real testnet) */}
+            <div>
+              <h4 className="text-[10px] uppercase tracking-wider text-amber-500/80 font-mono font-bold mb-3">
+                {language === 'es' ? 'Modo de Ejecución' : 'Execution Mode'}
+              </h4>
+              <div className="flex items-center justify-between bg-slate-950/20 p-3 border border-white/5 rounded-lg">
+                <div className="pr-3">
+                  <span className="text-[11px] text-slate-300 font-mono block">
+                    {adv.executionMode === 'testnet'
+                      ? language === 'es'
+                        ? 'Testnet real (Binance / OKX)'
+                        : 'Real testnet (Binance / OKX)'
+                      : language === 'es'
+                        ? 'Simulado'
+                        : 'Simulated'}
+                  </span>
+                  <span className="text-[9px] text-slate-500 font-mono block mt-0.5 leading-snug">
+                    {language === 'es'
+                      ? 'Testnet coloca órdenes IOC reales en los matching engines de prueba (requiere API keys de testnet en .env). Fallback a simulado por operación.'
+                      : 'Testnet places real IOC orders on the venues’ test matching engines (requires testnet API keys in .env). Falls back to simulated per-trade.'}
+                  </span>
+                </div>
+                <Switch
+                  checked={adv.executionMode === 'testnet'}
+                  onCheckedChange={(checked) => setAdvField('executionMode', checked ? 'testnet' : 'sim')}
+                />
+              </div>
+            </div>
 
             {/* Execution & sizing */}
             <div>

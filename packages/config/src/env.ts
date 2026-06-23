@@ -46,6 +46,17 @@ export const EnvSchema = z.object({
   ENGINE_MAX_TRADES_PER_MINUTE: z.preprocess((val) => (val === undefined || val === '' ? undefined : Number(val)), z.number().optional()),
   ENGINE_USDT_USD_BASIS_BPS: z.preprocess((val) => (val === undefined || val === '' ? undefined : Number(val)), z.number().optional()),
   ENGINE_EXECUTION_LATENCY_MS: z.preprocess((val) => (val === undefined || val === '' ? undefined : Number(val)), z.number().optional()),
+
+  // --- Live testnet / demo execution (optional; empty = simulation-only) ---
+  // Binance Spot Testnet (https://testnet.binance.vision) — fake balances, no real funds.
+  BINANCE_TESTNET_REST_URL: z.string().url().default('https://testnet.binance.vision'),
+  BINANCE_TESTNET_API_KEY: z.preprocess((val) => (val === '' ? undefined : val), z.string().optional()),
+  BINANCE_TESTNET_API_SECRET: z.preprocess((val) => (val === '' ? undefined : val), z.string().optional()),
+  // OKX Demo Trading (same prod API + x-simulated-trading: 1) — virtual funds, no real money.
+  OKX_REST_URL: z.string().url().default('https://www.okx.com'),
+  OKX_DEMO_API_KEY: z.preprocess((val) => (val === '' ? undefined : val), z.string().optional()),
+  OKX_DEMO_API_SECRET: z.preprocess((val) => (val === '' ? undefined : val), z.string().optional()),
+  OKX_DEMO_PASSPHRASE: z.preprocess((val) => (val === '' ? undefined : val), z.string().optional()),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
@@ -79,6 +90,13 @@ const getEnv = (): Env => {
     ENGINE_MAX_TRADES_PER_MINUTE: typeof process !== 'undefined' ? process.env.ENGINE_MAX_TRADES_PER_MINUTE : undefined,
     ENGINE_USDT_USD_BASIS_BPS: typeof process !== 'undefined' ? process.env.ENGINE_USDT_USD_BASIS_BPS : undefined,
     ENGINE_EXECUTION_LATENCY_MS: typeof process !== 'undefined' ? process.env.ENGINE_EXECUTION_LATENCY_MS : undefined,
+    BINANCE_TESTNET_REST_URL: typeof process !== 'undefined' ? process.env.BINANCE_TESTNET_REST_URL : undefined,
+    BINANCE_TESTNET_API_KEY: typeof process !== 'undefined' ? process.env.BINANCE_TESTNET_API_KEY : undefined,
+    BINANCE_TESTNET_API_SECRET: typeof process !== 'undefined' ? process.env.BINANCE_TESTNET_API_SECRET : undefined,
+    OKX_REST_URL: typeof process !== 'undefined' ? process.env.OKX_REST_URL : undefined,
+    OKX_DEMO_API_KEY: typeof process !== 'undefined' ? process.env.OKX_DEMO_API_KEY : undefined,
+    OKX_DEMO_API_SECRET: typeof process !== 'undefined' ? process.env.OKX_DEMO_API_SECRET : undefined,
+    OKX_DEMO_PASSPHRASE: typeof process !== 'undefined' ? process.env.OKX_DEMO_PASSPHRASE : undefined,
   };
 
   try {

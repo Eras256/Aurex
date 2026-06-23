@@ -100,6 +100,9 @@ export interface EngineConfig {
   enabledExchanges: string[];
   enabledPairs: string[];
   isPaused: boolean;
+  // 'sim' books fills internally; 'testnet' routes legs to real exchange testnet/demo
+  // matching engines when credentials exist, falling back to sim per-trade otherwise.
+  executionMode: 'sim' | 'testnet';
 }
 
 export interface RiskStatus {

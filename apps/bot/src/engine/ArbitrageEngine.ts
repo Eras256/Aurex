@@ -15,6 +15,7 @@ import {
 } from '@arbitrage/core';
 
 import { createChildLogger } from '../core/logging/logger.js';
+import { placeTestnetOrder, isExecutionConfigured, type ExecVenue } from '../exchanges/testnetExecutor.js';
 import { orderBookStore } from '../orderbooks/normalizedOrderBookStore.js';
 import {
   saveOpportunity,
@@ -635,6 +636,83 @@ export class ArbitrageEngine {
     return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
   }
 
+  /**
+   * Real testnet/demo execution path. Returns null (→ fall back to the simulator for this
+   * trade) unless executionMode is 'testnet' AND both legs are on a configured, testnet-capable
+   * venue (Binance Spot Testnet / OKX Demo). Places both legs as real IOC orders and books the
+   * actual fills — real partials and non-crosses surface as genuine leg risk, settled on the
+   * exchange testnet account (local sim wallets are left untouched).
+   */
+  private async tryTestnetExecution(c: ArbitrageCandidate): Promise<{
+    executed: boolean;
+    legFailed: boolean;
+    buyPrice: number;
+    sellPrice: number;
+    feeUSDPerUnit: number;
+    netUSD: number;
+    abortReason?: string;
+  } | null> {
+    if (this.config.executionMode !== 'testnet') return null;
+    const isExec = (v: string): v is ExecVenue =>
+      (v === 'binance' || v === 'okx') && isExecutionConfigured(v);
+    if (!isExec(c.buyExchangeId) || !isExec(c.sellExchangeId)) return null;
+
+    const buyVenue = c.buyExchangeId as ExecVenue;
+    const sellVenue = c.sellExchangeId as ExecVenue;
+    // Marketable IOC limits: cross slightly so each order takes liquidity now or expires.
+    const [buyFill, sellFill] = await Promise.all([
+      placeTestnetOrder({ venue: buyVenue, side: 'BUY', symbol: c.symbol, quantity: c.optimalVolume, limitPrice: c.finalBuyPrice * 1.0005 }),
+      placeTestnetOrder({ venue: sellVenue, side: 'SELL', symbol: c.symbol, quantity: c.optimalVolume, limitPrice: c.finalSellPrice * 0.9995 }),
+    ]);
+
+    // Both legs failed at the API level → book nothing; fall back to sim so the demo never stalls.
+    if (!buyFill.ok && !sellFill.ok) {
+      this.logger.warn({ eventType: 'WARNING', buyVenue, sellVenue }, '⚠️ Testnet legs both failed; falling back to simulated execution.');
+      return null;
+    }
+
+    const buyMeta = EXCHANGES_METADATA[buyVenue];
+    const sellMeta = EXCHANGES_METADATA[sellVenue];
+    const buyFeeDec = this.takerBps(buyVenue, buyMeta.takerFeeBps) / 10000;
+    const sellFeeDec = this.takerBps(sellVenue, sellMeta.takerFeeBps) / 10000;
+
+    const matched = Math.min(buyFill.filledQty, sellFill.filledQty);
+    const residual = Math.abs(buyFill.filledQty - sellFill.filledQty);
+
+    // Neither side crossed: an IOC that found no liquidity. No position, no loss.
+    if (matched <= 0 && residual <= 0) {
+      return {
+        executed: false,
+        legFailed: false,
+        buyPrice: c.finalBuyPrice,
+        sellPrice: c.finalSellPrice,
+        feeUSDPerUnit: 0,
+        netUSD: 0,
+        abortReason: 'Testnet IOC orders did not cross (no fill).',
+      };
+    }
+
+    const buyPrice = buyFill.avgPrice > 0 ? buyFill.avgPrice : c.finalBuyPrice;
+    const sellPrice = sellFill.avgPrice > 0 ? sellFill.avgPrice : c.finalSellPrice;
+    const feeUSDPerUnit = buyPrice * buyFeeDec + sellPrice * sellFeeDec;
+
+    // Matched quantity captures the spread; any residual is unintended inventory that must be
+    // unwound — booked as a real leg-risk loss (fees on the residual + a crossing cost).
+    const perUnitNet = sellPrice * (1 - sellFeeDec) - buyPrice * (1 + buyFeeDec);
+    let netUSD = perUnitNet * matched;
+    const legFailed = matched <= 0 || residual > matched * 0.25;
+    if (residual > 0) {
+      netUSD -= residual * buyPrice * (sellFeeDec + buyFeeDec + 0.001);
+    }
+
+    this.logger.info(
+      { eventType: 'INFO', buyVenue, sellVenue, matched, residual, buyPrice, sellPrice, netUSD },
+      `🔌 Testnet fills: matched ${matched.toFixed(5)} (residual ${residual.toFixed(5)}) net $${netUSD.toFixed(2)}.`
+    );
+
+    return { executed: matched > 0, legFailed, buyPrice, sellPrice, feeUSDPerUnit, netUSD, abortReason: matched > 0 ? undefined : 'Testnet legs did not match.' };
+  }
+
   private async executeCandidate(c: ArbitrageCandidate) {
     const buyMeta = EXCHANGES_METADATA[c.buyExchangeId];
     const sellMeta = EXCHANGES_METADATA[c.sellExchangeId];
@@ -666,8 +744,23 @@ export class ArbitrageEngine {
     let realizedNetUSD = c.expectedProfitUSD;
     let realizedFeeUSD = c.math.feeCostUSD;
     let adverseBps = 0;
+    let realExecuted = false;
 
     if (approval.approved) {
+      const real = await this.tryTestnetExecution(c);
+      if (real) {
+        // Real testnet/demo fills are authoritative — book the actual outcome (incl. real
+        // partials / non-crosses as genuine leg risk); no stochastic model is applied.
+        realExecuted = true;
+        executed = real.executed;
+        legFailed = real.legFailed;
+        realizedBuyPrice = real.buyPrice;
+        realizedSellPrice = real.sellPrice;
+        realizedFeeUSD = real.feeUSDPerUnit;
+        realizedNetUSD = real.netUSD;
+        abortReason = real.abortReason;
+        adverseBps = 0;
+      } else {
       const dispersionBps =
         (this.getDispersionBps(c.buyExchangeId, c.symbol) +
           this.getDispersionBps(c.sellExchangeId, c.symbol)) / 2;
@@ -730,6 +823,7 @@ export class ArbitrageEngine {
         const unwindSlippageUSD = (Math.abs(realizedDriftBps) / 10000) * realizedBuyPrice * c.optimalVolume;
         realizedNetUSD = -(realizedFeeUSD * c.optimalVolume + unwindSlippageUSD);
       }
+      }
     }
 
     // Executions always persist; non-executions (risk-rejected or fill-aborted) are throttled
@@ -765,7 +859,9 @@ export class ArbitrageEngine {
       // A completed (both-leg) arb moves wallets at the realised fill prices. A leg-failed
       // trade was round-tripped on the single filled venue (net-zero inventory), so balances
       // are left unchanged and only the realised cash loss (booked below) hits equity.
-      if (!legFailed) {
+      // Real testnet trades settle on the exchange testnet account, not the local sim
+      // wallets — so only a completed (both-leg) SIMULATED arb moves local balances.
+      if (!legFailed && !realExecuted) {
         this.executeSimulatedBalances(
           c.buyExchangeId,
           c.sellExchangeId,
@@ -834,8 +930,8 @@ export class ArbitrageEngine {
         timestamp: Date.now(),
         type: 'TRADE_EXECUTION',
         message: legFailed
-          ? `Leg miss on ${sellMeta.name}: ${c.optimalVolume.toFixed(4)} BTC bought on ${buyMeta.name} unwound at a ${netLabel} loss.`
-          : `Arbitrage Executed: Bought ${c.optimalVolume.toFixed(4)} BTC on ${buyMeta.name} and sold on ${sellMeta.name} for ${netLabel} net (after ${adverseBps.toFixed(1)}bps fill drift).`,
+          ? `${realExecuted ? '[TESTNET] ' : ''}Leg miss on ${sellMeta.name}: ${c.optimalVolume.toFixed(4)} BTC bought on ${buyMeta.name} unwound at a ${netLabel} loss.`
+          : `${realExecuted ? '[TESTNET] ' : ''}Arbitrage Executed: Bought ${c.optimalVolume.toFixed(4)} BTC on ${buyMeta.name} and sold on ${sellMeta.name} for ${netLabel} net${realExecuted ? ' (real testnet fill)' : ` (after ${adverseBps.toFixed(1)}bps fill drift)`}.`,
       };
       await saveEvent(event);
 

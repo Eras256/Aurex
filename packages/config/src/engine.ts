@@ -69,6 +69,11 @@ export const EngineConfigSchema = z.object({
   enabledExchanges: z.array(z.string()).default(['binance', 'kraken', 'coinbase', 'okx', 'bybit']),
   enabledPairs: z.array(z.string()).default(['BTCUSDT']),
   isPaused: z.boolean().default(false),
+
+  // Execution mode: 'sim' (default) books fills against the internal simulator; 'testnet'
+  // routes both legs to real exchange testnet/demo matching engines (Binance Spot Testnet,
+  // OKX Demo) when credentials are present, falling back to sim per-trade otherwise.
+  executionMode: z.enum(['sim', 'testnet']).default('sim'),
 });
 
 export type EngineConfig = z.infer<typeof EngineConfigSchema>;
