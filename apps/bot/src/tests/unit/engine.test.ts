@@ -170,3 +170,62 @@ describe('🚨 RiskManager Circuit Breakers & Exposures', () => {
     expect(res.reason).toContain('risk cooldown');
   });
 });
+
+describe('⚙️ Configurable Circuit Breakers (runtime parametrization)', () => {
+  // A ~2% gross spread vs mid: mid = 60600, grossSpread = 1200 → 1.98%.
+  const spikeTrade = {
+    buyExchange: 'binance',
+    sellExchange: 'kraken',
+    volume: 0.1,
+    buyPrice: 60000,
+    sellPrice: 61200,
+    grossSpread: 1200,
+  };
+  const wallets = {
+    binance: { BTC: { free: 1.0, locked: 0 }, USDT: { free: 50000, locked: 0 } },
+    kraken: { BTC: { free: 1.5, locked: 0 }, USDT: { free: 50000, locked: 0 } },
+  };
+
+  it('does NOT trip the volatility breaker when the spread is below the configured %', () => {
+    // Default 8% threshold: a ~2% spread is well within bounds and is approved.
+    const rm = new RiskManager({ ...DEFAULT_ENGINE_CONFIG, maxPositionBTCPerExchange: 2.0 });
+    const res = rm.approveTrade({ ...spikeTrade, wallets });
+    expect(res.approved).toBe(true);
+  });
+
+  it('trips the volatility breaker at the configured % (tightened to 1%)', () => {
+    const rm = new RiskManager({
+      ...DEFAULT_ENGINE_CONFIG,
+      maxPositionBTCPerExchange: 2.0,
+      volatilityBreakerPct: 1.0, // tighten so the same ~2% spread is now a spike
+    });
+    const res = rm.approveTrade({ ...spikeTrade, wallets });
+    expect(res.approved).toBe(false);
+    expect(res.reason).toContain('exceeds 1%');
+    expect(rm.getRiskStatus(wallets).status).toBe('COOLDOWN');
+  });
+
+  it('trips the consecutive-loss breaker at the configured limit (2 instead of 3)', () => {
+    const rm = new RiskManager({ ...DEFAULT_ENGINE_CONFIG, consecutiveLossLimit: 2 });
+    rm.recordTradeResult(-1.0);
+    expect(rm.getRiskStatus(wallets).status).toBe('WARNING');
+    rm.recordTradeResult(-1.0); // second loss now trips (limit = 2)
+    expect(rm.getRiskStatus(wallets).status).toBe('COOLDOWN');
+    expect(rm.getRiskStatus(wallets).isCoolingDown).toBe(true);
+  });
+
+  it('does not trip before the configured limit is reached', () => {
+    const rm = new RiskManager({ ...DEFAULT_ENGINE_CONFIG, consecutiveLossLimit: 5 });
+    for (let i = 0; i < 4; i++) rm.recordTradeResult(-1.0);
+    expect(rm.getRiskStatus(wallets).status).toBe('WARNING'); // 4 < 5, still only a warning
+  });
+
+  it('resets the consecutive-loss counter after a winning trade', () => {
+    const rm = new RiskManager({ ...DEFAULT_ENGINE_CONFIG, consecutiveLossLimit: 3 });
+    rm.recordTradeResult(-1.0);
+    rm.recordTradeResult(-1.0);
+    rm.recordTradeResult(5.0); // a win clears the streak
+    expect(rm.getRiskStatus(wallets).status).toBe('SAFE');
+    expect(rm.getRiskStatus(wallets).consecutiveLosses).toBe(0);
+  });
+});

@@ -229,13 +229,13 @@ export default function ChangelogPage() {
           </div>
           <p>
             {es
-              ? 'El código del repositorio enviado para evaluación está congelado en el commit de cierre. Los únicos commits posteriores en GitHub son ediciones de README (documentación, no código), firmadas y verificadas.'
-              : 'The repository code submitted for judging is frozen at the deadline commit. The only later commits on GitHub are README edits (documentation, not code), signed and verified.'}
+              ? 'El código del repositorio enviado para evaluación está congelado en el commit de cierre. El despliegue público siguió iterando después de esa fecha; cada cambio sobre la entrega congelada está listado, de forma completa y honesta, más abajo.'
+              : 'The repository code submitted for judging is frozen at the deadline commit. The public deployment kept iterating after that date; every change over the frozen submission is listed, fully and honestly, below.'}
           </p>
           <p>
             {es
-              ? 'Durante la ventana adicional de publicación del sistema, el despliegue público siguió iterando. Esta página lista, de forma completa y honesta, cada cambio que el sistema en vivo tiene sobre la entrega congelada — para que el jurado pueda reconciliar ambos.'
-              : 'During the additional public-deployment window, the public deployment continued to iterate. This page lists — fully and honestly — every change the live system carries over the frozen submission, so reviewers can reconcile the two.'}
+              ? 'El objetivo es que el jurado pueda reconciliar ambos: lo que se evaluó es exactamente el commit congelado, y lo que está en vivo es ese commit más las extensiones detalladas en esta página.'
+              : 'The goal is that reviewers can reconcile the two: what was judged is exactly the frozen commit, and what is live is that commit plus the extensions detailed on this page.'}
           </p>
         </div>
       </div>

@@ -105,8 +105,8 @@ export class RiskManager {
     const midPrice = (buyPrice + sellPrice) / 2;
     const spreadPercentage = (grossSpread / midPrice) * 100;
     
-    if (spreadPercentage > 8.0) {
-      this.triggerCooldown(120); // 2 minute halt
+    if (spreadPercentage > this.config.volatilityBreakerPct) {
+      this.triggerCooldown(this.config.volatilityCooldownSeconds);
       this.logger.warn({
         eventType: 'RISK_ALERT',
         buyExchange,
@@ -114,7 +114,7 @@ export class RiskManager {
         grossSpread,
         spreadPercentage,
       }, `🚨 Circuit Breaker: Spike detected! Spread percentage is ${spreadPercentage.toFixed(2)}%. Triggering risk halt.`);
-      return { approved: false, reason: `Spike Breaker: Spread of ${spreadPercentage.toFixed(2)}% exceeds 8% limit` };
+      return { approved: false, reason: `Spike Breaker: Spread of ${spreadPercentage.toFixed(2)}% exceeds ${this.config.volatilityBreakerPct}% limit` };
     }
 
     // 4. Position & Exposure caps validation
@@ -155,8 +155,8 @@ export class RiskManager {
         consecutiveLosses: this.consecutiveLosses,
       }, `⚠️ RiskManager: Incurred simulated trade loss of ${netProfitUSD.toFixed(2)} USD. Consecutive losses: ${this.consecutiveLosses}`);
       
-      if (this.consecutiveLosses >= 3) {
-        this.triggerCooldown(60); // 60 seconds halt
+      if (this.consecutiveLosses >= this.config.consecutiveLossLimit) {
+        this.triggerCooldown(this.config.lossCooldownSeconds);
       }
     } else {
       this.consecutiveLosses = 0; // reset

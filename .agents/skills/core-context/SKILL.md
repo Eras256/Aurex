@@ -51,6 +51,16 @@ Upon completing any development task:
 - Update `claude.md` and `CLAUDE.md` immediately to reflect these changes _before_ finishing your turn.
 - Ensure that codebase realities never drift from the documented memory.
 
+### 4. Submission Freeze Discipline
+
+- The original judged submission is frozen at the deadline commit (`9eb95a4`). The finalist extension window is now **OPEN** (deadline Sun 12 Jul 2026, 23:59): active development happens on the `final-phase` branch; merge to `main` and redeploy only when stable, then update the submission on the portal. Keep `main`/deploy green.
+- The live-deploy delta over the frozen submission is documented on the Build Notes page (`apps/web/app/changelog/page.tsx`). Keep that page authoritative and honest; never let it claim "docs-only" changes when engine code also moved.
+
+### 5. AI Copilot Reality
+
+- The AI Quant Copilot currently runs on scripted mock scenarios (`apps/web/lib/ai/mock/mockAiAgent.ts`). A real-model (OpenAI) integration is planned via a server-side route; the API key must stay server-side (`.env.local`, gitignored) and never reach the client bundle. Do **not** describe the Copilot as "real AI" in docs until that route ships.
+- Private roadmap and sequencing live in `PLAN-PODIO.md` (gitignored — do not commit).
+
 ---
 
 ## Verification Checklist for Context Loading

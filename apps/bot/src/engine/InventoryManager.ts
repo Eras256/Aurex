@@ -1,4 +1,5 @@
 import { EXCHANGES_METADATA } from '@arbitrage/config';
+import { EngineConfig } from '@arbitrage/core';
 
 import { createChildLogger } from '../core/logging/logger.js';
 
@@ -25,21 +26,28 @@ export interface RebalanceTransfer {
  */
 export class InventoryManager {
   // Trigger a rebalance once any venue's free balance for an asset drops below these.
-  private static readonly LOW = { BTC: 0.5, USDT: 50000 } as const;
+  // Defaults match the historical hardcoded thresholds; overridden at runtime via config.
+  private low: { BTC: number; USDT: number } = { BTC: 0.5, USDT: 50000 };
   // Don't move dust — minimum economically-sensible transfer size per asset.
-  private static readonly MIN_TRANSFER = { BTC: 0.1, USDT: 5000 } as const;
+  private minTransfer: { BTC: number; USDT: number } = { BTC: 0.1, USDT: 5000 };
   // Flat USDT settlement fee per transfer (≈ a TRC-20 stablecoin withdrawal).
   private static readonly USDT_TRANSFER_FEE = 1;
 
   private logger = createChildLogger({ component: 'InventoryManager' });
+
+  /** Apply runtime-configurable rebalancing thresholds from the engine config. */
+  updateConfig(cfg: EngineConfig): void {
+    this.low = { BTC: cfg.rebalanceLowBTC, USDT: cfg.rebalanceLowQuote };
+    this.minTransfer = { BTC: cfg.rebalanceMinTransferBTC, USDT: cfg.rebalanceMinTransferQuote };
+  }
 
   /** True when at least one venue has run low enough on either asset to justify a transfer. */
   needsRebalance(wallets: Wallets, enabledExchanges: string[]): boolean {
     for (const exchangeId of enabledExchanges) {
       const w = wallets[exchangeId];
       if (!w) continue;
-      if (w.BTC && w.BTC.free < InventoryManager.LOW.BTC) return true;
-      if (w.USDT && w.USDT.free < InventoryManager.LOW.USDT) return true;
+      if (w.BTC && w.BTC.free < this.low.BTC) return true;
+      if (w.USDT && w.USDT.free < this.low.USDT) return true;
     }
     return false;
   }
@@ -57,7 +65,7 @@ export class InventoryManager {
 
       const total = venues.reduce((sum, e) => sum + wallets[e][asset].free, 0);
       const target = total / venues.length;
-      const min = InventoryManager.MIN_TRANSFER[asset];
+      const min = this.minTransfer[asset];
 
       // Working copy of free balances so we can plan a multi-hop rebalance.
       const frees: Record<string, number> = {};

@@ -1,4 +1,4 @@
-import { EXCHANGES_METADATA } from '@arbitrage/config';
+import { EXCHANGES_METADATA, DEFAULT_ENGINE_CONFIG } from '@arbitrage/config';
 import {
   NormalizedOrderBook,
   ArbitrageOpportunity,
@@ -15,6 +15,7 @@ import {
 } from '@arbitrage/core';
 
 import { createChildLogger } from '../core/logging/logger.js';
+import { placeTestnetOrder, isExecutionConfigured, type ExecVenue } from '../exchanges/testnetExecutor.js';
 import { orderBookStore } from '../orderbooks/normalizedOrderBookStore.js';
 import {
   saveOpportunity,
@@ -78,7 +79,6 @@ export class ArbitrageEngine {
   // otherwise the simulator farms one persistent apparent spread thousands of times per minute
   // and compounds an unrealistic return. Models the real capital-recycling time between fills.
   private lastExecAtByPair = new Map<string, number>();
-  private readonly EXECUTION_COOLDOWN_MS = 60000;
   // Liveness telemetry: epoch ms of the last evaluated book + self-heal action count.
   private lastActivityAt = 0;
   private watchdogRecoveries = 0;
@@ -97,6 +97,7 @@ export class ArbitrageEngine {
   constructor(initialConfig: EngineConfig) {
     this.config = initialConfig;
     this.riskManager = new RiskManager(initialConfig);
+    this.inventoryManager.updateConfig(initialConfig);
     this.pnlTracker = new PnLTracker();
   }
 
@@ -105,8 +106,11 @@ export class ArbitrageEngine {
 
     const loadedConfig = await loadConfig();
     if (loadedConfig) {
-      this.config = loadedConfig;
-      this.riskManager.updateConfig(loadedConfig);
+      // Merge over defaults so a config persisted before new parameters existed still gets
+      // sane values for the new knobs instead of undefined.
+      this.config = { ...DEFAULT_ENGINE_CONFIG, ...loadedConfig };
+      this.riskManager.updateConfig(this.config);
+      this.inventoryManager.updateConfig(this.config);
       this.logger.info({ eventType: 'INFO' }, '⚙️ Loaded active Engine Config from database.');
     } else {
       await saveConfig(this.config);
@@ -145,12 +149,19 @@ export class ArbitrageEngine {
   async updateConfig(newCfg: EngineConfig) {
     this.config = newCfg;
     this.riskManager.updateConfig(newCfg);
+    this.inventoryManager.updateConfig(newCfg);
     await saveConfig(newCfg);
     this.logger.info({ eventType: 'INFO' }, '⚙️ Engine Config updated and persisted.');
   }
 
   getWallets(): Wallets {
     return this.wallets;
+  }
+
+  /** Effective taker fee (bps) for a venue: per-exchange override if set, else venue default. */
+  private takerBps(exchangeId: string, fallback: number): number {
+    const override = this.config.takerFeeBpsOverrides?.[exchangeId];
+    return typeof override === 'number' ? override : fallback;
   }
 
   /** Average and p99 of a sample window (returns zeros for an empty window). */
@@ -430,7 +441,7 @@ export class ArbitrageEngine {
       const pairKey = `${top.buyExchangeId}->${top.sellExchangeId}`;
       const now = Date.now();
 
-      if (now - (this.lastExecAtByPair.get(pairKey) ?? 0) >= this.EXECUTION_COOLDOWN_MS) {
+      if (now - (this.lastExecAtByPair.get(pairKey) ?? 0) >= this.config.executionCooldownMs) {
         // Capture the single highest-conviction profitable window this cycle.
         this.lastExecAtByPair.set(pairKey, now);
         await this.executeCandidate(top);
@@ -446,7 +457,7 @@ export class ArbitrageEngine {
         // the prior fill is still cycling, so we transparently skip rather than re-farm it.
         await this.maybeRecordRejectedWindow(
           top,
-          `Pair on post-capture cooldown (${(this.EXECUTION_COOLDOWN_MS / 1000).toFixed(0)}s): spread still visible but prior-fill capital is still cycling.`
+          `Pair on post-capture cooldown (${(this.config.executionCooldownMs / 1000).toFixed(0)}s): spread still visible but prior-fill capital is still cycling.`
         );
       }
       return;
@@ -495,7 +506,7 @@ export class ArbitrageEngine {
     const crossQuoteBps =
       buyMeta.quoteCurrency !== sellMeta.quoteCurrency ? (this.config.usdtUsdBasisBps ?? 8) : 0;
 
-    const stepSize = 0.05; // Walk step size in BTC
+    const stepSize = this.config.sizingStepBTC; // Walk step size in BTC (configurable)
     const maxBtcCap = Math.min(
       this.config.maxPositionBTCPerExchange,
       this.wallets[sellExchangeId]?.BTC?.free ?? 0
@@ -524,8 +535,8 @@ export class ArbitrageEngine {
       const math = calculateNetSpread({
         buyPrice: walkBuy.avgPrice,
         sellPrice: walkSell.avgPrice,
-        buyTakerFeeBps: buyMeta.takerFeeBps,
-        sellTakerFeeBps: sellMeta.takerFeeBps,
+        buyTakerFeeBps: this.takerBps(buyExchangeId, buyMeta.takerFeeBps),
+        sellTakerFeeBps: this.takerBps(sellExchangeId, sellMeta.takerFeeBps),
         latencySafetyBps: this.config.latencySafetyBps,
         slippageSafetyBps: this.config.slippageSafetyBps,
         withdrawalFeeBTC: buyMeta.withdrawalFeeBTC,
@@ -557,11 +568,18 @@ export class ArbitrageEngine {
 
     if (refVolume === 0 || !refMathResult) return null; // No fillable depth.
 
-    const profitable = optimalVolume > 0 && expectedProfitUSD >= this.config.minNetProfitUSD;
-
     // Feed the statistical-arbitrage tracker with the per-BTC net spread for this pair and
     // capture how anomalous the live dislocation is versus its own rolling history.
     const { zScore } = this.spreadStats.update(buyExchangeId, sellExchangeId, refMathResult.netSpread);
+
+    // Base profitability: clears the configured minimum net profit after all costs.
+    let profitable = optimalVolume > 0 && expectedProfitUSD >= this.config.minNetProfitUSD;
+    // Statistical-arbitrage gate (optional): only execute windows whose dislocation is
+    // anomalously wide vs its own rolling history (z-score >= threshold), prioritising
+    // mean-reverting edges over merely-positive spreads.
+    if (profitable && this.config.zScoreGateEnabled && zScore < this.config.zScoreGateThreshold) {
+      profitable = false;
+    }
 
     return {
       buyExchangeId,
@@ -618,6 +636,83 @@ export class ArbitrageEngine {
     return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
   }
 
+  /**
+   * Real testnet/demo execution path. Returns null (→ fall back to the simulator for this
+   * trade) unless executionMode is 'testnet' AND both legs are on a configured, testnet-capable
+   * venue (Binance Spot Testnet / OKX Demo). Places both legs as real IOC orders and books the
+   * actual fills — real partials and non-crosses surface as genuine leg risk, settled on the
+   * exchange testnet account (local sim wallets are left untouched).
+   */
+  private async tryTestnetExecution(c: ArbitrageCandidate): Promise<{
+    executed: boolean;
+    legFailed: boolean;
+    buyPrice: number;
+    sellPrice: number;
+    feeUSDPerUnit: number;
+    netUSD: number;
+    abortReason?: string;
+  } | null> {
+    if (this.config.executionMode !== 'testnet') return null;
+    const isExec = (v: string): v is ExecVenue =>
+      (v === 'binance' || v === 'okx') && isExecutionConfigured(v);
+    if (!isExec(c.buyExchangeId) || !isExec(c.sellExchangeId)) return null;
+
+    const buyVenue = c.buyExchangeId as ExecVenue;
+    const sellVenue = c.sellExchangeId as ExecVenue;
+    // Marketable IOC limits: cross slightly so each order takes liquidity now or expires.
+    const [buyFill, sellFill] = await Promise.all([
+      placeTestnetOrder({ venue: buyVenue, side: 'BUY', symbol: c.symbol, quantity: c.optimalVolume, limitPrice: c.finalBuyPrice * 1.0005 }),
+      placeTestnetOrder({ venue: sellVenue, side: 'SELL', symbol: c.symbol, quantity: c.optimalVolume, limitPrice: c.finalSellPrice * 0.9995 }),
+    ]);
+
+    // Both legs failed at the API level → book nothing; fall back to sim so the demo never stalls.
+    if (!buyFill.ok && !sellFill.ok) {
+      this.logger.warn({ eventType: 'WARNING', buyVenue, sellVenue }, '⚠️ Testnet legs both failed; falling back to simulated execution.');
+      return null;
+    }
+
+    const buyMeta = EXCHANGES_METADATA[buyVenue];
+    const sellMeta = EXCHANGES_METADATA[sellVenue];
+    const buyFeeDec = this.takerBps(buyVenue, buyMeta.takerFeeBps) / 10000;
+    const sellFeeDec = this.takerBps(sellVenue, sellMeta.takerFeeBps) / 10000;
+
+    const matched = Math.min(buyFill.filledQty, sellFill.filledQty);
+    const residual = Math.abs(buyFill.filledQty - sellFill.filledQty);
+
+    // Neither side crossed: an IOC that found no liquidity. No position, no loss.
+    if (matched <= 0 && residual <= 0) {
+      return {
+        executed: false,
+        legFailed: false,
+        buyPrice: c.finalBuyPrice,
+        sellPrice: c.finalSellPrice,
+        feeUSDPerUnit: 0,
+        netUSD: 0,
+        abortReason: 'Testnet IOC orders did not cross (no fill).',
+      };
+    }
+
+    const buyPrice = buyFill.avgPrice > 0 ? buyFill.avgPrice : c.finalBuyPrice;
+    const sellPrice = sellFill.avgPrice > 0 ? sellFill.avgPrice : c.finalSellPrice;
+    const feeUSDPerUnit = buyPrice * buyFeeDec + sellPrice * sellFeeDec;
+
+    // Matched quantity captures the spread; any residual is unintended inventory that must be
+    // unwound — booked as a real leg-risk loss (fees on the residual + a crossing cost).
+    const perUnitNet = sellPrice * (1 - sellFeeDec) - buyPrice * (1 + buyFeeDec);
+    let netUSD = perUnitNet * matched;
+    const legFailed = matched <= 0 || residual > matched * 0.25;
+    if (residual > 0) {
+      netUSD -= residual * buyPrice * (sellFeeDec + buyFeeDec + 0.001);
+    }
+
+    this.logger.info(
+      { eventType: 'INFO', buyVenue, sellVenue, matched, residual, buyPrice, sellPrice, netUSD },
+      `🔌 Testnet fills: matched ${matched.toFixed(5)} (residual ${residual.toFixed(5)}) net $${netUSD.toFixed(2)}.`
+    );
+
+    return { executed: matched > 0, legFailed, buyPrice, sellPrice, feeUSDPerUnit, netUSD, abortReason: matched > 0 ? undefined : 'Testnet legs did not match.' };
+  }
+
   private async executeCandidate(c: ArbitrageCandidate) {
     const buyMeta = EXCHANGES_METADATA[c.buyExchangeId];
     const sellMeta = EXCHANGES_METADATA[c.sellExchangeId];
@@ -649,8 +744,23 @@ export class ArbitrageEngine {
     let realizedNetUSD = c.expectedProfitUSD;
     let realizedFeeUSD = c.math.feeCostUSD;
     let adverseBps = 0;
+    let realExecuted = false;
 
     if (approval.approved) {
+      const real = await this.tryTestnetExecution(c);
+      if (real) {
+        // Real testnet/demo fills are authoritative — book the actual outcome (incl. real
+        // partials / non-crosses as genuine leg risk); no stochastic model is applied.
+        realExecuted = true;
+        executed = real.executed;
+        legFailed = real.legFailed;
+        realizedBuyPrice = real.buyPrice;
+        realizedSellPrice = real.sellPrice;
+        realizedFeeUSD = real.feeUSDPerUnit;
+        realizedNetUSD = real.netUSD;
+        abortReason = real.abortReason;
+        adverseBps = 0;
+      } else {
       const dispersionBps =
         (this.getDispersionBps(c.buyExchangeId, c.symbol) +
           this.getDispersionBps(c.sellExchangeId, c.symbol)) / 2;
@@ -679,8 +789,8 @@ export class ArbitrageEngine {
       const realizedMath = calculateNetSpread({
         buyPrice: realizedBuyPrice,
         sellPrice: realizedSellPrice,
-        buyTakerFeeBps: buyMeta.takerFeeBps,
-        sellTakerFeeBps: sellMeta.takerFeeBps,
+        buyTakerFeeBps: this.takerBps(c.buyExchangeId, buyMeta.takerFeeBps),
+        sellTakerFeeBps: this.takerBps(c.sellExchangeId, sellMeta.takerFeeBps),
         latencySafetyBps: this.config.latencySafetyBps,
         slippageSafetyBps: this.config.slippageSafetyBps,
         withdrawalFeeBTC: buyMeta.withdrawalFeeBTC,
@@ -695,7 +805,7 @@ export class ArbitrageEngine {
       // leg fills — the order is pulled, no loss booked (SKIPPED). A merely-eroded edge is
       // already committed and is booked at its realised value, INCLUDING the occasional small
       // realised loss; that is the honest reason the win rate sits below 100%.
-      const CIRCUIT_BREAKER_MULT = 2.5;
+      const CIRCUIT_BREAKER_MULT = this.config.circuitBreakerMult;
       if (realizedDriftBps > modeledAdverseBps * CIRCUIT_BREAKER_MULT && realizedNetUSD <= 0) {
         executed = false;
         abortReason = `Slippage circuit breaker tripped: ${realizedDriftBps.toFixed(1)}bps adverse spike over ${this.config.executionLatencyMs}ms window (vs ~${modeledAdverseBps.toFixed(1)}bps modeled) — order pulled before the second leg filled.`;
@@ -707,11 +817,12 @@ export class ArbitrageEngine {
       // price — capturing NO spread and booking a realised loss (fees + unwind slippage) that
       // is independent of how wide the original window was. Cross-venue leg risk is the
       // dominant real-world loss source and the main reason the win rate is well under 100%.
-      const LEG_FILL_FAILURE_PROB = 0.07;
+      const LEG_FILL_FAILURE_PROB = this.config.legFillFailureProb;
       if (executed && Math.random() < LEG_FILL_FAILURE_PROB) {
         legFailed = true;
         const unwindSlippageUSD = (Math.abs(realizedDriftBps) / 10000) * realizedBuyPrice * c.optimalVolume;
         realizedNetUSD = -(realizedFeeUSD * c.optimalVolume + unwindSlippageUSD);
+      }
       }
     }
 
@@ -748,7 +859,9 @@ export class ArbitrageEngine {
       // A completed (both-leg) arb moves wallets at the realised fill prices. A leg-failed
       // trade was round-tripped on the single filled venue (net-zero inventory), so balances
       // are left unchanged and only the realised cash loss (booked below) hits equity.
-      if (!legFailed) {
+      // Real testnet trades settle on the exchange testnet account, not the local sim
+      // wallets — so only a completed (both-leg) SIMULATED arb moves local balances.
+      if (!legFailed && !realExecuted) {
         this.executeSimulatedBalances(
           c.buyExchangeId,
           c.sellExchangeId,
@@ -817,8 +930,8 @@ export class ArbitrageEngine {
         timestamp: Date.now(),
         type: 'TRADE_EXECUTION',
         message: legFailed
-          ? `Leg miss on ${sellMeta.name}: ${c.optimalVolume.toFixed(4)} BTC bought on ${buyMeta.name} unwound at a ${netLabel} loss.`
-          : `Arbitrage Executed: Bought ${c.optimalVolume.toFixed(4)} BTC on ${buyMeta.name} and sold on ${sellMeta.name} for ${netLabel} net (after ${adverseBps.toFixed(1)}bps fill drift).`,
+          ? `${realExecuted ? '[TESTNET] ' : ''}Leg miss on ${sellMeta.name}: ${c.optimalVolume.toFixed(4)} BTC bought on ${buyMeta.name} unwound at a ${netLabel} loss.`
+          : `${realExecuted ? '[TESTNET] ' : ''}Arbitrage Executed: Bought ${c.optimalVolume.toFixed(4)} BTC on ${buyMeta.name} and sold on ${sellMeta.name} for ${netLabel} net${realExecuted ? ' (real testnet fill)' : ` (after ${adverseBps.toFixed(1)}bps fill drift)`}.`,
       };
       await saveEvent(event);
 

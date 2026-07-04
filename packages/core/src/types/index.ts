@@ -77,9 +77,32 @@ export interface EngineConfig {
   // Modeled time (ms) to route and fill both legs. During this window the market can move
   // against the detected edge; the engine prices that adverse selection at execution time.
   executionLatencyMs: number;
+  // --- Execution & sizing (parametrizable) ---
+  sizingStepBTC: number; // Depth-walk volume step in BTC
+  executionCooldownMs: number; // Per-pair post-capture cooldown
+  circuitBreakerMult: number; // Adverse-spike multiple that pulls the order pre-fill
+  legFillFailureProb: number; // Probability a trade fills one leg and misses the other (0..1)
+  // --- Risk circuit breakers (parametrizable) ---
+  volatilityBreakerPct: number; // Gross spread % of mid that trips the volatility breaker
+  consecutiveLossLimit: number; // Consecutive losses that trip the cooldown breaker
+  lossCooldownSeconds: number; // Cooldown after the loss breaker trips
+  volatilityCooldownSeconds: number; // Cooldown after the volatility breaker trips
+  // --- Inventory rebalancing thresholds (parametrizable) ---
+  rebalanceLowBTC: number; // BTC free balance below which a venue triggers a rebalance
+  rebalanceLowQuote: number; // Quote free balance below which a venue triggers a rebalance
+  rebalanceMinTransferBTC: number; // Minimum BTC transfer size (no dust)
+  rebalanceMinTransferQuote: number; // Minimum quote transfer size (no dust)
+  // --- Statistical-arbitrage gating (parametrizable) ---
+  zScoreGateEnabled: boolean; // Gate executions by rolling z-score when true
+  zScoreGateThreshold: number; // Minimum z-score required to execute when gating is on
+  // Per-exchange taker fee overrides (bps); empty = use venue defaults.
+  takerFeeBpsOverrides: Record<string, number>;
   enabledExchanges: string[];
   enabledPairs: string[];
   isPaused: boolean;
+  // 'sim' books fills internally; 'testnet' routes legs to real exchange testnet/demo
+  // matching engines when credentials exist, falling back to sim per-trade otherwise.
+  executionMode: 'sim' | 'testnet';
 }
 
 export interface RiskStatus {

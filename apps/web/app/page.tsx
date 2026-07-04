@@ -125,6 +125,23 @@ export default function OverviewPage() {
     });
   }, [state?.pnl?.equityHistory]);
 
+  // Max drawdown: largest peak-to-trough decline of the equity curve, as a percent.
+  // Computed client-side from the same equity history that drives the chart.
+  const maxDrawdownPct = useMemo(() => {
+    const history = state?.pnl?.equityHistory ?? [];
+    if (history.length < 2) return 0;
+    let peak = history[0].value;
+    let maxDd = 0;
+    for (const h of history) {
+      if (h.value > peak) peak = h.value;
+      if (peak > 0) {
+        const dd = (peak - h.value) / peak;
+        if (dd > maxDd) maxDd = dd;
+      }
+    }
+    return maxDd * 100;
+  }, [state?.pnl?.equityHistory]);
+
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* PREMIUM HERO SECTION */}
@@ -385,7 +402,13 @@ export default function OverviewPage() {
               <CardTitle className="text-xs">{t('overview.pnl_chart_title')}</CardTitle>
               <CardDescription className="text-[10px] font-mono">{t('overview.pnl_chart_sub')}</CardDescription>
             </div>
-            <Badge variant="success">{t('overview.real_time')}</Badge>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-mono text-slate-400 hidden sm:inline">
+                {language === 'es' ? 'Drawdown máx' : 'Max drawdown'}:{' '}
+                <span className="font-bold text-rose-400">{maxDrawdownPct.toFixed(2)}%</span>
+              </span>
+              <Badge variant="success">{t('overview.real_time')}</Badge>
+            </div>
           </CardHeader>
           <CardContent className="pt-2">
             <div className="h-[220px] w-full bg-slate-950/20 border border-white/5 rounded-lg p-2 block">
