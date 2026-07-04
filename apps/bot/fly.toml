@@ -1,5 +1,5 @@
 # fly.toml configuration file for deploying the Aurex Bot on Fly.io
-app = "bitcoin-arbitrage-bot"
+app = "aurex-agent"
 # Frankfurt (fra): Binance / OKX / Bybit geo-block their public market-data WebSockets
 # across ALL of North America — verified empirically: a Toronto (yyz) deployment could
 # not open the Binance socket at all, only EU (fra) reaches all five venues. The closer
@@ -32,11 +32,10 @@ primary_region = "fra"
 [env]
   NODE_ENV = "production"
   PORT = "3001"
-  # Cloud persistence: trade ledger, opportunities, balances and P&L are dual-written to
-  # Supabase Postgres and rehydrated on boot, so they survive container restarts/redeploys
-  # (the Fly filesystem is ephemeral). SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY are set as
-  # encrypted Fly secrets (`flyctl secrets set`), never committed.
-  PERSISTENCE_DRIVER = "supabase"
+  # Persistence: local db.json (Fly filesystem is ephemeral, so state resets on redeploy).
+  # To enable durable cloud persistence, set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY as
+  # encrypted Fly secrets (`flyctl secrets set`) and switch this back to "supabase".
+  PERSISTENCE_DRIVER = "local"
   BINANCE_WS_URL = "wss://stream.binance.com:9443/ws"
   BINANCE_REST_URL = "https://api.binance.com"
   KRAKEN_WS_URL = "wss://ws.kraken.com"
