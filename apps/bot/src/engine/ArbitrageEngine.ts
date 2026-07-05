@@ -650,19 +650,25 @@ export class ArbitrageEngine {
     sellPrice: number;
     feeUSDPerUnit: number;
     netUSD: number;
+    filledVolume: number; // actually-matched base quantity (what the ledger should book)
     abortReason?: string;
   } | null> {
     if (this.config.executionMode !== 'testnet') return null;
     const isExec = (v: string): v is ExecVenue =>
-      (v === 'binance' || v === 'okx') && isExecutionConfigured(v);
+      (v === 'binance' || v === 'okx' || v === 'bybit') && isExecutionConfigured(v);
     if (!isExec(c.buyExchangeId) || !isExec(c.sellExchangeId)) return null;
 
     const buyVenue = c.buyExchangeId as ExecVenue;
     const sellVenue = c.sellExchangeId as ExecVenue;
+    // Testnet safety clamp: test-environment books diverge from production prices and carry
+    // thin, fake liquidity — a full-size order would drain test balances and distort P&L.
+    // Small real orders prove execution (signing, matching, fills, partials) just as well.
+    const TESTNET_MAX_QTY = 0.001;
+    const qty = Math.min(c.optimalVolume, TESTNET_MAX_QTY);
     // Marketable IOC limits: cross slightly so each order takes liquidity now or expires.
     const [buyFill, sellFill] = await Promise.all([
-      placeTestnetOrder({ venue: buyVenue, side: 'BUY', symbol: c.symbol, quantity: c.optimalVolume, limitPrice: c.finalBuyPrice * 1.0005 }),
-      placeTestnetOrder({ venue: sellVenue, side: 'SELL', symbol: c.symbol, quantity: c.optimalVolume, limitPrice: c.finalSellPrice * 0.9995 }),
+      placeTestnetOrder({ venue: buyVenue, side: 'BUY', symbol: c.symbol, quantity: qty, limitPrice: c.finalBuyPrice * 1.0005 }),
+      placeTestnetOrder({ venue: sellVenue, side: 'SELL', symbol: c.symbol, quantity: qty, limitPrice: c.finalSellPrice * 0.9995 }),
     ]);
 
     // Both legs failed at the API level → book nothing; fall back to sim so the demo never stalls.
@@ -688,6 +694,7 @@ export class ArbitrageEngine {
         sellPrice: c.finalSellPrice,
         feeUSDPerUnit: 0,
         netUSD: 0,
+        filledVolume: 0,
         abortReason: 'Testnet IOC orders did not cross (no fill).',
       };
     }
@@ -710,7 +717,7 @@ export class ArbitrageEngine {
       `🔌 Testnet fills: matched ${matched.toFixed(5)} (residual ${residual.toFixed(5)}) net $${netUSD.toFixed(2)}.`
     );
 
-    return { executed: matched > 0, legFailed, buyPrice, sellPrice, feeUSDPerUnit, netUSD, abortReason: matched > 0 ? undefined : 'Testnet legs did not match.' };
+    return { executed: matched > 0, legFailed, buyPrice, sellPrice, feeUSDPerUnit, netUSD, filledVolume: matched, abortReason: matched > 0 ? undefined : 'Testnet legs did not match.' };
   }
 
   private async executeCandidate(c: ArbitrageCandidate) {
@@ -745,6 +752,7 @@ export class ArbitrageEngine {
     let realizedFeeUSD = c.math.feeCostUSD;
     let adverseBps = 0;
     let realExecuted = false;
+    let bookedVolume = c.optimalVolume;
 
     if (approval.approved) {
       const real = await this.tryTestnetExecution(c);
@@ -760,6 +768,7 @@ export class ArbitrageEngine {
         realizedNetUSD = real.netUSD;
         abortReason = real.abortReason;
         adverseBps = 0;
+        bookedVolume = real.filledVolume; // ledger books what actually filled, not the theoretical size
       } else {
       const dispersionBps =
         (this.getDispersionBps(c.buyExchangeId, c.symbol) +
@@ -844,8 +853,8 @@ export class ArbitrageEngine {
       buyAsk: c.topAsk,
       sellBid: c.topBid,
       grossSpread,
-      netSpread: executed && c.optimalVolume > 0 ? realizedNetUSD / c.optimalVolume : c.math.netSpread,
-      executableVolume: c.optimalVolume,
+      netSpread: executed && bookedVolume > 0 ? realizedNetUSD / bookedVolume : c.math.netSpread,
+      executableVolume: bookedVolume,
       expectedNetProfitUSD: executed ? realizedNetUSD : c.expectedProfitUSD,
       status: executed ? 'EXECUTED' : 'SKIPPED',
       reason: executed ? undefined : (abortReason ?? approval.reason),
@@ -874,8 +883,8 @@ export class ArbitrageEngine {
       // Slippage paid folds in depth-walk + execution-window movement; for a leg-failed
       // trade the entire negative net beyond fees is unwind cost.
       const slippagePaid = legFailed
-        ? -realizedNetUSD - realizedFeeUSD * c.optimalVolume
-        : (realizedBuyPrice - c.topAsk) * c.optimalVolume + (c.topBid - realizedSellPrice) * c.optimalVolume;
+        ? -realizedNetUSD - realizedFeeUSD * bookedVolume
+        : (realizedBuyPrice - c.topAsk) * bookedVolume + (c.topBid - realizedSellPrice) * bookedVolume;
 
       const tradeRecord: SimulatedTrade = {
         id: `trade-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -886,10 +895,10 @@ export class ArbitrageEngine {
         symbol: c.symbol,
         buyPrice: realizedBuyPrice,
         sellPrice: realizedSellPrice,
-        volume: c.optimalVolume,
-        grossProfit: legFailed ? 0 : grossSpread * c.optimalVolume,
+        volume: bookedVolume,
+        grossProfit: legFailed ? 0 : grossSpread * bookedVolume,
         netProfit: realizedNetUSD,
-        feesPaid: realizedFeeUSD * c.optimalVolume,
+        feesPaid: realizedFeeUSD * bookedVolume,
         slippagePaid,
       };
 

@@ -20,7 +20,7 @@ import { createChildLogger } from '../core/logging/logger.js';
 
 const logger = createChildLogger({ component: 'TestnetExecutor' });
 
-export type ExecVenue = 'binance' | 'okx';
+export type ExecVenue = 'binance' | 'okx' | 'bybit';
 
 export interface PlaceOrderParams {
   venue: ExecVenue;
@@ -43,19 +43,26 @@ export interface FillResult {
 export function isExecutionConfigured(venue: ExecVenue): boolean {
   if (venue === 'binance') return Boolean(env.BINANCE_TESTNET_API_KEY && env.BINANCE_TESTNET_API_SECRET);
   if (venue === 'okx') return Boolean(env.OKX_DEMO_API_KEY && env.OKX_DEMO_API_SECRET && env.OKX_DEMO_PASSPHRASE);
+  if (venue === 'bybit') return Boolean(env.BYBIT_TESTNET_API_KEY && env.BYBIT_TESTNET_API_SECRET);
   return false;
 }
 
 /** Which venues can currently execute live (for health/UI surfaces). */
 export function executionVenuesStatus(): Record<ExecVenue, boolean> {
-  return { binance: isExecutionConfigured('binance'), okx: isExecutionConfigured('okx') };
+  return {
+    binance: isExecutionConfigured('binance'),
+    okx: isExecutionConfigured('okx'),
+    bybit: isExecutionConfigured('bybit'),
+  };
 }
 
 // NOTE: real exchanges enforce LOT_SIZE / PRICE_FILTER tick rules. These conservative
-// fixed precisions work for BTC/ETH/SOL spot test pairs; a production build would fetch
-// /exchangeInfo (Binance) and instruments (OKX) and round to the venue's step/tick.
+// per-venue precisions match the live BTC-USDT test instruments (verified against each
+// venue's instrument-info endpoint); a production build would fetch them dynamically.
+// Binance testnet PRICE_FILTER tick = 0.01 (2dp); Bybit/OKX tick = 0.1 (1dp).
+const PRICE_DECIMALS: Record<ExecVenue, number> = { binance: 2, bybit: 1, okx: 1 };
 const fmtQty = (q: number): string => q.toFixed(5);
-const fmtPrice = (p: number): string => p.toFixed(2);
+const fmtPrice = (p: number, venue: ExecVenue): string => p.toFixed(PRICE_DECIMALS[venue]);
 
 /** Canonical engine symbol (BTCUSDT) → OKX instrument id (BTC-USDT). */
 function toOkxInstId(symbol: string): string {
@@ -72,6 +79,7 @@ export async function placeTestnetOrder(p: PlaceOrderParams): Promise<FillResult
   try {
     if (p.venue === 'binance') return await placeBinanceTestnet(p);
     if (p.venue === 'okx') return await placeOkxDemo(p);
+    if (p.venue === 'bybit') return await placeBybitTestnet(p);
     return { ok: false, filledQty: 0, avgPrice: 0, status: 'UNSUPPORTED', venue: p.venue, error: 'Unsupported venue' };
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
@@ -94,7 +102,7 @@ async function placeBinanceTestnet(p: PlaceOrderParams): Promise<FillResult> {
     type: 'LIMIT',
     timeInForce: 'IOC',
     quantity: fmtQty(p.quantity),
-    price: fmtPrice(p.limitPrice),
+    price: fmtPrice(p.limitPrice, 'binance'),
     recvWindow: '5000',
     timestamp: Date.now().toString(),
   });
@@ -140,7 +148,7 @@ async function placeOkxDemo(p: PlaceOrderParams): Promise<FillResult> {
     side: p.side.toLowerCase(),
     ordType: 'ioc',
     sz: fmtQty(p.quantity),
-    px: fmtPrice(p.limitPrice),
+    px: fmtPrice(p.limitPrice, 'okx'),
   });
 
   const ack = (await okxRequest('POST', path, body)) as {
@@ -163,6 +171,70 @@ async function placeOkxDemo(p: PlaceOrderParams): Promise<FillResult> {
   const filledQty = Number(fill?.accFillSz ?? 0);
   const avgPrice = Number(fill?.avgPx ?? 0);
   return { ok: true, filledQty, avgPrice, status: fill?.state ?? 'unknown', venue: 'okx' };
+}
+
+/**
+ * Bybit Testnet: signed POST /v5/order/create (spot IOC limit), then a signed read of
+ * order history for the realised fill. V5 signing: HMAC-SHA256 hex of
+ * `timestamp + apiKey + recvWindow + (rawBody | queryString)` via X-BAPI-* headers.
+ */
+async function placeBybitTestnet(p: PlaceOrderParams): Promise<FillResult> {
+  const key = env.BYBIT_TESTNET_API_KEY;
+  const secret = env.BYBIT_TESTNET_API_SECRET;
+  if (!key || !secret) {
+    return { ok: false, filledQty: 0, avgPrice: 0, status: 'UNCONFIGURED', venue: 'bybit', error: 'No testnet credentials' };
+  }
+
+  const body = JSON.stringify({
+    category: 'spot',
+    symbol: p.symbol,
+    side: p.side === 'BUY' ? 'Buy' : 'Sell',
+    orderType: 'Limit',
+    timeInForce: 'IOC',
+    qty: fmtQty(p.quantity),
+    price: fmtPrice(p.limitPrice, 'bybit'),
+  });
+
+  const ack = (await bybitRequest('POST', '/v5/order/create', body)) as {
+    retCode?: number;
+    retMsg?: string;
+    result?: { orderId?: string };
+  };
+  if (ack?.retCode !== 0 || !ack.result?.orderId) {
+    return { ok: false, filledQty: 0, avgPrice: 0, status: 'REJECTED', venue: 'bybit', error: ack?.retMsg ?? 'Bybit order rejected' };
+  }
+
+  // The create ack carries no fill detail; read the (already closed, IOC) order back.
+  const query = `category=spot&orderId=${ack.result.orderId}`;
+  const read = (await bybitRequest('GET', `/v5/order/history?${query}`, query)) as {
+    retCode?: number;
+    result?: { list?: Array<{ cumExecQty?: string; avgPrice?: string; orderStatus?: string }> };
+  };
+  const order = read?.result?.list?.[0];
+  const filledQty = Number(order?.cumExecQty ?? 0);
+  const avgPrice = Number(order?.avgPrice ?? 0);
+  return { ok: true, filledQty, avgPrice, status: order?.orderStatus ?? 'UNKNOWN', venue: 'bybit' };
+}
+
+/** Signed Bybit v5 request. `payload` is the raw JSON body (POST) or query string (GET). */
+async function bybitRequest(method: 'GET' | 'POST', pathWithQuery: string, payload: string): Promise<unknown> {
+  const key = env.BYBIT_TESTNET_API_KEY as string;
+  const secret = env.BYBIT_TESTNET_API_SECRET as string;
+  const ts = Date.now().toString();
+  const recvWindow = '5000';
+  const sign = crypto.createHmac('sha256', secret).update(ts + key + recvWindow + payload).digest('hex');
+  const res = await fetch(`${env.BYBIT_TESTNET_REST_URL}${pathWithQuery}`, {
+    method,
+    headers: {
+      'X-BAPI-API-KEY': key,
+      'X-BAPI-TIMESTAMP': ts,
+      'X-BAPI-RECV-WINDOW': recvWindow,
+      'X-BAPI-SIGN': sign,
+      'Content-Type': 'application/json',
+    },
+    ...(method === 'POST' ? { body: payload } : {}),
+  });
+  return res.json();
 }
 
 /** Signed OKX request (demo). Sign = base64(HMAC-SHA256(ts + method + path + body)). */

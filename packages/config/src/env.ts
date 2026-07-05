@@ -57,6 +57,10 @@ export const EnvSchema = z.object({
   OKX_DEMO_API_KEY: z.preprocess((val) => (val === '' ? undefined : val), z.string().optional()),
   OKX_DEMO_API_SECRET: z.preprocess((val) => (val === '' ? undefined : val), z.string().optional()),
   OKX_DEMO_PASSPHRASE: z.preprocess((val) => (val === '' ? undefined : val), z.string().optional()),
+  // Bybit Testnet (https://testnet.bybit.com) — separate test environment, fake balances.
+  BYBIT_TESTNET_REST_URL: z.string().url().default('https://api-testnet.bybit.com'),
+  BYBIT_TESTNET_API_KEY: z.preprocess((val) => (val === '' ? undefined : val), z.string().optional()),
+  BYBIT_TESTNET_API_SECRET: z.preprocess((val) => (val === '' ? undefined : val), z.string().optional()),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
@@ -97,6 +101,9 @@ const getEnv = (): Env => {
     OKX_DEMO_API_KEY: typeof process !== 'undefined' ? process.env.OKX_DEMO_API_KEY : undefined,
     OKX_DEMO_API_SECRET: typeof process !== 'undefined' ? process.env.OKX_DEMO_API_SECRET : undefined,
     OKX_DEMO_PASSPHRASE: typeof process !== 'undefined' ? process.env.OKX_DEMO_PASSPHRASE : undefined,
+    BYBIT_TESTNET_REST_URL: typeof process !== 'undefined' ? process.env.BYBIT_TESTNET_REST_URL : undefined,
+    BYBIT_TESTNET_API_KEY: typeof process !== 'undefined' ? process.env.BYBIT_TESTNET_API_KEY : undefined,
+    BYBIT_TESTNET_API_SECRET: typeof process !== 'undefined' ? process.env.BYBIT_TESTNET_API_SECRET : undefined,
   };
 
   try {
