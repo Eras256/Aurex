@@ -13,7 +13,7 @@ description: >
 This local skill instructs **Antigravity** (our agentic system) to automatically load, parse, and synchronize strategic and technical codebase configurations from `claude.md` and `CLAUDE.md` before executing any development workflows. The platform utilizes full ES/EN localization across the Next.js UI, dynamic portfolio metrics scaling, and secure API Key injection for backend configurations.
 
 - **Live Production Dashboard:** [https://aurex-terminal.vercel.app/](https://aurex-terminal.vercel.app/)
-- **Live Backend Bot API:** [https://bitcoin-arbitrage-bot.fly.dev/](https://bitcoin-arbitrage-bot.fly.dev/)
+- **Live Backend Bot API:** [https://aurex-agent.fly.dev/](https://aurex-agent.fly.dev/) (the legacy `bitcoin-arbitrage-bot` Fly app is now inaccessible)
 
 **Always use this skill when:**
 
@@ -58,7 +58,7 @@ Upon completing any development task:
 
 ### 5. AI Copilot Reality
 
-- The AI Quant Copilot is backed by a real model (OpenAI Integration via a secure server-side route at `apps/web/app/api/copilot/chat/route.ts`) with a seamless fallback to mock data (`apps/web/lib/ai/mock/mockAiAgent.ts`) if the API key is not configured. The API key must stay strictly server-side (`.env.local`, gitignored) and never reach the client bundle. Keep this proxy pattern intact for any model updates.
+- The AI is real across the **whole app**, not just chat: OpenAI (`OPENAI_MODEL`, default `gpt-4o-mini`) is reached through two secure server-side routes — streaming chat (`apps/web/app/api/copilot/chat/route.ts`, grounded on `GET /state`) and structured JSON (`apps/web/app/api/copilot/structured/route.ts`, serving trade/opportunity/health/risk/dashboard widgets). The client wrapper `apps/web/lib/ai/realAiAgent.ts` fans these out to all six pages with a seamless fallback to the mock agents (`apps/web/lib/ai/mock/*`) whenever the key is unconfigured or a request fails. The API key must stay strictly server-side (`.env.local`, gitignored) and never reach the client bundle. Keep this proxy + fallback pattern intact for any model updates.
 - Private roadmap and sequencing live in `PLAN-PODIO.md` (gitignored — do not commit).
 
 ---
