@@ -38,6 +38,14 @@ This file tracks the active development state, memory logs, and strategic roadma
 
 ---
 
+### 5. UI/UX Stabilization & Localization (i18n)
+
+- **Full English/Spanish Localization:** Complete bilingual support across the Next.js Terminal including AI Telemetry and Changelogs via `LanguageContext`.
+- **Dynamic Portfolio scaling:** Equity and progress bars reflect live backend CEX reserves instead of static mock limits.
+- **Admin Configuration Unblocked:** Fix of the 401 Unauthorized API key error to allow full risk parameter configuration via REST/WS overrides.
+
+---
+
 ## 🛠️ Next Milestones & Planned Roadmap
 
 1. **Multi-Asset Arbitrage:** Extend the engine beyond BTC/USDT to scan other liquid pairs (ETH, SOL, AVAX, LINK) by generalizing the base asset types in `RiskManager` and `InventoryManager`.

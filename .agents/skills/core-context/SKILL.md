@@ -10,7 +10,7 @@ description: >
 
 ## Overview
 
-This local skill instructs **Antigravity** (our agentic system) to automatically load, parse, and synchronize strategic and technical codebase configurations from `claude.md` and `CLAUDE.md` before executing any development workflows.
+This local skill instructs **Antigravity** (our agentic system) to automatically load, parse, and synchronize strategic and technical codebase configurations from `claude.md` and `CLAUDE.md` before executing any development workflows. The platform utilizes full ES/EN localization across the Next.js UI, dynamic portfolio metrics scaling, and secure API Key injection for backend configurations.
 
 - **Live Production Dashboard:** [https://aurex-terminal.vercel.app/](https://aurex-terminal.vercel.app/)
 - **Live Backend Bot API:** [https://bitcoin-arbitrage-bot.fly.dev/](https://bitcoin-arbitrage-bot.fly.dev/)
