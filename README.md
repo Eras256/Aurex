@@ -65,7 +65,7 @@ La mayoría de los simuladores calculan spreads de forma ingenua usando precios 
 - **Dual-Strategy Engine:** Scans and ranks both Directed Cross-Exchange spreads (5x5 matrix with rolling z-score statistical-arbitrage confidence) and Binance Triangular Arbitrage (USDT→BTC→ETH→USDT) net of triple fees.
 - **Execution Realism:** Stochastic two-sided fill drift (Box–Muller) around the modeled adverse cost; cross-venue leg-execution risk; a 60s per-pair execution cooldown so cumulative returns are realistic; and transparently-surfaced SKIPPED windows.
 - **Dynamic Risk Circuit Breakers & In-Memory Calibration:** Real-time exposure caps, volatility circuit breakers, consecutive-loss cooldown, and dynamic risk override parameter execution (`POST /api/v1/bot/calibrate`) without container restarts.
-- **AI Quant Copilot Layer:** A Copilot workspace plus an engine settings modal with provider/model selection (advisory only; simulated by default), surfacing spread explainability and execution-cost attribution from live telemetry.
+- **AI Quant Copilot Layer:** A Copilot workspace plus an engine settings modal with provider/model selection, backed by a real model (OpenAI `gpt-4o-mini`) grounded on live engine state, with a transparent fallback to a deterministic mock when unconfigured. Advisory only (it never executes trades), surfacing spread explainability and execution-cost attribution from live telemetry.
 - **Real WebSocket Telemetry Stream:** A secondary dedicated WebSocket feed (`/api/v1/telemetry/logs?token=...`) streaming exact network delays, server processing latency, and skipped opportunities.
 - **Supabase Immutable Audits:** Stores dynamic audit records inside `copilot_audit_trail` protected by an append-only trigger that completely blocks update and delete actions.
 - **Reliability & Self-Heal:** Always-on engine guard and liveness watchdog with self-heal recovery counting; Binance resync-storm fix; honest Sharpe ratio withheld until at least 20 trades exist.
@@ -81,7 +81,7 @@ La mayoría de los simuladores calculan spreads de forma ingenua usando precios 
 - **Motor de Doble Estrategia:** Escanea y clasifica tanto spreads Cross-Exchange Directos (matriz 5x5 con z-score móvil de arbitraje estadístico) como Arbitraje Triangular en Binance (USDT→BTC→ETH→USDT) neto de tres comisiones.
 - **Realismo de Ejecución:** Deriva de llenado estocástica de dos colas (Box–Muller) alrededor del coste adverso modelado; riesgo de ejecución por pata cross-venue; cooldown de ejecución por par de 60s para que los retornos acumulados sean realistas; y ventanas SKIPPED expuestas con transparencia.
 - **Circuit Breakers y Calibración Dinámica en Memoria:** Límites de exposición, breakers de volatilidad, cooldown por pérdidas consecutivas y aplicación dinámica de anulaciones de riesgo (`POST /api/v1/bot/calibrate`) sin reinicios.
-- **Capa de AI Quant Copilot:** Espacio de trabajo del Copiloto más un modal de ajustes del motor con selección de proveedor/modelo (solo consultivo; simulado por defecto), que expone explicabilidad del spread y atribución de costes de ejecución desde telemetría en vivo.
+- **Capa de AI Quant Copilot:** Espacio de trabajo del Copiloto más un modal de ajustes del motor con selección de proveedor/modelo, respaldado por un modelo real (OpenAI `gpt-4o-mini`) anclado al estado del motor en vivo, con fallback transparente a un mock determinístico si no está configurado. Solo consultivo (nunca ejecuta trades), que expone explicabilidad del spread y atribución de costes de ejecución desde telemetría en vivo.
 - **Transmisión de Telemetría Real por WebSocket:** Canal WebSocket secundario (`/api/v1/telemetry/logs?token=...`) que transmite demoras exactas de red, latencia de motor y trades omitidos.
 - **Auditorías Inmutables en Supabase:** Guarda registros de calibración en la tabla `copilot_audit_trail` blindada por un trigger de base de datos que prohíbe modificaciones y eliminaciones.
 - **Fiabilidad y Auto-Recuperación:** Guardia de motor siempre activo y watchdog de liveness con conteo de auto-recuperación; corrección de tormenta de resync en Binance; Sharpe honesto retenido hasta tener al menos 20 operaciones.
@@ -270,7 +270,7 @@ The original 48-hour submission is frozen at commit [`9eb95a4`](https://github.c
 
 **AI Quant Copilot layer**
 
-- Copilot workspace and engine settings modal with provider/model selection (advisory only; simulated by default).
+- Copilot workspace and engine settings modal with provider/model selection. The Copilot and every in-app AI widget (trade critiques, opportunity explanations, health diagnostics, risk calibration) are now backed by a real model (OpenAI `gpt-4o-mini`) via two secure server-side routes, grounded on live engine state, with a transparent fallback to the deterministic mock; the answer's source (live model vs. offline fallback) is labelled honestly. Advisory only — it never executes trades, and the API key stays server-side, never reaching the client bundle.
 - Spread explainability and execution-cost attribution surfaced from live telemetry.
 
 **Reliability & operations**
@@ -330,7 +330,7 @@ La entrega original de 48 horas está congelada en el commit [`9eb95a4`](https:/
 
 **Capa de AI Quant Copilot**
 
-- Espacio de trabajo del Copiloto y modal de ajustes del motor con selección de proveedor/modelo (solo consultivo; simulado por defecto).
+- Espacio de trabajo del Copiloto y modal de ajustes del motor con selección de proveedor/modelo. El Copiloto y cada widget de IA de la app (críticas de ejecución, explicación de oportunidades, diagnóstico de salud, calibración de riesgo) ahora usan un modelo real (OpenAI `gpt-4o-mini`) vía dos rutas server-side seguras, anclado al estado del motor en vivo, con fallback transparente al mock determinístico; la fuente de la respuesta (modelo en vivo vs. fallback offline) se etiqueta con honestidad. Solo consultivo — nunca ejecuta trades, y la API key permanece del lado del servidor, sin llegar jamás al bundle del cliente.
 - Explicabilidad del spread y atribución de costes de ejecución a partir de telemetría en vivo.
 
 **Fiabilidad y operación**
@@ -362,14 +362,14 @@ La entrega original de 48 horas está congelada en el commit [`9eb95a4`](https:/
 
 ## 11. Evaluation Criteria Mapping | Mapeo de Criterios de Evaluación
 
-| Criterion / Criterio                            | Implementation / Implementación                                                                                                                              |
-| :---------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Speed & Efficiency / Velocidad y Eficiencia** | Real-time WebSockets; wire-to-detection latency separate from microsecond compute telemetry, with a p99 metric.                                              |
-| **Precision Sizing / Precisión Financiera**     | True L2 depth walks; cost model deducting taker fees, network withdrawals, slippage, and USD/USDT basis.                                                     |
-| **Robustness / Robustez**                       | Breaker switches (consecutive loss, volatility, exposure); adverse-selection abort guard; leg-execution risk; inventory auto-rebalancing; liveness watchdog. |
-| **Intelligence / Estrategia**                   | 5x5 pair scanning matrix with statistical z-score ranking; concurrent Binance triangular loop; AI Quant Copilot advisory.                                    |
-| **Code Quality / Calidad de Código**            | Typed pnpm workspace monorepo; Pino structured logging; 59 passing Vitest tests (46 bot unit + integration, 13 SDK), plus Playwright E2E.                    |
-| **Presentation / Presentación**                 | Premium reactive bilingual Next.js terminal deployed publicly on Vercel.                                                                                     |
+| Criterion / Criterio                            | Implementation / Implementación                                                                                                                                                |
+| :---------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Speed & Efficiency / Velocidad y Eficiencia** | Real-time WebSockets; wire-to-detection latency separate from microsecond compute telemetry, with a p99 metric.                                                                |
+| **Precision Sizing / Precisión Financiera**     | True L2 depth walks; cost model deducting taker fees, network withdrawals, slippage, and USD/USDT basis.                                                                       |
+| **Robustness / Robustez**                       | Breaker switches (consecutive loss, volatility, exposure); adverse-selection abort guard; leg-execution risk; inventory auto-rebalancing; liveness watchdog.                   |
+| **Intelligence / Estrategia**                   | 5x5 pair scanning matrix with statistical z-score ranking; concurrent Binance triangular loop; real-model (OpenAI gpt-4o-mini) Copilot advisory grounded on live engine state. |
+| **Code Quality / Calidad de Código**            | Typed pnpm workspace monorepo; Pino structured logging; 59 passing Vitest tests (46 bot unit + integration, 13 SDK), plus Playwright E2E.                                      |
+| **Presentation / Presentación**                 | Premium reactive bilingual Next.js terminal deployed publicly on Vercel.                                                                                                       |
 
 ---
 
