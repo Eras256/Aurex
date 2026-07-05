@@ -58,7 +58,7 @@ Upon completing any development task:
 
 ### 5. AI Copilot Reality
 
-- The AI Quant Copilot currently runs on scripted mock scenarios (`apps/web/lib/ai/mock/mockAiAgent.ts`). A real-model (OpenAI) integration is planned via a server-side route; the API key must stay server-side (`.env.local`, gitignored) and never reach the client bundle. Do **not** describe the Copilot as "real AI" in docs until that route ships.
+- The AI Quant Copilot is backed by a real model (OpenAI Integration via a secure server-side route at `apps/web/app/api/copilot/chat/route.ts`) with a seamless fallback to mock data (`apps/web/lib/ai/mock/mockAiAgent.ts`) if the API key is not configured. The API key must stay strictly server-side (`.env.local`, gitignored) and never reach the client bundle. Keep this proxy pattern intact for any model updates.
 - Private roadmap and sequencing live in `PLAN-PODIO.md` (gitignored — do not commit).
 
 ---

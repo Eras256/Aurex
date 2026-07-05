@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { MockAiAgent, PREDEFINED_SCENARIOS, PredefinedScenario } from '@/lib/ai/mock/mockAiAgent';
+import { PREDEFINED_SCENARIOS, PredefinedScenario } from '@/lib/ai/mock/mockAiAgent';
+import { RealAiAgent } from '@/lib/ai/realAiAgent';
 import { AuditLogEntry, ToolInvocation, RiskParams } from '@/lib/ai/types';
 
 import { useLanguage } from '../LanguageContext';
@@ -16,8 +17,8 @@ export default function CopilotWorkspace() {
   const [mounted, setMounted] = useState(false);
   
   // Model Configuration State
-  const [selectedModel, setSelectedModel] = useState('AurexQuant-V2.1');
-  const models = ['AurexQuant-V2.1', 'Aurex-Diagnostic-L3', 'HFT-Engine-L2'];
+  const [selectedModel, setSelectedModel] = useState('gpt-4o-mini');
+  const models = ['gpt-4o-mini', 'gpt-4o', 'o3-mini'];
 
   // Composer State
   const [composerInput, setComposerInput] = useState('');
@@ -40,7 +41,7 @@ export default function CopilotWorkspace() {
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
 
-  const scrollRef = useRef<HTMLDivElement>(null);
+
 
   useEffect(() => {
     setMounted(true);
@@ -50,7 +51,7 @@ export default function CopilotWorkspace() {
   const fetchAuditLogs = async () => {
     setAuditLoading(true);
     try {
-      const logs = await MockAiAgent.getAuditLogs();
+      const logs = await RealAiAgent.getAuditLogs();
       setAuditLogs(logs);
     } catch (err) {
       console.error(err);
@@ -98,7 +99,7 @@ export default function CopilotWorkspace() {
     };
 
     try {
-      const meta = await MockAiAgent.streamScenarioResponse(
+      const meta = await RealAiAgent.streamScenarioResponse(
         queryText,
         (token) => {
           setStreamedResponse(prev => prev + token);
@@ -167,7 +168,7 @@ export default function CopilotWorkspace() {
       try {
         const topLog = auditLogs[0];
         // Insert a new confirmation audit transaction in Supabase
-        await MockAiAgent.insertAuditLog({
+        await RealAiAgent.insertAuditLog({
           session_id: topLog.session_id,
           operator_id: topLog.operator_id,
           widget_source: 'COPILOT_WORKSPACE',
