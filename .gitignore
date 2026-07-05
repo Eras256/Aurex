@@ -39,7 +39,9 @@ apps/bot/db.json
 # Developer and Agent context/skills docs
 claude.md
 CLAUDE.md
+claude.md.bak
 SKILL.md
+Memory.md
 
 .vercel
 
