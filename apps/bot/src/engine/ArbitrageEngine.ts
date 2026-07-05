@@ -450,8 +450,10 @@ export class ArbitrageEngine {
         // one; the rest fail the cost gate. Surface the top sub-threshold window (throttled)
         // as a SKIPPED record even on executing cycles, so the feed reflects the full
         // evaluate-many / execute-few reality instead of looking like every window fills.
-        const rejected = candidates.find((c) => !c.profitable);
-        if (rejected) await this.maybeRecordRejectedWindow(rejected);
+        const rejectedAll = candidates.filter((c) => !c.profitable);
+        if (rejectedAll.length > 0) {
+          await this.maybeRecordRejectedWindow(rejectedAll[0], undefined, rejectedAll.slice(1));
+        }
       } else {
         // Spread is still visible but this pair is cooling down post-capture — capital from
         // the prior fill is still cycling, so we transparently skip rather than re-farm it.
@@ -463,24 +465,42 @@ export class ArbitrageEngine {
       return;
     }
 
-    // No window clears costs. Surface the best gross window (throttled) as a
-    // transparently-rejected opportunity so the feed reflects the cost-aware
+    // No window clears costs. Surface the best gross window (throttled, with per-pair
+    // variety) as a transparently-rejected opportunity so the feed reflects the cost-aware
     // intelligence rather than appearing idle — exactly the false-positive
     // filtering the challenge rewards.
-    await this.maybeRecordRejectedWindow(best);
+    await this.maybeRecordRejectedWindow(best, undefined, candidates.slice(1));
   }
 
   /**
    * Throttled wrapper around recordRejectedWindow. Rejected windows recur every ~100ms
    * tick; persisting all of them would flood the feed and disk, so we surface at most one
-   * every 3s. Executions are unthrottled here (they persist individually), so the display
-   * layer is responsible for balancing the two statuses — see getBlendedOpportunities.
+   * every 3s globally. A persistent structural dislocation (e.g. the Coinbase USD↔USDT
+   * premium) would otherwise win "best gross window" every cycle and monopolise the feed
+   * with identical rows, so the same directed pair is re-recorded at most every 20s; when
+   * the top pair is inside that window the best *other* pair (from `alternates`) is surfaced
+   * instead — keeping the visible feed representative of the whole 5×5 scan.
    */
-  private async maybeRecordRejectedWindow(c: ArbitrageCandidate, reasonOverride?: string) {
+  private lastRejectAtByPair = new Map<string, number>();
+  private static readonly REJECT_SAME_PAIR_MS = 20000;
+
+  private async maybeRecordRejectedWindow(
+    c: ArbitrageCandidate,
+    reasonOverride?: string,
+    alternates: ArbitrageCandidate[] = []
+  ) {
     const now = Date.now();
     if (now - this.lastWindowRecordAt < 3000) return;
+
+    const eligible = [c, ...alternates].find((cand) => {
+      const key = `${cand.buyExchangeId}->${cand.sellExchangeId}`;
+      return now - (this.lastRejectAtByPair.get(key) ?? 0) >= ArbitrageEngine.REJECT_SAME_PAIR_MS;
+    });
+    if (!eligible) return;
+
     this.lastWindowRecordAt = now;
-    await this.recordRejectedWindow(c, reasonOverride);
+    this.lastRejectAtByPair.set(`${eligible.buyExchangeId}->${eligible.sellExchangeId}`, now);
+    await this.recordRejectedWindow(eligible, eligible === c ? reasonOverride : undefined);
   }
 
   /**
