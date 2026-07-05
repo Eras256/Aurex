@@ -17,17 +17,17 @@ export const Navigation: React.FC = () => {
   const { language, setLanguage, t } = useLanguage();
 
   const [aiStatus, setAiStatus] = useState({
-    status: 'Simulated',
+    status: 'Live',
     provider: 'OpenAI',
-    model: 'gpt-5',
+    model: 'gpt-4o-mini',
   });
 
   useEffect(() => {
     const updateAiStatus = () => {
       if (typeof window !== 'undefined') {
-        const savedStatus = localStorage.getItem('aurex_ai_status') || 'Simulated';
+        const savedStatus = localStorage.getItem('aurex_ai_status') || 'Live';
         const savedProvider = localStorage.getItem('aurex_ai_provider') || 'OpenAI';
-        const savedModel = localStorage.getItem('aurex_ai_model') || 'gpt-5';
+        const savedModel = localStorage.getItem('aurex_ai_model') || 'gpt-4o-mini';
         setAiStatus({
           status: savedStatus,
           provider: savedProvider,

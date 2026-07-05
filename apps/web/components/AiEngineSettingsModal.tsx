@@ -25,7 +25,7 @@ type ReasoningDetail = 'Compact' | 'Standard' | 'Full';
 
 // Dependent model presets
 const MODEL_PRESETS: Record<Exclude<Provider, 'Custom'>, string[]> = {
-  OpenAI: ['gpt-5', 'gpt-4.1-mini', 'gpt-4o'],
+  OpenAI: ['gpt-4o-mini', 'gpt-4o', 'o3-mini'],
   Anthropic: ['claude-sonnet', 'claude-haiku'],
   Gemini: ['gemini-2.5-pro', 'gemini-2.5-flash'],
 };
@@ -162,10 +162,10 @@ export const AiEngineSettingsModal: React.FC<AiEngineSettingsModalProps> = ({
 
   // Form State
   const [provider, setProvider] = useState<Provider>('OpenAI');
-  const [model, setModel] = useState<string>('gpt-5');
+  const [model, setModel] = useState<string>('gpt-4o-mini');
   const [apiKey, setApiKey] = useState<string>('');
   const [baseUrl, setBaseUrl] = useState<string>('');
-  const [status, setStatus] = useState<Status>('Simulated');
+  const [status, setStatus] = useState<Status>('Connected');
   const [streaming, setStreaming] = useState<boolean>(true);
   const [reasoningDetail, setReasoningDetail] = useState<ReasoningDetail>('Standard');
   
@@ -180,10 +180,10 @@ export const AiEngineSettingsModal: React.FC<AiEngineSettingsModalProps> = ({
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedProvider = localStorage.getItem('aurex_ai_provider') as Provider || 'OpenAI';
-      const savedModel = localStorage.getItem('aurex_ai_model') || 'gpt-5';
+      const savedModel = localStorage.getItem('aurex_ai_model') || 'gpt-4o-mini';
       const savedKey = localStorage.getItem('aurex_ai_key') || '';
       const savedBaseUrl = localStorage.getItem('aurex_ai_base_url') || '';
-      const savedStatus = localStorage.getItem('aurex_ai_status') as Status || 'Simulated';
+      const savedStatus = localStorage.getItem('aurex_ai_status') as Status || 'Connected';
       const savedStreaming = localStorage.getItem('aurex_ai_streaming') !== 'false';
       const savedReasoning = localStorage.getItem('aurex_ai_reasoning_detail') as ReasoningDetail || 'Standard';
 
