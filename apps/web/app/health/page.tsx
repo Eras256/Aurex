@@ -301,7 +301,9 @@ export default function SystemHealthPage() {
               
               {/* Rating and Connection Jitter */}
               <div className="flex justify-between items-center">
-                <span className="text-slate-500 font-bold uppercase text-[9px]">Telemetry Assessment</span>
+                <span className="text-slate-500 font-bold uppercase text-[9px]">
+                  {language === 'es' ? 'Evaluación de Telemetría' : 'Telemetry Assessment'}
+                </span>
                 <div className="flex items-center gap-2">
                   <span className={`w-2 h-2 rounded-full ${
                     aiDiag.healthRating === 'NOMINAL' 
@@ -328,14 +330,14 @@ export default function SystemHealthPage() {
               </div>
 
               <div className="flex justify-between items-center text-[9px] text-slate-500 pt-2 border-t border-white/5">
-                <span>Diagnostics: PASS</span>
+                <span>{language === 'es' ? 'Diagnósticos: APROBADO' : 'Diagnostics: PASS'}</span>
                 <Badge variant="outline" className="text-[8px] text-slate-400 font-mono py-0 px-1">{t('widget.ai_advisory_only')}</Badge>
               </div>
 
             </div>
           ) : (
             <div className="text-[10px] text-slate-500 font-mono text-center py-4">
-              Awaiting telemetry diagnostics stream...
+              {language === 'es' ? 'Esperando flujo de diagnósticos de telemetría...' : 'Awaiting telemetry diagnostics stream...'}
             </div>
           )}
         </CardContent>

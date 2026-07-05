@@ -87,7 +87,23 @@ export default function OverviewPage() {
 
   // Metric variables with sensible defaults
   const totalProfit = state?.pnl?.totalProfitUSD ?? 0;
-  const equity = 100000 + totalProfit;
+  
+  let liveEquity = 100000 + totalProfit;
+  if (state?.wallets && Object.keys(state.wallets).length > 0) {
+    const btcPrice = state?.orderBooks?.['binance:BTCUSDT']?.asks?.[0]?.price || 62000;
+    const venueIds = ['binance', 'kraken', 'coinbase', 'okx', 'bybit'];
+    let totalUsdt = 0;
+    let totalBtc = 0;
+    venueIds.forEach((id) => {
+      const w = state.wallets[id];
+      if (w) {
+        totalUsdt += (w.USDT?.free || 0) + (w.USDT?.locked || 0);
+        totalBtc += (w.BTC?.free || 0) + (w.BTC?.locked || 0);
+      }
+    });
+    liveEquity = totalUsdt + (totalBtc * btcPrice);
+  }
+  const equity = liveEquity;
   const totalTrades = state?.pnl?.totalTrades ?? 0;
   const winRate = state?.pnl?.winRate ?? 0;
   const sharpeRatio = state?.pnl?.sharpeRatio ?? 0;
@@ -356,7 +372,7 @@ export default function OverviewPage() {
               {/* Telemetry Analysis */}
               <div className="md:col-span-2 space-y-1">
                 <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold block font-mono">
-                  Rolling Diagnostics
+                  {language === 'es' ? 'Diagnósticos Continuos' : 'Rolling Diagnostics'}
                 </span>
                 <p className="text-xs text-slate-300 leading-relaxed font-sans">
                   {language === 'en' ? aiAdvisory.telemetrySummary.en : aiAdvisory.telemetrySummary.es}
@@ -366,13 +382,13 @@ export default function OverviewPage() {
               {/* Sizing Recommendations */}
               <div className="space-y-1 font-mono text-center md:text-left border-t md:border-t-0 md:border-l border-white/5 md:pl-6 pt-3 md:pt-0">
                 <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold block">
-                  Recommended Profit Floor
+                  {language === 'es' ? 'Suelo de Beneficio Recomendado' : 'Recommended Profit Floor'}
                 </span>
                 <h3 className="text-2xl font-bold tracking-tight text-amber-500 glow-text-gold">
                   ${aiAdvisory.recommendedProfitFloorUSD.toFixed(2)} <span className="text-xs text-slate-400 font-normal">USD</span>
                 </h3>
                 <span className="text-[9px] text-slate-500 block">
-                  Confidence Score: {(aiAdvisory.sizingConfidenceScore * 100).toFixed(0)}%
+                  {language === 'es' ? 'Puntuación de Confianza:' : 'Confidence Score:'} {(aiAdvisory.sizingConfidenceScore * 100).toFixed(0)}%
                 </span>
               </div>
 
@@ -388,7 +404,7 @@ export default function OverviewPage() {
             </div>
           ) : (
             <div className="text-[10px] text-slate-500 font-mono text-center py-4">
-              Reconciling clean telemetry feeds... AI advisor offline.
+              {language === 'es' ? 'Reconciliando feeds de telemetría limpios... Asesor de IA fuera de línea.' : 'Reconciling clean telemetry feeds... AI advisor offline.'}
             </div>
           )}
         </CardContent>

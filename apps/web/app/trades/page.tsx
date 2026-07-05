@@ -215,7 +215,7 @@ export default function TradesPage() {
                   
                   {/* Efficiency Gauge score */}
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-500 font-bold uppercase text-[9px]">VWAP Fill Efficiency</span>
+                    <span className="text-slate-500 font-bold uppercase text-[9px]">{language === 'es' ? 'Eficiencia de Llenado VWAP' : 'VWAP Fill Efficiency'}</span>
                     <div className="flex items-center gap-2">
                       <span className="text-amber-500 font-bold text-xs bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
                         {aiCritique.vwapEfficiencyScore}%
@@ -228,7 +228,7 @@ export default function TradesPage() {
 
                   {/* Summary Details Critique */}
                   <div className="border-t border-white/5 pt-3">
-                    <span className="text-slate-500 font-bold uppercase text-[9px] block mb-1">Execution Post-Mortem</span>
+                    <span className="text-slate-500 font-bold uppercase text-[9px] block mb-1">{language === 'es' ? 'Autopsia de Ejecución' : 'Execution Post-Mortem'}</span>
                     <p className="text-slate-300 font-sans text-xs leading-normal bg-slate-950/40 p-3 rounded border border-white/5">
                       {language === 'es' ? aiCritique.critiqueDetails.es : aiCritique.critiqueDetails.en}
                     </p>
@@ -237,21 +237,21 @@ export default function TradesPage() {
                   {/* Transaction info */}
                   <div className="border-t border-white/5 pt-3 space-y-1 text-[10px] text-slate-300">
                     <div className="flex justify-between">
-                      <span>Latency Window:</span>
+                      <span>{language === 'es' ? 'Ventana de Latencia:' : 'Latency Window:'}</span>
                       <span className="text-slate-100 font-bold">{selectedTrade.slippagePaid > 2.0 ? '65 ms' : '12 ms'}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Slippage Paid:</span>
+                      <span>{language === 'es' ? 'Deslizamiento Pagado:' : 'Slippage Paid:'}</span>
                       <span className="text-rose-400 font-bold">${selectedTrade.slippagePaid.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Taker Fees Paid:</span>
+                      <span>{language === 'es' ? 'Comisiones Pagadas:' : 'Taker Fees Paid:'}</span>
                       <span className="text-slate-100 font-bold">${selectedTrade.feesPaid.toFixed(2)}</span>
                     </div>
                   </div>
 
                   <div className="border-t border-white/5 pt-4 text-[9px] text-slate-500 flex justify-between items-center">
-                    <span>Audit Ref: TX-{selectedTrade.id.substring(0,6)}</span>
+                    <span>{language === 'es' ? 'Ref. Auditoría:' : 'Audit Ref:'} TX-{selectedTrade.id.substring(0,6)}</span>
                     <Badge variant="outline" className="text-[8px] text-slate-400 font-mono py-0 px-1">{t('widget.ai_advisory_only')}</Badge>
                   </div>
 

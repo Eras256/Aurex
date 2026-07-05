@@ -246,7 +246,7 @@ export default function OpportunitiesPage() {
                   
                   {/* Rating Badge */}
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-500 font-bold uppercase text-[9px]">Execution Risk</span>
+                    <span className="text-slate-500 font-bold uppercase text-[9px]">{language === 'es' ? 'Riesgo de Ejecución' : 'Execution Risk'}</span>
                     <Badge variant={aiExplain.executionRating === 'EXCELLENT' ? 'success' : aiExplain.executionRating === 'HIGH_RISK' ? 'warning' : 'destructive'} className="text-[9px] font-bold py-0.5 px-2 uppercase rounded">
                       {aiExplain.executionRating}
                     </Badge>
@@ -254,7 +254,7 @@ export default function OpportunitiesPage() {
 
                   {/* Summary Text */}
                   <div className="border-t border-white/5 pt-3">
-                    <span className="text-slate-500 font-bold uppercase text-[9px] block mb-1">Algorithmic Rationale</span>
+                    <span className="text-slate-500 font-bold uppercase text-[9px] block mb-1">{language === 'es' ? 'Razonamiento Algorítmico' : 'Algorithmic Rationale'}</span>
                     <p className="text-slate-300 font-sans text-xs leading-normal bg-slate-950/40 p-3 rounded border border-white/5">
                       {language === 'es' ? aiExplain.explainabilitySummary.es : aiExplain.explainabilitySummary.en}
                     </p>
@@ -262,25 +262,25 @@ export default function OpportunitiesPage() {
 
                   {/* Cost breakdown */}
                   <div className="border-t border-white/5 pt-3 space-y-2">
-                    <span className="text-slate-500 font-bold uppercase text-[9px] block">Cost Drag Attribution</span>
+                    <span className="text-slate-500 font-bold uppercase text-[9px] block">{language === 'es' ? 'Atribución de Costos' : 'Cost Drag Attribution'}</span>
                     <div className="space-y-1.5 text-[10px] text-slate-300">
                       <div className="flex justify-between">
-                        <span>Taker Fee Drag:</span>
+                        <span>{language === 'es' ? 'Comisión Taker:' : 'Taker Fee Drag:'}</span>
                         <span className="text-slate-100 font-bold">${aiExplain.costBreakdown.takerFeeUSD.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Slippage Safety Cushion:</span>
+                        <span>{language === 'es' ? 'Margen de Deslizamiento:' : 'Slippage Safety Cushion:'}</span>
                         <span className="text-slate-100 font-bold">${aiExplain.costBreakdown.slippageBufferUSD.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Latency Risk Buffer:</span>
+                        <span>{language === 'es' ? 'Reserva por Latencia:' : 'Latency Risk Buffer:'}</span>
                         <span className="text-slate-100 font-bold">${aiExplain.costBreakdown.latencyRiskUSD.toFixed(2)}</span>
                       </div>
                     </div>
                   </div>
 
                   <div className="border-t border-white/5 pt-4 text-[9px] text-slate-500 flex justify-between items-center">
-                    <span>Audit Ref: AX-OPP-{selectedOpp.id.substring(0,6)}</span>
+                    <span>{language === 'es' ? 'Ref. Auditoría:' : 'Audit Ref:'} AX-OPP-{selectedOpp.id.substring(0,6)}</span>
                     <Badge variant="outline" className="text-[8px] text-slate-400 font-mono py-0 px-1">{t('widget.ai_advisory_only')}</Badge>
                   </div>
 

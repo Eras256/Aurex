@@ -14,9 +14,9 @@ export default function WalletsPage() {
 
   const wallets = state?.wallets || {};
 
-  // Default initial balances mapping for progress bar sizing
-  const maxQuote = 100000;
-  const maxBtc = 3.0;
+  // Dynamically scale progress bars to the highest balance among venues, with a sensible floor
+  const maxQuote = Math.max(100000, ...venueIds.map(id => (wallets[id]?.USDT?.free || 0) + (wallets[id]?.USDT?.locked || 0)));
+  const maxBtc = Math.max(3.0, ...venueIds.map(id => (wallets[id]?.BTC?.free || 0) + (wallets[id]?.BTC?.locked || 0)));
 
   const venueNames: Record<string, string> = {
     binance: 'Binance Spot',

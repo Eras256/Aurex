@@ -80,7 +80,7 @@ const translations: Record<Language, Record<string, string>> = {
     'overview.total_trades': 'TOTAL TRADES',
     'overview.avg_trade_prefix': 'Avg:',
     'overview.avg_trade_suffix': '/ trade',
-    'overview.sharpe_ratio': 'RATIO SHARPE',
+    'overview.sharpe_ratio': 'SHARPE RATIO',
     'overview.sharpe_sub': 'Risk-free rate: 0.0%',
     'overview.sharpe_building': 'Calculating',
     'overview.compute': 'compute',
@@ -416,6 +416,8 @@ const translations: Record<Language, Record<string, string>> = {
     'markets.cross_basis': 'Cross Basis',
     'markets.mid_points_title': 'Exchange Mid Points',
     'markets.spread_differential': 'Spread differential:',
+    'markets.source_l2': 'Source Exchange L2 Book',
+    'markets.target_l2': 'Target Exchange L2 Book',
     'home.terminal_badge': 'Institutional Terminal',
 
     // AI Quant Copilot Workspace (English)

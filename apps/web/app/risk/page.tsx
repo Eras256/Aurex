@@ -403,7 +403,7 @@ export default function RiskSettingsPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-b border-white/5 pb-4">
                 <div className="md:col-span-2 space-y-1">
                   <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold block">
-                    Volatility Risk Audit (Z-Score: 2.14)
+                    {language === 'es' ? 'Auditoría de Riesgo de Volatilidad (Z-Score: 2.14)' : 'Volatility Risk Audit (Z-Score: 2.14)'}
                   </span>
                   <p className="text-xs text-slate-300 leading-relaxed font-sans">
                     {language === 'es' ? aiCalibration.calibrationRationale.es : aiCalibration.calibrationRationale.en}
@@ -415,19 +415,19 @@ export default function RiskSettingsPage() {
 
                 <div className="space-y-2 bg-slate-950/40 p-3 rounded-lg border border-white/5">
                   <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold block text-center md:text-left">
-                    Calibration Proposals
+                    {language === 'es' ? 'Propuestas de Calibración' : 'Calibration Proposals'}
                   </span>
                   <div className="space-y-1.5 text-[10px] text-slate-300">
                     <div className="flex justify-between">
-                      <span>Profit Floor:</span>
+                      <span>{language === 'es' ? 'Suelo de Beneficio:' : 'Profit Floor:'}</span>
                       <span className="text-amber-500 font-bold">${aiCalibration.suggestedParams.minNetProfitUSD.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Latency Drift:</span>
+                      <span>{language === 'es' ? 'Desviación de Latencia:' : 'Latency Drift:'}</span>
                       <span className="text-amber-500 font-bold">{aiCalibration.suggestedParams.latencyDriftBufferBps} BPS</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Slippage Safety:</span>
+                      <span>{language === 'es' ? 'Seguridad de Desliz:' : 'Slippage Safety:'}</span>
                       <span className="text-amber-500 font-bold">{aiCalibration.suggestedParams.slippageSafetyBps} BPS</span>
                     </div>
                   </div>
@@ -437,7 +437,7 @@ export default function RiskSettingsPage() {
               {/* Action buttons */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <span className="text-slate-400 text-[10px] max-w-md font-sans leading-normal block">
-                  *Clicking Apply pre-fills the form sliders. You must manually click the &quot;Persist Configuration&quot; button below to compile and save.
+                  {language === 'es' ? '*Al hacer clic en Aplicar se prellenan los deslizadores del formulario. Debe hacer clic manualmente en "Persistir Configuración" para guardar.' : '*Clicking Apply pre-fills the form sliders. You must manually click the "Persist Configuration" button below to compile and save.'}
                 </span>
                 <div className="flex gap-2 shrink-0 self-end">
                   <Button
@@ -460,7 +460,7 @@ export default function RiskSettingsPage() {
             </div>
           ) : (
             <div className="text-[10px] text-slate-500 font-mono text-center py-4">
-              Awaiting telemetry sync... calibration suggestions offline.
+              {language === 'es' ? 'Esperando sincronización de telemetría... sugerencias de calibración fuera de línea.' : 'Awaiting telemetry sync... calibration suggestions offline.'}
             </div>
           )}
         </CardContent>
