@@ -219,8 +219,8 @@ test.describe('📈 Bitcoin Arbitrage Simulator Visual Dashboard E2E Tests', () 
     // Push the state payload to trigger calculations and UI fills
     await pushMockState(page, mockStatePayload);
 
-    // Assert that the Welcome heading is rendered
-    await expect(page.locator('h2')).toContainText('Aurex Console Overview');
+    // Assert that the brand heading is rendered
+    await expect(page.getByRole('main').getByRole('heading', { name: 'Aurex' })).toBeVisible();
 
     // Assert equity growth curve and portfolio values are shown matching mock state
     // Equity: 100000 + 500.50 = 100500.50 (shown in both the header ticker and the KPI card)
@@ -240,7 +240,7 @@ test.describe('📈 Bitcoin Arbitrage Simulator Visual Dashboard E2E Tests', () 
     await expect(page.getByText('25', { exact: true })).toBeVisible();
 
     // Sharpe Ratio: 2.50
-    await expect(page.getByText('SHARPE RATIO', { exact: true })).toBeVisible();
+    await expect(page.getByText('RATIO SHARPE', { exact: true })).toBeVisible();
     await expect(page.getByText('2.50', { exact: true })).toBeVisible();
   });
 
@@ -248,25 +248,25 @@ test.describe('📈 Bitcoin Arbitrage Simulator Visual Dashboard E2E Tests', () 
     await page.goto('/markets');
 
     // Asserts page title and empty state are handled (allow extra timeout for Next.js on-demand compilation)
-    await expect(page.locator('h2')).toContainText('Comparative Order Books', { timeout: 20000 });
+    await expect(page.locator('h2')).toContainText('Comparative L2 Markets', { timeout: 20000 });
     await expect(page.getByText('Awaiting WebSocket...').first()).toBeVisible();
 
     // Now push the real-time order books payload
     await pushMockState(page, mockStatePayload);
 
-    // Binance Spot L2: bid price $68,000.00 and ask price $68,010.00
-    await expect(page.getByText('Binance Spot L2')).toBeVisible();
-    await expect(page.getByText('$68000.00').first()).toBeVisible();
-    await expect(page.getByText('$68010.00').first()).toBeVisible();
+    // Binance card (5-CEX live ticker grid): bid $68,000.00 and ask $68,010.00
+    await expect(page.getByText('Binance', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('$68,000.00').first()).toBeVisible();
+    await expect(page.getByText('$68,010.00').first()).toBeVisible();
 
-    // Kraken Spot L2: bid price $68,005.00 and ask price $68,015.00
-    await expect(page.getByText('Kraken Spot L2')).toBeVisible();
-    await expect(page.getByText('$68005.00').first()).toBeVisible();
-    await expect(page.getByText('$68015.00').first()).toBeVisible();
+    // Kraken card: bid $68,005.00 and ask $68,015.00
+    await expect(page.getByText('Kraken', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('$68,005.00').first()).toBeVisible();
+    await expect(page.getByText('$68,015.00').first()).toBeVisible();
 
-    // Gross and Net spreads calculations
-    await expect(page.getByText('Gross Spread').first()).toBeVisible();
-    await expect(page.getByText('Net Estimate').first()).toBeVisible();
+    // Real-time multi-venue calculator panel (defaults to Binance -> Kraken)
+    await expect(page.getByText('GROSS SPREAD').first()).toBeVisible();
+    await expect(page.getByText('NET ESTIMATE').first()).toBeVisible();
   });
 
   test('3. should verify that Risk & Settings changes are saved and reflected in the UI', async ({ page }) => {
@@ -292,7 +292,7 @@ test.describe('📈 Bitcoin Arbitrage Simulator Visual Dashboard E2E Tests', () 
     await page.goto('/risk');
 
     // Make sure configurations form is rendered (allow extra timeout for Next.js on-demand compilation)
-    await expect(page.locator('text=Risk Oversight Settings')).toBeVisible({ timeout: 20000 });
+    await expect(page.locator('text=Risk Parameters')).toBeVisible({ timeout: 20000 });
 
     // Push standard config to load values
     await pushMockState(page, mockStatePayload);
@@ -311,12 +311,13 @@ test.describe('📈 Bitcoin Arbitrage Simulator Visual Dashboard E2E Tests', () 
     // Assert that the label updates to reflect the new value ($1.6 USD)
     await expect(page.getByText('$1.6 USD')).toBeVisible();
 
-    // Click submit form
-    const submitBtn = page.locator('button:has-text("Save Configuration Changes")');
+    // Click submit form (basic settings form's submit button — distinct from the advanced
+    // parametrization panel's "Save advanced" button)
+    const submitBtn = page.locator('button:has-text("Save Settings")');
     await submitBtn.click();
 
     // Assert that the confirmation toast notice becomes visible
-    const saveNotice = page.locator('text=Configuration updated and persisted');
+    const saveNotice = page.locator('text=Configuration persisted successfully');
     await expect(saveNotice).toBeVisible();
   });
 
@@ -349,7 +350,7 @@ test.describe('📈 Bitcoin Arbitrage Simulator Visual Dashboard E2E Tests', () 
 
     // Wait for the download file event when clicking the CSV link
     const downloadPromise = page.waitForEvent('download');
-    await page.click('text=Export Trades CSV');
+    await page.click('text=Export CSV');
     const download = await downloadPromise;
 
     // Check download parameters
