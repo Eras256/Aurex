@@ -28,47 +28,38 @@ export async function POST(request: Request) {
 
   let schemaPrompt = '';
   if (contextType === 'trade') {
-    schemaPrompt = `Analyze this simulated trade execution: ${JSON.stringify(payload)}.
+    schemaPrompt = `Analyze this trade execution: ${JSON.stringify(payload)}.
 Output JSON schema: { 
-  "confidence": number (0-1), 
-  "rationaleEn": string (short 1 sentence), 
-  "rationaleEs": string, 
-  "detailsEn": string (2-3 sentences), 
-  "detailsEs": string, 
-  "finalDecision": "ACCEPTED" | "REJECTED" | "BYPASSED",
-  "suggestedParams": optional object with keys like minNetProfitUSD (number)
+  "vwapEfficiencyScore": number (0-100), 
+  "critiqueDetails": { "en": string, "es": string } 
 }`;
   } else if (contextType === 'opportunity') {
     schemaPrompt = `Analyze this cross-exchange arbitrage opportunity: ${JSON.stringify(payload)}.
 Output JSON schema: { 
-  "insightEn": string, 
-  "insightEs": string, 
-  "limitingFactor": "FEES" | "LATENCY" | "LIQUIDITY" | "NONE", 
-  "projectedRoi": number 
+  "executionRating": "EXCELLENT" | "HIGH_RISK" | "SKIPPED_UNPROFITABLE", 
+  "explainabilitySummary": { "en": string, "es": string }, 
+  "costBreakdown": { "takerFeeUSD": number, "slippageBufferUSD": number, "latencyRiskUSD": number } 
 }`;
   } else if (contextType === 'health') {
     schemaPrompt = `Analyze these HFT system metrics: ${JSON.stringify(payload)}.
 Output JSON schema: { 
-  "status": "OPTIMAL" | "DEGRADED" | "CRITICAL", 
-  "messageEn": string, 
-  "messageEs": string, 
-  "primaryBottleneck": string, 
-  "remediationSteps": string[] 
+  "healthRating": "NOMINAL" | "DEGRADED" | "CRITICAL", 
+  "telemetryAnalysis": { "en": string, "es": string } 
 }`;
   } else if (contextType === 'risk-calibrate') {
     schemaPrompt = `Suggest risk parameter calibration based on this state: ${JSON.stringify(payload)}.
 Output JSON schema: { 
-  "status": "UPDATED" | "NO_CHANGE", 
-  "newParameters": { minNetProfitUSD?: number, latencySafetyBps?: number, slippageSafetyBps?: number, volatilityBreakerPct?: number }, 
-  "explanationEn": string, 
-  "explanationEs": string 
+  "suggestedParams": { "minNetProfitUSD": number, "latencyDriftBufferBps": number, "slippageSafetyBps": number }, 
+  "calibrationRationale": { "en": string, "es": string }, 
+  "zScoreExplanation": { "en": string, "es": string } 
 }`;
   } else if (contextType === 'risk-advisory') {
     schemaPrompt = `Generate a global risk advisory based on this state: ${JSON.stringify(payload)}.
 Output JSON schema: { 
-  "advisoryEn": string, 
-  "advisoryEs": string, 
-  "riskLevel": "LOW" | "MODERATE" | "HIGH" | "CRITICAL" 
+  "recommendedProfitFloorUSD": number, 
+  "sizingConfidenceScore": number (0.0 to 1.0), 
+  "telemetrySummary": { "en": string, "es": string }, 
+  "lastChecked": "ISO date string" 
 }`;
   } else {
     return new Response(JSON.stringify({ error: 'invalid contextType' }), { status: 400 });

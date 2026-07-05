@@ -47,7 +47,7 @@ const translations: Record<Language, Record<string, string>> = {
     'ticker.p99': 'P99 COMPUTE:',
     'ticker.feeds': 'FEEDS:',
     'ticker.feeds_suffix': 'live',
-    'ticker.sim_equity': 'SIM EQUITY:',
+    'ticker.sim_equity': 'EQUITY:',
     'ticker.streaming': '● STREAMING',
     'ticker.connecting': '○ CONNECTING',
     
@@ -503,7 +503,7 @@ const translations: Record<Language, Record<string, string>> = {
     'ticker.p99': 'CÓMPUTO P99:',
     'ticker.feeds': 'CANALES:',
     'ticker.feeds_suffix': 'activos',
-    'ticker.sim_equity': 'PATRIMONIO SIM:',
+    'ticker.sim_equity': 'PATRIMONIO:',
     'ticker.streaming': '● TRANSMITIENDO',
     'ticker.connecting': '○ CONECTANDO',
     
