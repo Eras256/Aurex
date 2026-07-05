@@ -4,17 +4,17 @@
 
 ### ES: Simulador de Arbitraje de Bitcoin Cross-Exchange en Tiempo Real
 
-> **Updated / Actualizado: 18 June 2026 / 18 de junio de 2026.**
-> This document describes the **live deployed system**. The repository submitted for judging is frozen at commit [`9eb95a4`](https://github.com/Eras256/Aurex/commit/9eb95a4); every engineering change the live system carries on top of that frozen submission is listed in [§10 Post-Freeze Delta](#10-post-freeze-delta--cambios-posteriores-al-congelamiento) so reviewers can reconcile the two.
+> **Updated / Actualizado: 5 July 2026 / 5 de julio de 2026 — Final Phase (official extension window).**
+> This document describes the **live deployed system**, including the work of the official finalist extension window (Option B, deadline 12 Jul 2026). The original 48-hour submission is frozen at commit [`9eb95a4`](https://github.com/Eras256/Aurex/commit/9eb95a4); every engineering change on top of it — both the pre-final-phase public-deploy delta and the final-phase work — is listed in [§10](#10-post-freeze-delta--cambios-posteriores-al-congelamiento) and on the in-app **Build Notes** page.
 >
-> Este documento describe el **sistema en vivo desplegado**. El repositorio enviado a evaluación está congelado en el commit [`9eb95a4`](https://github.com/Eras256/Aurex/commit/9eb95a4); cada cambio de ingeniería que el sistema en vivo lleva sobre esa entrega congelada está listado en [§10 Delta Posterior al Congelamiento](#10-post-freeze-delta--cambios-posteriores-al-congelamiento) para que el jurado pueda reconciliar ambos.
+> Este documento describe el **sistema en vivo desplegado**, incluyendo el trabajo de la ventana de extensión oficial para finalistas (Opción B, cierre 12 jul 2026). La entrega original de 48 horas está congelada en el commit [`9eb95a4`](https://github.com/Eras256/Aurex/commit/9eb95a4); cada cambio de ingeniería sobre ella — tanto el delta previo del despliegue público como el trabajo de la fase final — está listado en [§10](#10-post-freeze-delta--cambios-posteriores-al-congelamiento) y en la página **Build Notes** de la app.
 
 Aurex is an institutional-grade, real-time cross-exchange arbitrage simulator. It aggregates live Level 2 (L2) order book depth across five major centralized venues to scan, rank, and simulate execution of risk-hedged arbitrage opportunities net of real-world operational costs and latency.
 
 Aurex es un simulador de arbitraje cross-exchange de grado institucional en tiempo real. Agrega la profundidad del libro de órdenes Nivel 2 (L2) en vivo de cinco de los principales exchanges para escanear, clasificar y simular la ejecución de oportunidades de arbitraje con cobertura de riesgo, netas de costos operativos y latencia reales.
 
 **🔗 Live Dashboard / Panel en Vivo:** [https://aurex-terminal.vercel.app/](https://aurex-terminal.vercel.app/)
-**🔌 Backend API / API de Soporte:** [https://bitcoin-arbitrage-bot.fly.dev/](https://bitcoin-arbitrage-bot.fly.dev/)
+**🔌 Backend API / API de Soporte:** [https://aurex-agent.fly.dev/](https://aurex-agent.fly.dev/)
 
 <img width="100%" alt="Aurex Dashboard Overview" src="https://github.com/user-attachments/assets/d94a4ff8-20c0-4688-999b-4188629cfcad" />
 
@@ -70,6 +70,8 @@ La mayoría de los simuladores calculan spreads de forma ingenua usando precios 
 - **Supabase Immutable Audits:** Stores dynamic audit records inside `copilot_audit_trail` protected by an append-only trigger that completely blocks update and delete actions.
 - **Reliability & Self-Heal:** Always-on engine guard and liveness watchdog with self-heal recovery counting; Binance resync-storm fix; honest Sharpe ratio withheld until at least 20 trades exist.
 - **Settlement-Style Rebalancing:** Auto-balances exchange inventories via simulated blockchain withdrawals, paying actual network fees.
+- **Deep Runtime Parametrization (final phase):** every engine knob — profit floors, latency/slippage buffers, sizing step, per-pair cooldown, circuit-breaker levels, leg-risk probability, rebalancing thresholds, the statistical z-score gate, and per-exchange taker fees with Retail/VIP presets — is schema-validated (Zod), persisted, and hot-applied from the Risk page with no restart.
+- **Real Test-Environment Execution (final phase):** an optional `executionMode: testnet` routes arbitrage legs as real signed IOC orders to Binance Spot Testnet and OKX Demo (real matching engines, fake balances) — both legs verified with real fills; falls back to the simulator per-trade so the default demo never depends on it.
 - **Bilingual Interface:** Toggle languages instantly between English and Español across all UI components and documentation.
 
 ### ES
@@ -84,6 +86,8 @@ La mayoría de los simuladores calculan spreads de forma ingenua usando precios 
 - **Auditorías Inmutables en Supabase:** Guarda registros de calibración en la tabla `copilot_audit_trail` blindada por un trigger de base de datos que prohíbe modificaciones y eliminaciones.
 - **Fiabilidad y Auto-Recuperación:** Guardia de motor siempre activo y watchdog de liveness con conteo de auto-recuperación; corrección de tormenta de resync en Binance; Sharpe honesto retenido hasta tener al menos 20 operaciones.
 - **Rebalanceo de Liquidación:** Auto-balancea inventarios de wallets mediante retiros de red simulados, pagando tarifas reales de blockchain.
+- **Parametrización Profunda en Tiempo Real (fase final):** cada parámetro del motor — pisos de ganancia, buffers de latencia/slippage, paso de sizing, cooldown por par, niveles de circuit breaker, probabilidad de leg-risk, umbrales de rebalanceo, el gate estadístico por z-score y comisiones taker por exchange con presets Retail/VIP — se valida por esquema (Zod), se persiste y se aplica en caliente desde la página de Riesgo sin reiniciar.
+- **Ejecución Real en Entornos de Prueba (fase final):** un `executionMode: testnet` opcional enruta las patas del arbitraje como órdenes IOC reales y firmadas a Binance Spot Testnet y OKX Demo (matching engines reales, balances falsos) — ambas patas verificadas con fills reales; cae a simulación por operación, así el demo por defecto nunca depende de ello.
 - **Interfaz Bilingüe:** Cambio de idioma instantáneo entre English y Español en todos los componentes de la interfaz y documentación.
 
 ### Interface previews / Previsualización de Interfaz
@@ -236,7 +240,16 @@ pnpm dev
 
 ### EN
 
-The judged submission is frozen at commit [`9eb95a4`](https://github.com/Eras256/Aurex/commit/9eb95a4). During the additional public-deployment window the live system continued to iterate. The full, honest list below (also surfaced in-app on the **Build Notes** page) is what the live deployment carries on top of the frozen submission, so the two can be reconciled.
+The original 48-hour submission is frozen at commit [`9eb95a4`](https://github.com/Eras256/Aurex/commit/9eb95a4). The full, honest list below (also surfaced in-app on the **Build Notes** page) is what the live deployment carries on top of it — first the official **Final Phase** work (finalist extension window, Option B), then the earlier public-deploy delta.
+
+**Final Phase — extension window (deadline 12 Jul 2026)**
+
+- Deep runtime parametrization: every previously-hardcoded engine constant is a live, Zod-validated, hot-applied `EngineConfig` knob (sizing step, per-pair cooldown, circuit-breaker multiple, leg-risk probability, volatility-breaker %, loss limits/cooldowns, rebalancing thresholds, z-score gate) plus per-exchange taker-fee overrides with Retail/VIP presets — all editable from the Risk page with no restart.
+- Statistical-arbitrage z-score gate wired into execution (optional, configurable threshold): only anomalously wide, mean-reverting dislocations execute when enabled.
+- Deterministic unit tests for the configurable circuit breakers; the rejected-opportunities feed now rotates across venue pairs (a persistent structural dislocation such as the Coinbase USD/USDT premium no longer monopolises the log).
+- Rebalancing visibility on the Wallets page (active thresholds + recent settlement activity) and a max-drawdown metric beside the equity curve.
+- **Real test-environment execution:** `executionMode: testnet` places real signed IOC orders on Binance Spot Testnet and OKX Demo — both legs verified with real fills — with per-trade fallback to the simulator.
+- Redeployed backend (`aurex-agent.fly.dev`, Frankfurt) with durable Supabase Postgres persistence: trades, balances, config and P&L survive restarts/redeploys.
 
 **Execution realism & honest metrics**
 
@@ -287,7 +300,16 @@ The judged submission is frozen at commit [`9eb95a4`](https://github.com/Eras256
 
 ### ES
 
-La entrega evaluada está congelada en el commit [`9eb95a4`](https://github.com/Eras256/Aurex/commit/9eb95a4). Durante la ventana adicional de publicación, el sistema en vivo siguió iterando. La lista completa y honesta de abajo (también visible dentro de la app en la página **Build Notes**) es lo que el despliegue en vivo lleva sobre la entrega congelada, para poder reconciliar ambos.
+La entrega original de 48 horas está congelada en el commit [`9eb95a4`](https://github.com/Eras256/Aurex/commit/9eb95a4). La lista completa y honesta de abajo (también visible dentro de la app en la página **Build Notes**) es lo que el despliegue en vivo lleva sobre ella — primero el trabajo oficial de la **Fase Final** (ventana de extensión para finalistas, Opción B), y luego el delta previo del despliegue público.
+
+**Fase Final — ventana de extensión (cierre 12 jul 2026)**
+
+- Parametrización profunda en tiempo real: cada constante del motor que antes estaba fija es un parámetro vivo de `EngineConfig`, validado con Zod y aplicado en caliente (paso de sizing, cooldown por par, multiplicador del circuit breaker, probabilidad de leg-risk, % del breaker de volatilidad, límites/cooldowns de pérdidas, umbrales de rebalanceo, gate por z-score), más overrides de comisión taker por exchange con presets Retail/VIP — todo editable desde la página de Riesgo sin reiniciar.
+- Gate de arbitraje estadístico por z-score conectado a la ejecución (opcional, umbral configurable): al activarse solo ejecutan dislocaciones anómalamente amplias y reversibles.
+- Pruebas unitarias determinísticas para los circuit breakers configurables; el feed de oportunidades rechazadas ahora rota entre pares de venues (una dislocación estructural persistente como el premium USD/USDT de Coinbase ya no monopoliza el registro).
+- Visibilidad del rebalanceo en la página de Wallets (umbrales activos + actividad reciente) y métrica de drawdown máximo junto a la curva de equity.
+- **Ejecución real en entornos de prueba:** `executionMode: testnet` coloca órdenes IOC reales y firmadas en Binance Spot Testnet y OKX Demo — ambas patas verificadas con fills reales — con fallback a simulación por operación.
+- Backend redesplegado (`aurex-agent.fly.dev`, Frankfurt) con persistencia duradera en Supabase Postgres: trades, balances, config y P&L sobreviven reinicios/redeploys.
 
 **Realismo de ejecución y métricas honestas**
 

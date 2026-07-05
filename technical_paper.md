@@ -157,8 +157,16 @@ To ensure high accessibility, durability, and operational security:
 To coordinate real-time human-in-the-loop adjustments and live server diagnostics:
 
 - **Dynamic Calibration REST API:** Realized through the Express route `POST /api/v1/bot/calibrate` (guarded by API Key signature). Operators override risk settings (`minNetProfitUSD`, `maxPositionBTCPerExchange`, `latencySafetyBps`) in memory on the fly without causing server downtime or container resets.
-- **WebSocket Telemetry Server:** Exposed at `wss://bitcoin-arbitrage-bot.fly.dev/api/v1/telemetry/logs?token=<API_KEY>`. Using browser-compliant query parameter authorization tokens, browser terminals connect directly to stream core engine compute latencies, exchange feed delays, skipped opportunity logs, and global CEX warnings.
+- **WebSocket Telemetry Server:** Exposed at `wss://aurex-agent.fly.dev/api/v1/telemetry/logs?token=<API_KEY>`. Using browser-compliant query parameter authorization tokens, browser terminals connect directly to stream core engine compute latencies, exchange feed delays, skipped opportunity logs, and global CEX warnings.
 - **Secure Server-Side API Routing:** To prevent exposing the private `API_KEY` to client-side browser bundles, Next.js implements server-side API route proxies `/api/bot/calibrate` and `/api/copilot/audits` that perform private validation securely before forwarding requests to the Fly.io bot.
+
+#### 3.5 Deep Runtime Parametrization & Real Test-Environment Execution (Final Phase)
+
+Two capabilities added during the official finalist extension window complete the operational picture:
+
+- **Single-source, hot-applied configuration.** Every engine constant that shapes strategy or risk is a field of `EngineConfig` — validated by a Zod schema, persisted, and applied live with no process restart: minimum net profit, latency/slippage safety buffers, depth-walk sizing step, per-pair execution cooldown, the slippage circuit-breaker multiple, the modeled leg-fill failure probability, the volatility-spike breaker percentage, consecutive-loss limits and cooldown durations, inventory rebalancing thresholds (low-water marks and minimum transfer sizes), a statistical-arbitrage z-score gate (enable + threshold), and per-exchange taker-fee overrides with one-click Retail/VIP presets. Persisted configurations created before a parameter existed merge over defaults, so upgrades never boot with undefined knobs. The same parametrization makes the robustness paths deterministically testable (e.g. unit tests tighten the volatility breaker to prove it trips at the configured level).
+
+- **Real order execution against exchange test environments.** An optional `executionMode: "testnet"` routes both arbitrage legs as real, cryptographically signed IOC limit orders to venue test environments — Binance Spot Testnet (HMAC-SHA256) and OKX Demo Trading (OKX v5 signature + `x-simulated-trading` header). Fills returned by the venues' real matching engines are authoritative: the ledger books the actually-filled volume at the actual average price, genuine partial fills surface as leg risk, and an IOC that fails to cross books no loss. Order sizes are clamped small in test mode (test books carry thin, divergent liquidity), and any unconfigured or failing leg falls back to the internal simulator for that trade, so the default demonstration never depends on third-party test infrastructure. Both legs were verified end-to-end with real filled orders.
 
 ---
 
@@ -206,5 +214,6 @@ For public evaluation, performance auditing, and end-to-end telemetry capture, *
 
 - **Frontend User Interface:** Next.js terminal client deployed on **Vercel** with full static page optimization and global edge distribution.
   - **Live Production URL:** [https://aurex-terminal.vercel.app/](https://aurex-terminal.vercel.app/)
-- **Backend Simulator Engine:** Express-based CEX WebSocket ingestion adapter and memory engine deployed in close physical proximity to core US-East cloud servers on **Fly.io**.
-- **Shared Telemetry Database:** Direct PostgreSQL integration utilizing **Supabase** for real-time trade event capturing, persistent wallet state synchronization, and operational config updates.
+- **Backend Simulator Engine:** Express-based CEX WebSocket ingestion adapter and memory engine deployed on **Fly.io** in Frankfurt (`fra`) — empirically the only region reaching all five venue feeds, since Binance, OKX and Bybit geo-block their public market-data WebSockets across North America. It runs as a single machine by design: the engine is a stateful singleton, and a second machine would split state.
+  - **Live Backend URL:** [https://aurex-agent.fly.dev/](https://aurex-agent.fly.dev/)
+- **Shared Telemetry Database:** Direct PostgreSQL integration utilizing **Supabase** for real-time trade event capturing, persistent wallet state synchronization, and operational config updates — trades, balances, configuration and P&L survive machine restarts and redeploys.
