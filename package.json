@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Bitcoin Cross-Exchange Arbitrage Simulator",
+  "license": "MIT",
   "scripts": {
     "dev:web": "pnpm --filter web dev",
     "dev:bot": "pnpm --filter bot dev",
