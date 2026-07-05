@@ -259,12 +259,12 @@ export default function OverviewPage() {
       {/* 2. INSTITUTIONAL KPI CARDS */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-6">
         {/* Card 1: Equity */}
-        <Card glow className="flex flex-col justify-between min-h-[110px]">
+        <Card glow className="flex flex-col justify-between min-h-[110px] min-w-0">
           <CardHeader className="p-4 border-b-0 pb-0">
             <CardTitle className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">{t('overview.portfolio_equity')}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1">
-            <h3 className="text-2xl font-bold font-mono tracking-tight text-amber-500 glow-text-gold">
+            <h3 className="text-2xl font-bold font-mono tracking-tight text-amber-500 glow-text-gold truncate" title={`$${equity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
               ${equity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
             <span className="text-[10px] text-slate-500 font-mono">{t('overview.initial_reserve')}</span>
@@ -272,12 +272,12 @@ export default function OverviewPage() {
         </Card>
 
         {/* Card 2: Accumulated P&L */}
-        <Card className="flex flex-col justify-between min-h-[110px]">
+        <Card className="flex flex-col justify-between min-h-[110px] min-w-0">
           <CardHeader className="p-4 border-b-0 pb-0">
             <CardTitle className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">{t('overview.sim_net_pnl')}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1">
-            <h3 className={`text-2xl font-bold font-mono tracking-tight ${totalProfit >= 0 ? 'text-emerald-400 glow-text-green' : 'text-rose-500'}`}>
+            <h3 className={`text-2xl font-bold font-mono tracking-tight truncate ${totalProfit >= 0 ? 'text-emerald-400 glow-text-green' : 'text-rose-500'}`} title={`${totalProfit >= 0 ? '+' : ''}$${totalProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
               {totalProfit >= 0 ? '+' : ''}${totalProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
             <span className="text-[10px] text-slate-500 font-mono">{t('overview.after_slippage_fees')}</span>
@@ -285,12 +285,12 @@ export default function OverviewPage() {
         </Card>
 
         {/* Card 3: Win Rate */}
-        <Card className="flex flex-col justify-between min-h-[110px]">
+        <Card className="flex flex-col justify-between min-h-[110px] min-w-0">
           <CardHeader className="p-4 border-b-0 pb-0">
             <CardTitle className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">{t('overview.win_rate_label')}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1">
-            <h3 className="text-2xl font-bold font-mono tracking-tight text-white">
+            <h3 className="text-2xl font-bold font-mono tracking-tight text-white truncate" title={`${winRate.toFixed(1)}%`}>
               {winRate.toFixed(1)}%
             </h3>
             <span className="text-[10px] text-slate-500 font-mono">{t('overview.win_rate_sub')}</span>
@@ -298,12 +298,12 @@ export default function OverviewPage() {
         </Card>
 
         {/* Card 4: Total Trades */}
-        <Card className="flex flex-col justify-between min-h-[110px]">
+        <Card className="flex flex-col justify-between min-h-[110px] min-w-0">
           <CardHeader className="p-4 border-b-0 pb-0">
             <CardTitle className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">{t('overview.total_trades')}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1">
-            <h3 className="text-2xl font-bold font-mono tracking-tight text-white">
+            <h3 className="text-2xl font-bold font-mono tracking-tight text-white truncate" title={`${totalTrades}`}>
               {totalTrades}
             </h3>
             <span className="text-[10px] text-slate-500 font-mono">
@@ -313,12 +313,12 @@ export default function OverviewPage() {
         </Card>
 
         {/* Card 5: Sharpe Ratio */}
-        <Card className="flex flex-col justify-between min-h-[110px]">
+        <Card className="flex flex-col justify-between min-h-[110px] min-w-0">
           <CardHeader className="p-4 border-b-0 pb-0">
             <CardTitle className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">{t('overview.sharpe_ratio')}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1">
-            <h3 className="text-2xl font-bold font-mono tracking-tight text-white">
+            <h3 className="text-2xl font-bold font-mono tracking-tight text-white truncate" title={sharpeReady ? sharpeRatio.toFixed(2) : '—'}>
               {sharpeReady ? sharpeRatio.toFixed(2) : '—'}
             </h3>
             <span className="text-[10px] text-slate-500 font-mono">
@@ -328,12 +328,12 @@ export default function OverviewPage() {
         </Card>
 
         {/* Card 6: Detection Latency (speed criterion) */}
-        <Card glow className="flex flex-col justify-between min-h-[110px]">
+        <Card glow className="flex flex-col justify-between min-h-[110px] min-w-0">
           <CardHeader className="p-4 border-b-0 pb-0">
             <CardTitle className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">{t('overview.detection_latency')}</CardTitle>
           </CardHeader>
-          <CardContent className="p-4 pt-1">
-            <h3 className="text-2xl font-bold font-mono tracking-tight text-sky-400 glow-text-blue">
+          <CardContent className="p-4 pt-1 min-w-0">
+            <h3 className="text-2xl font-bold font-mono tracking-tight text-sky-400 glow-text-blue truncate" title={`${detectionLatency.toFixed(2)} ms`}>
               {detectionLatency.toFixed(2)}<span className="text-sm text-slate-500"> ms</span>
             </h3>
             <span className="text-[10px] text-slate-500 font-mono">

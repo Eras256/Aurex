@@ -117,13 +117,15 @@ export default function OpportunitiesPage() {
         </div>
 
         {/* Tab Filters */}
-        <Tabs value={filter} onValueChange={(val) => setFilter(val as 'ALL' | 'EXECUTED' | 'SKIPPED')} className="self-start">
-          <TabsList>
-            <TabsTrigger value="ALL">{t('opps.filter_all_label')}</TabsTrigger>
-            <TabsTrigger value="EXECUTED">{t('opps.filter_executed_label')}</TabsTrigger>
-            <TabsTrigger value="SKIPPED">{t('opps.filter_skipped_label')}</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="overflow-x-auto w-full md:w-auto pb-1 md:pb-0">
+          <Tabs value={filter} onValueChange={(val) => setFilter(val as 'ALL' | 'EXECUTED' | 'SKIPPED')} className="w-auto">
+            <TabsList className="min-w-max">
+              <TabsTrigger value="ALL">{t('opps.filter_all_label')}</TabsTrigger>
+              <TabsTrigger value="EXECUTED">{t('opps.filter_executed_label')}</TabsTrigger>
+              <TabsTrigger value="SKIPPED">{t('opps.filter_skipped_label')}</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
       </div>
 
       {/* OPPORTUNITIES TABLE */}

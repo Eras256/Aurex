@@ -226,7 +226,7 @@ export default function CopilotWorkspace() {
             <span className="text-[9px] uppercase font-mono tracking-wider text-slate-400 font-bold">
               {t('copilot.model')}
             </span>
-            <div className="flex gap-2 mt-1">
+            <div className="flex flex-wrap gap-2 mt-1">
               {models.map(m => (
                 <button
                   key={m}
