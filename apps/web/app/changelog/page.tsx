@@ -47,6 +47,27 @@ const FINAL_PHASE_GROUPS: ChangeGroup[] = [
     ],
   },
   {
+    tag: 'AI · LIVE MODEL',
+    title: {
+      en: 'Copilot upgraded to a real, live LLM — grounded on engine state',
+      es: 'Copiloto actualizado a un LLM real y en vivo — anclado al estado del motor',
+    },
+    items: [
+      {
+        en: 'The AI Copilot — and every in-app AI widget (trade critiques, opportunity explanations, system-health diagnostics and risk calibration) — is now backed by a real model (OpenAI gpt-4o-mini) instead of the deterministic mock. It is reached through two secure server-side Next.js routes; the API key is read server-side only and never reaches the client bundle.',
+        es: 'El Copiloto IA — y cada widget de IA de la app (críticas de ejecución, explicación de oportunidades, diagnóstico de salud del sistema y calibración de riesgo) — ahora usa un modelo real (OpenAI gpt-4o-mini) en lugar del mock determinístico. Se accede vía dos rutas server-side seguras de Next.js; la API key se lee solo en el servidor y jamás llega al bundle del cliente.',
+      },
+      {
+        en: 'Answers are grounded on the live engine state (GET /state): the model reasons over the operator’s real P&L, risk config, recent fills and rejected windows, so it cites actual numbers rather than templated boilerplate.',
+        es: 'Las respuestas se anclan al estado en vivo del motor (GET /state): el modelo razona sobre el P&L real del operador, la configuración de riesgo, los fills recientes y las ventanas rechazadas, de modo que cita cifras reales en vez de plantillas.',
+      },
+      {
+        en: 'Resilience is preserved and made honest: if the key is unconfigured or a request fails, each call falls back transparently to the deterministic mock so the demo never breaks — and the UI labels which mode produced the answer (live model vs. offline fallback) so the distinction is never overstated.',
+        es: 'La resiliencia se conserva y se hace honesta: si la key no está configurada o una petición falla, cada llamada cae de forma transparente al mock determinístico para que la demo nunca se rompa — y la interfaz etiqueta qué modo produjo la respuesta (modelo en vivo vs. fallback offline), para no exagerar nunca la distinción.',
+      },
+    ],
+  },
+  {
     tag: 'STRATEGY+',
     title: {
       en: 'Statistical-arbitrage gate wired to execution',

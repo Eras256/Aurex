@@ -1,17 +1,34 @@
 import { MockAiAgent } from './mock/mockAiAgent';
 import { MockDiagnostics } from './mock/mockDiagnostics';
 import { MockRiskAdvisor } from './mock/mockRiskAdvisor';
-import { RiskParams } from './types';
+import {
+  RiskParams,
+  TradeCritiqueInput,
+  TradeCritiqueOutput,
+  OpportunityAIInput,
+  OpportunityAIOutput,
+  HealthAIInput,
+  HealthAIOutput,
+  RiskAIInput,
+  RiskAIOutput,
+  DashboardAIInput,
+  DashboardAIOutput,
+} from './types';
 
-async function fetchStructured(contextType: string, payload: any) {
+async function fetchStructured<TOut>(contextType: string, payload: unknown): Promise<TOut> {
   const res = await fetch('/api/copilot/structured', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ contextType, payload }),
   });
   if (!res.ok) throw new Error('API Error');
-  return await res.json();
+  return (await res.json()) as TOut;
 }
+// Honest source markers surfaced as a Copilot tool card so the operator can always tell
+// whether an answer came from the real model or the deterministic offline fallback.
+const LIVE_NOTE = 'LIVE MODEL — OpenAI gpt-4o-mini, grounded on real engine state.';
+const FALLBACK_NOTE = 'OFFLINE FALLBACK — live model unavailable; served the deterministic engine, not OpenAI.';
+
 type Status = 'thinking' | 'streaming' | 'completed';
 type ToolCb = (tool: { name: string; status: 'executing' | 'success'; durationMs: number; result: string }) => void;
 
@@ -36,24 +53,24 @@ export class RealAiAgent {
   static getAuditLogs = MockAiAgent.getAuditLogs.bind(MockAiAgent);
   static insertAuditLog = MockAiAgent.insertAuditLog.bind(MockAiAgent);
 
-  static async critiqueTrade(payload: any) {
-    try { return await fetchStructured('trade', payload); } catch { return MockDiagnostics.critiqueTrade(payload); }
+  static async critiqueTrade(payload: TradeCritiqueInput): Promise<TradeCritiqueOutput> {
+    try { return await fetchStructured<TradeCritiqueOutput>('trade', payload); } catch { return MockDiagnostics.critiqueTrade(payload); }
   }
 
-  static async explainOpportunity(payload: any) {
-    try { return await fetchStructured('opportunity', payload); } catch { return MockDiagnostics.explainOpportunity(payload); }
+  static async explainOpportunity(payload: OpportunityAIInput): Promise<OpportunityAIOutput> {
+    try { return await fetchStructured<OpportunityAIOutput>('opportunity', payload); } catch { return MockDiagnostics.explainOpportunity(payload); }
   }
 
-  static async diagnoseHealth(payload: any) {
-    try { return await fetchStructured('health', payload); } catch { return MockDiagnostics.diagnoseHealth(payload); }
+  static async diagnoseHealth(payload: HealthAIInput): Promise<HealthAIOutput> {
+    try { return await fetchStructured<HealthAIOutput>('health', payload); } catch { return MockDiagnostics.diagnoseHealth(payload); }
   }
 
-  static async calibrateRisk(payload: any) {
-    try { return await fetchStructured('risk-calibrate', payload); } catch { return MockRiskAdvisor.calibrateRisk(payload); }
+  static async calibrateRisk(payload: RiskAIInput): Promise<RiskAIOutput> {
+    try { return await fetchStructured<RiskAIOutput>('risk-calibrate', payload); } catch { return MockRiskAdvisor.calibrateRisk(payload); }
   }
 
-  static async generateAdvisory(payload: any) {
-    try { return await fetchStructured('risk-advisory', payload); } catch { return MockRiskAdvisor.generateAdvisory(payload); }
+  static async generateAdvisory(payload: DashboardAIInput): Promise<DashboardAIOutput> {
+    try { return await fetchStructured<DashboardAIOutput>('risk-advisory', payload); } catch { return MockRiskAdvisor.generateAdvisory(payload); }
   }
 
   static async streamScenarioResponse(
@@ -73,13 +90,18 @@ export class RealAiAgent {
         body: JSON.stringify({ query, language }),
       });
     } catch {
+      onToolInvocation({ name: 'ai_mode', status: 'success', durationMs: 0, result: FALLBACK_NOTE });
       return MockAiAgent.streamScenarioResponse(query, onToken, onStatus, onToolInvocation, language);
     }
 
     // Unconfigured or upstream failure → seamless mock fallback.
     if (!res.ok || !res.body) {
+      onToolInvocation({ name: 'ai_mode', status: 'success', durationMs: 0, result: FALLBACK_NOTE });
       return MockAiAgent.streamScenarioResponse(query, onToken, onStatus, onToolInvocation, language);
     }
+
+    // Honest live-vs-fallback marker: this answer is coming from the real model, not the mock.
+    onToolInvocation({ name: 'ai_mode', status: 'success', durationMs: 0, result: LIVE_NOTE });
 
     // A single "grounding" tool card so the UI still shows the live-context step.
     const t0 = performance.now();
@@ -153,6 +175,7 @@ export class RealAiAgent {
 
     // Guard: an empty stream (e.g. model returned nothing) falls back to the mock.
     if (!full.trim()) {
+      onToolInvocation({ name: 'ai_mode', status: 'success', durationMs: 0, result: FALLBACK_NOTE });
       return MockAiAgent.streamScenarioResponse(query, onToken, onStatus, onToolInvocation, language);
     }
     return meta;

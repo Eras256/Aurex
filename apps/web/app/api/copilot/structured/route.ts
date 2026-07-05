@@ -14,9 +14,9 @@ export async function POST(request: Request) {
     return new Response(JSON.stringify({ error: 'unconfigured' }), { status: 503 });
   }
 
-  let body: any;
+  let body: { contextType?: string; payload?: unknown };
   try {
-    body = await request.json();
+    body = (await request.json()) as { contextType?: string; payload?: unknown };
   } catch {
     return new Response(JSON.stringify({ error: 'bad request' }), { status: 400 });
   }
@@ -85,10 +85,15 @@ Output JSON schema: {
       return new Response(JSON.stringify({ error: 'upstream failure' }), { status: 502 });
     }
 
-    const data = await upstream.json();
+    const data = (await upstream.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
     const content = data.choices?.[0]?.message?.content;
-    
-    const parsed = JSON.parse(content);
+    if (!content) {
+      return new Response(JSON.stringify({ error: 'empty completion' }), { status: 502 });
+    }
+
+    const parsed = JSON.parse(content) as unknown;
     return new Response(JSON.stringify(parsed), { headers: { 'Content-Type': 'application/json' } });
   } catch (err) {
     return new Response(JSON.stringify({ error: 'parse or fetch error' }), { status: 500 });
