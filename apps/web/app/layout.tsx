@@ -39,7 +39,7 @@ export default function RootLayout({
                 <HeaderTicker />
 
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-slate-500 font-mono text-xs hidden sm:inline">API VER: 1.0.0</span>
+                  <span className="text-slate-500 font-mono text-xs hidden sm:inline">API VER: 1.1.0</span>
                   <div className="px-2.5 py-1 rounded bg-white/5 text-[10px] font-mono text-slate-400 uppercase tracking-wider">
                     TESTNET
                   </div>

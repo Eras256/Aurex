@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import React from 'react';
 
 import { useLanguage } from '../app/LanguageContext';
@@ -17,19 +16,23 @@ export const Footer: React.FC = () => {
           <span className="text-slate-400 font-semibold tracking-wider">AUREX</span>
           <span>&copy; {new Date().getFullYear()}</span>
           <span className="hidden xs:inline text-white/10">|</span>
-          <Link
-            href="/terms"
+          <a
+            href="https://aurex-terminal.vercel.app/terms"
+            target="_blank"
+            rel="noopener noreferrer"
             className="hover:text-slate-300 transition-colors cursor-pointer underline decoration-white/10 underline-offset-4"
           >
             {t('footer.terms')}
-          </Link>
+          </a>
           <span className="text-white/10">|</span>
-          <Link
-            href="/privacy"
+          <a
+            href="https://aurex-terminal.vercel.app/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
             className="hover:text-slate-300 transition-colors cursor-pointer underline decoration-white/10 underline-offset-4"
           >
             {t('footer.privacy')}
-          </Link>
+          </a>
         </div>
 
         {/* Right Side: Telemetry Node Indicator */}

@@ -8,6 +8,16 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useLanguage } from '../LanguageContext';
 import { useWebSocket } from '../WebSocketContext';
 
+const venueNames: Record<string, string> = {
+  binance: 'Binance Spot',
+  kraken: 'Kraken Spot',
+  coinbase: 'Coinbase Advanced',
+  okx: 'OKX Spot',
+  bybit: 'Bybit Spot',
+};
+
+const venueIds = ['binance', 'kraken', 'coinbase', 'okx', 'bybit'];
+
 export default function WalletsPage() {
   const { state } = useWebSocket();
   const { t, language } = useLanguage();
@@ -18,15 +28,7 @@ export default function WalletsPage() {
   const maxQuote = Math.max(100000, ...venueIds.map(id => (wallets[id]?.USDT?.free || 0) + (wallets[id]?.USDT?.locked || 0)));
   const maxBtc = Math.max(3.0, ...venueIds.map(id => (wallets[id]?.BTC?.free || 0) + (wallets[id]?.BTC?.locked || 0)));
 
-  const venueNames: Record<string, string> = {
-    binance: 'Binance Spot',
-    kraken: 'Kraken Spot',
-    coinbase: 'Coinbase Advanced',
-    okx: 'OKX Spot',
-    bybit: 'Bybit Spot',
-  };
 
-  const venueIds = ['binance', 'kraken', 'coinbase', 'okx', 'bybit'];
 
   const aggregateBtc = venueIds.reduce((sum, id) => sum + (wallets[id]?.BTC?.free || 0), 0);
   const aggregateUsdt = venueIds.reduce((sum, id) => sum + (wallets[id]?.USDT?.free || 0), 0);
