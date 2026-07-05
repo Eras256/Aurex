@@ -88,22 +88,10 @@ export default function OverviewPage() {
   // Metric variables with sensible defaults
   const totalProfit = state?.pnl?.totalProfitUSD ?? 0;
   
-  let liveEquity = 100000 + totalProfit;
-  if (state?.wallets && Object.keys(state.wallets).length > 0) {
-    const btcPrice = state?.orderBooks?.['binance:BTCUSDT']?.asks?.[0]?.price || 62000;
-    const venueIds = ['binance', 'kraken', 'coinbase', 'okx', 'bybit'];
-    let totalUsdt = 0;
-    let totalBtc = 0;
-    venueIds.forEach((id) => {
-      const w = state.wallets[id];
-      if (w) {
-        totalUsdt += (w.USDT?.free || 0) + (w.USDT?.locked || 0);
-        totalBtc += (w.BTC?.free || 0) + (w.BTC?.locked || 0);
-      }
-    });
-    liveEquity = totalUsdt + (totalBtc * btcPrice);
-  }
-  const equity = liveEquity;
+  // Portfolio equity = starting allocation + realized net P&L, so the headline stays coherent
+  // with its own "100k initial allocation" label and the Live Net P&L card. (Per-venue wallet
+  // reserves are seeded inventory surfaced on the Wallets page; they must not drive this figure.)
+  const equity = 100000 + totalProfit;
   const totalTrades = state?.pnl?.totalTrades ?? 0;
   const winRate = state?.pnl?.winRate ?? 0;
   const sharpeRatio = state?.pnl?.sharpeRatio ?? 0;
@@ -264,7 +252,7 @@ export default function OverviewPage() {
             <CardTitle className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">{t('overview.portfolio_equity')}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1">
-            <h3 className="text-2xl font-bold font-mono tracking-tight text-amber-500 glow-text-gold truncate" title={`$${equity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+            <h3 className="text-xl xl:text-2xl font-bold font-mono tracking-tight text-amber-500 glow-text-gold" title={`$${equity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
               ${equity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
             <span className="text-[10px] text-slate-500 font-mono">{t('overview.initial_reserve')}</span>
@@ -277,7 +265,7 @@ export default function OverviewPage() {
             <CardTitle className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">{t('overview.sim_net_pnl')}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1">
-            <h3 className={`text-2xl font-bold font-mono tracking-tight truncate ${totalProfit >= 0 ? 'text-emerald-400 glow-text-green' : 'text-rose-500'}`} title={`${totalProfit >= 0 ? '+' : ''}$${totalProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+            <h3 className={`text-xl xl:text-2xl font-bold font-mono tracking-tight ${totalProfit >= 0 ? 'text-emerald-400 glow-text-green' : 'text-rose-500'}`} title={`${totalProfit >= 0 ? '+' : ''}$${totalProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
               {totalProfit >= 0 ? '+' : ''}${totalProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
             <span className="text-[10px] text-slate-500 font-mono">{t('overview.after_slippage_fees')}</span>
@@ -290,7 +278,7 @@ export default function OverviewPage() {
             <CardTitle className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">{t('overview.win_rate_label')}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1">
-            <h3 className="text-2xl font-bold font-mono tracking-tight text-white truncate" title={`${winRate.toFixed(1)}%`}>
+            <h3 className="text-xl xl:text-2xl font-bold font-mono tracking-tight text-white" title={`${winRate.toFixed(1)}%`}>
               {winRate.toFixed(1)}%
             </h3>
             <span className="text-[10px] text-slate-500 font-mono">{t('overview.win_rate_sub')}</span>
@@ -303,7 +291,7 @@ export default function OverviewPage() {
             <CardTitle className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">{t('overview.total_trades')}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1">
-            <h3 className="text-2xl font-bold font-mono tracking-tight text-white truncate" title={`${totalTrades}`}>
+            <h3 className="text-xl xl:text-2xl font-bold font-mono tracking-tight text-white" title={`${totalTrades}`}>
               {totalTrades}
             </h3>
             <span className="text-[10px] text-slate-500 font-mono">
@@ -318,7 +306,7 @@ export default function OverviewPage() {
             <CardTitle className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">{t('overview.sharpe_ratio')}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1">
-            <h3 className="text-2xl font-bold font-mono tracking-tight text-white truncate" title={sharpeReady ? sharpeRatio.toFixed(2) : '—'}>
+            <h3 className="text-xl xl:text-2xl font-bold font-mono tracking-tight text-white" title={sharpeReady ? sharpeRatio.toFixed(2) : '—'}>
               {sharpeReady ? sharpeRatio.toFixed(2) : '—'}
             </h3>
             <span className="text-[10px] text-slate-500 font-mono">
@@ -333,7 +321,7 @@ export default function OverviewPage() {
             <CardTitle className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">{t('overview.detection_latency')}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1 min-w-0">
-            <h3 className="text-2xl font-bold font-mono tracking-tight text-sky-400 glow-text-blue truncate" title={`${detectionLatency.toFixed(2)} ms`}>
+            <h3 className="text-xl xl:text-2xl font-bold font-mono tracking-tight text-sky-400 glow-text-blue" title={`${detectionLatency.toFixed(2)} ms`}>
               {detectionLatency.toFixed(2)}<span className="text-sm text-slate-500"> ms</span>
             </h3>
             <span className="text-[10px] text-slate-500 font-mono">
