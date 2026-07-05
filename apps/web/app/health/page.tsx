@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { MockDiagnostics } from '@/lib/ai/mock/mockDiagnostics';
+import { RealAiAgent } from '@/lib/ai/realAiAgent';
 import { HealthAIOutput } from '@/lib/ai/types';
 
 import { useLanguage } from '../LanguageContext';
@@ -93,7 +93,7 @@ export default function SystemHealthPage() {
         Object.entries(conn).forEach(([k, v]) => {
           reconnects[k] = v.reconnects;
         });
-        const res = await MockDiagnostics.diagnoseHealth({
+        const res = await RealAiAgent.diagnoseHealth({
           jitterVarianceMs: metrics?.detectionLatencyMs ?? 1.2,
           reconnectCounts: reconnects,
         });

@@ -18,7 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { MockRiskAdvisor } from '@/lib/ai/mock/mockRiskAdvisor';
+import { RealAiAgent } from '@/lib/ai/realAiAgent';
 import { DashboardAIOutput } from '@/lib/ai/types';
 
 import { useLanguage } from './LanguageContext';
@@ -66,7 +66,7 @@ export default function OverviewPage() {
       setAiLoading(true);
       try {
         const latency = state?.metrics?.detectionLatencyMs ?? 0.85;
-        const res = await MockRiskAdvisor.generateAdvisory({
+        const res = await RealAiAgent.generateAdvisory({
           rollingVolume24hUSD: 14500,
           currentSlippageBps: Math.round(latency * 8), // simulated slippage proxy from latency spikes
           meanComputeLatencyMs: latency,

@@ -25,9 +25,9 @@ export const Navigation: React.FC = () => {
   useEffect(() => {
     const updateAiStatus = () => {
       if (typeof window !== 'undefined') {
-        const savedStatus = localStorage.getItem('aurex_ai_status') || 'Live';
-        const savedProvider = localStorage.getItem('aurex_ai_provider') || 'OpenAI';
-        const savedModel = localStorage.getItem('aurex_ai_model') || 'gpt-4o-mini';
+        const savedStatus = localStorage.getItem('aurex_live_ai_status') || 'Live';
+        const savedProvider = localStorage.getItem('aurex_live_ai_provider') || 'OpenAI';
+        const savedModel = localStorage.getItem('aurex_live_ai_model') || 'gpt-4o-mini';
         setAiStatus({
           status: savedStatus,
           provider: savedProvider,
@@ -43,9 +43,6 @@ export const Navigation: React.FC = () => {
 
   const getAiBadgeText = () => {
     if (aiStatus.status === 'Simulated') return 'AI: Simulated';
-    if (aiStatus.provider === 'OpenAI') return 'AI: GPT-5';
-    if (aiStatus.provider === 'Anthropic') return 'AI: Claude';
-    if (aiStatus.provider === 'Gemini') return 'AI: Gemini';
     return `AI: ${aiStatus.model}`;
   };
 

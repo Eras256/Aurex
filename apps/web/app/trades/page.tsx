@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { MockDiagnostics } from '@/lib/ai/mock/mockDiagnostics';
+import { RealAiAgent } from '@/lib/ai/realAiAgent';
 import { TradeCritiqueOutput } from '@/lib/ai/types';
 
 import { useLanguage } from '../LanguageContext';
@@ -35,7 +35,7 @@ export default function TradesPage() {
     const fetchCritique = async () => {
       setAiLoading(true);
       try {
-        const res = await MockDiagnostics.critiqueTrade({
+        const res = await RealAiAgent.critiqueTrade({
           tradeId: selectedTrade.id,
           elapsedExecutionMs: Math.round(selectedTrade.slippagePaid > 2.0 ? 65 : 12), // simulated latency based on actual slippage in row
           slippageUSD: selectedTrade.slippagePaid || 0,

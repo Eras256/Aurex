@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MockDiagnostics } from '@/lib/ai/mock/mockDiagnostics';
+import { RealAiAgent } from '@/lib/ai/realAiAgent';
 import { OpportunityAIOutput } from '@/lib/ai/types';
 
 import { useLanguage } from '../LanguageContext';
@@ -86,7 +86,7 @@ export default function OpportunitiesPage() {
       try {
         const grossVal = selectedOpp.grossSpread || 0;
         const netVal = selectedOpp.expectedNetProfitUSD || selectedOpp.netSpread || 0;
-        const res = await MockDiagnostics.explainOpportunity({
+        const res = await RealAiAgent.explainOpportunity({
           opportunityId: selectedOpp.id,
           buyVenue: selectedOpp.buyExchange,
           sellVenue: selectedOpp.sellExchange,

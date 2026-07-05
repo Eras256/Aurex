@@ -1,7 +1,17 @@
 import { MockAiAgent } from './mock/mockAiAgent';
+import { MockDiagnostics } from './mock/mockDiagnostics';
+import { MockRiskAdvisor } from './mock/mockRiskAdvisor';
 import { RiskParams } from './types';
 
-
+async function fetchStructured(contextType: string, payload: any) {
+  const res = await fetch('/api/copilot/structured', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contextType, payload }),
+  });
+  if (!res.ok) throw new Error('API Error');
+  return await res.json();
+}
 type Status = 'thinking' | 'streaming' | 'completed';
 type ToolCb = (tool: { name: string; status: 'executing' | 'success'; durationMs: number; result: string }) => void;
 
@@ -25,6 +35,26 @@ interface StreamMeta {
 export class RealAiAgent {
   static getAuditLogs = MockAiAgent.getAuditLogs.bind(MockAiAgent);
   static insertAuditLog = MockAiAgent.insertAuditLog.bind(MockAiAgent);
+
+  static async critiqueTrade(payload: any) {
+    try { return await fetchStructured('trade', payload); } catch { return MockDiagnostics.critiqueTrade(payload); }
+  }
+
+  static async explainOpportunity(payload: any) {
+    try { return await fetchStructured('opportunity', payload); } catch { return MockDiagnostics.explainOpportunity(payload); }
+  }
+
+  static async diagnoseHealth(payload: any) {
+    try { return await fetchStructured('health', payload); } catch { return MockDiagnostics.diagnoseHealth(payload); }
+  }
+
+  static async calibrateRisk(payload: any) {
+    try { return await fetchStructured('risk-calibrate', payload); } catch { return MockRiskAdvisor.calibrateRisk(payload); }
+  }
+
+  static async generateAdvisory(payload: any) {
+    try { return await fetchStructured('risk-advisory', payload); } catch { return MockRiskAdvisor.generateAdvisory(payload); }
+  }
 
   static async streamScenarioResponse(
     query: string,

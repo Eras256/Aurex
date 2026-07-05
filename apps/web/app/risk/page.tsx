@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
-import { MockRiskAdvisor } from '@/lib/ai/mock/mockRiskAdvisor';
+import { RealAiAgent } from '@/lib/ai/realAiAgent';
 import { RiskAIOutput } from '@/lib/ai/types';
 
 import { useLanguage } from '../LanguageContext';
@@ -106,7 +106,7 @@ export default function RiskSettingsPage() {
     const fetchCalibration = async () => {
       setAiLoading(true);
       try {
-        const res = await MockRiskAdvisor.calibrateRisk({
+        const res = await RealAiAgent.calibrateRisk({
           currentRiskParams: {
             minNetProfitUSD: state.config.minNetProfitUSD,
             latencyDriftBufferBps: state.config.latencySafetyBps,
