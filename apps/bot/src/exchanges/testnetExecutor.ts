@@ -204,13 +204,21 @@ async function placeBybitTestnet(p: PlaceOrderParams): Promise<FillResult> {
     return { ok: false, filledQty: 0, avgPrice: 0, status: 'REJECTED', venue: 'bybit', error: ack?.retMsg ?? 'Bybit order rejected' };
   }
 
-  // The create ack carries no fill detail; read the (already closed, IOC) order back.
+  // The create ack carries no fill detail, and the just-closed IOC takes a moment to appear
+  // in the order queries — poll briefly (realtime first, history as fallback).
   const query = `category=spot&orderId=${ack.result.orderId}`;
-  const read = (await bybitRequest('GET', `/v5/order/history?${query}`, query)) as {
-    retCode?: number;
-    result?: { list?: Array<{ cumExecQty?: string; avgPrice?: string; orderStatus?: string }> };
-  };
-  const order = read?.result?.list?.[0];
+  type BybitOrder = { cumExecQty?: string; avgPrice?: string; orderStatus?: string };
+  let order: BybitOrder | undefined;
+  for (let attempt = 0; attempt < 3 && !order; attempt++) {
+    await new Promise((r) => setTimeout(r, 500));
+    for (const path of ['/v5/order/realtime', '/v5/order/history']) {
+      const read = (await bybitRequest('GET', `${path}?${query}`, query)) as {
+        result?: { list?: BybitOrder[] };
+      };
+      order = read?.result?.list?.[0];
+      if (order) break;
+    }
+  }
   const filledQty = Number(order?.cumExecQty ?? 0);
   const avgPrice = Number(order?.avgPrice ?? 0);
   return { ok: true, filledQty, avgPrice, status: order?.orderStatus ?? 'UNKNOWN', venue: 'bybit' };

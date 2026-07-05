@@ -71,7 +71,7 @@ La mayoría de los simuladores calculan spreads de forma ingenua usando precios 
 - **Reliability & Self-Heal:** Always-on engine guard and liveness watchdog with self-heal recovery counting; Binance resync-storm fix; honest Sharpe ratio withheld until at least 20 trades exist.
 - **Settlement-Style Rebalancing:** Auto-balances exchange inventories via simulated blockchain withdrawals, paying actual network fees.
 - **Deep Runtime Parametrization (final phase):** every engine knob — profit floors, latency/slippage buffers, sizing step, per-pair cooldown, circuit-breaker levels, leg-risk probability, rebalancing thresholds, the statistical z-score gate, and per-exchange taker fees with Retail/VIP presets — is schema-validated (Zod), persisted, and hot-applied from the Risk page with no restart.
-- **Real Test-Environment Execution (final phase):** an optional `executionMode: testnet` routes arbitrage legs as real signed IOC orders to Binance Spot Testnet and OKX Demo (real matching engines, fake balances) — both legs verified with real fills; falls back to the simulator per-trade so the default demo never depends on it.
+- **Real Test-Environment Execution (final phase):** an optional `executionMode: testnet` routes arbitrage legs as real signed IOC orders to Binance Spot Testnet, OKX Demo and Bybit Testnet (real matching engines, fake balances) — all three venues verified with real fills; falls back to the simulator per-trade so the default demo never depends on it.
 - **Bilingual Interface:** Toggle languages instantly between English and Español across all UI components and documentation.
 
 ### ES
@@ -87,7 +87,7 @@ La mayoría de los simuladores calculan spreads de forma ingenua usando precios 
 - **Fiabilidad y Auto-Recuperación:** Guardia de motor siempre activo y watchdog de liveness con conteo de auto-recuperación; corrección de tormenta de resync en Binance; Sharpe honesto retenido hasta tener al menos 20 operaciones.
 - **Rebalanceo de Liquidación:** Auto-balancea inventarios de wallets mediante retiros de red simulados, pagando tarifas reales de blockchain.
 - **Parametrización Profunda en Tiempo Real (fase final):** cada parámetro del motor — pisos de ganancia, buffers de latencia/slippage, paso de sizing, cooldown por par, niveles de circuit breaker, probabilidad de leg-risk, umbrales de rebalanceo, el gate estadístico por z-score y comisiones taker por exchange con presets Retail/VIP — se valida por esquema (Zod), se persiste y se aplica en caliente desde la página de Riesgo sin reiniciar.
-- **Ejecución Real en Entornos de Prueba (fase final):** un `executionMode: testnet` opcional enruta las patas del arbitraje como órdenes IOC reales y firmadas a Binance Spot Testnet y OKX Demo (matching engines reales, balances falsos) — ambas patas verificadas con fills reales; cae a simulación por operación, así el demo por defecto nunca depende de ello.
+- **Ejecución Real en Entornos de Prueba (fase final):** un `executionMode: testnet` opcional enruta las patas del arbitraje como órdenes IOC reales y firmadas a Binance Spot Testnet, OKX Demo y Bybit Testnet (matching engines reales, balances falsos) — los tres venues verificados con fills reales; cae a simulación por operación, así el demo por defecto nunca depende de ello.
 - **Interfaz Bilingüe:** Cambio de idioma instantáneo entre English y Español en todos los componentes de la interfaz y documentación.
 
 ### Interface previews / Previsualización de Interfaz
@@ -248,7 +248,7 @@ The original 48-hour submission is frozen at commit [`9eb95a4`](https://github.c
 - Statistical-arbitrage z-score gate wired into execution (optional, configurable threshold): only anomalously wide, mean-reverting dislocations execute when enabled.
 - Deterministic unit tests for the configurable circuit breakers; the rejected-opportunities feed now rotates across venue pairs (a persistent structural dislocation such as the Coinbase USD/USDT premium no longer monopolises the log).
 - Rebalancing visibility on the Wallets page (active thresholds + recent settlement activity) and a max-drawdown metric beside the equity curve.
-- **Real test-environment execution:** `executionMode: testnet` places real signed IOC orders on Binance Spot Testnet and OKX Demo — both legs verified with real fills — with per-trade fallback to the simulator.
+- **Real test-environment execution:** `executionMode: testnet` places real signed IOC orders on Binance Spot Testnet, OKX Demo and Bybit Testnet — all three venues verified with real fills (6 real-executable directed routes) — with per-trade fallback to the simulator.
 - Redeployed backend (`aurex-agent.fly.dev`, Frankfurt) with durable Supabase Postgres persistence: trades, balances, config and P&L survive restarts/redeploys.
 
 **Execution realism & honest metrics**
@@ -308,7 +308,7 @@ La entrega original de 48 horas está congelada en el commit [`9eb95a4`](https:/
 - Gate de arbitraje estadístico por z-score conectado a la ejecución (opcional, umbral configurable): al activarse solo ejecutan dislocaciones anómalamente amplias y reversibles.
 - Pruebas unitarias determinísticas para los circuit breakers configurables; el feed de oportunidades rechazadas ahora rota entre pares de venues (una dislocación estructural persistente como el premium USD/USDT de Coinbase ya no monopoliza el registro).
 - Visibilidad del rebalanceo en la página de Wallets (umbrales activos + actividad reciente) y métrica de drawdown máximo junto a la curva de equity.
-- **Ejecución real en entornos de prueba:** `executionMode: testnet` coloca órdenes IOC reales y firmadas en Binance Spot Testnet y OKX Demo — ambas patas verificadas con fills reales — con fallback a simulación por operación.
+- **Ejecución real en entornos de prueba:** `executionMode: testnet` coloca órdenes IOC reales y firmadas en Binance Spot Testnet, OKX Demo y Bybit Testnet — los tres venues verificados con fills reales (6 rutas dirigidas ejecutables en real) — con fallback a simulación por operación.
 - Backend redesplegado (`aurex-agent.fly.dev`, Frankfurt) con persistencia duradera en Supabase Postgres: trades, balances, config y P&L sobreviven reinicios/redeploys.
 
 **Realismo de ejecución y métricas honestas**

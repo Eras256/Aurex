@@ -106,8 +106,8 @@ const FINAL_PHASE_GROUPS: ChangeGroup[] = [
     },
     items: [
       {
-        en: 'An optional executionMode: "testnet" routes arbitrage legs to real signed IOC orders on venue test environments (Binance Spot Testnet verified live with a real filled order; Bybit Testnet and OKX Demo wired with the same signing/order-placement path) — fake balances, no real funds, real matching engines. Falls back to the internal simulator per-trade if a leg is unconfigured or fails, so the default demo experience never depends on it.',
-        es: 'Un modo opcional executionMode: "testnet" enruta las patas de arbitraje a órdenes IOC reales y firmadas en los entornos de prueba de los exchanges (Binance Spot Testnet verificado en vivo con una orden real llenada; Bybit Testnet y OKX Demo cableados con el mismo esquema de firma y colocación) — balances falsos, sin fondos reales, motores de matching reales. Si una pata no está configurada o falla, cae a la simulación interna para ese trade, así el modo demo por defecto nunca depende de esto.',
+        en: 'An optional executionMode: "testnet" routes arbitrage legs to real signed IOC orders on venue test environments — Binance Spot Testnet, OKX Demo and Bybit Testnet, all three verified live with real filled orders (six real-executable directed routes) — fake balances, no real funds, real matching engines. Falls back to the internal simulator per-trade if a leg is unconfigured or fails, so the default demo experience never depends on it.',
+        es: 'Un modo opcional executionMode: "testnet" enruta las patas de arbitraje a órdenes IOC reales y firmadas en los entornos de prueba de los exchanges — Binance Spot Testnet, OKX Demo y Bybit Testnet, los tres verificados en vivo con órdenes reales llenadas (seis rutas dirigidas ejecutables en real) — balances falsos, sin fondos reales, motores de matching reales. Si una pata no está configurada o falla, cae a la simulación interna para ese trade, así el modo demo por defecto nunca depende de esto.',
       },
     ],
   },
