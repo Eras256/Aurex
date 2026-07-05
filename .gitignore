@@ -46,3 +46,7 @@ SKILL.md
 # Private strategy/prep docs (never commit)
 PLAN-PODIO.md
 DEMO-GUION.md
+
+# Internal dev guide (local only, not part of the public submission)
+claude.md
+CLAUDE.md
