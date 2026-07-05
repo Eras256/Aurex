@@ -22,3 +22,8 @@ playwright-report
 test-results
 .vercel
 .DS_Store
+
+# Local persistence state must NEVER ship inside the image — a stale local ledger
+# would masquerade as live production history on boot.
+**/db.json
+**/db.sqlite
