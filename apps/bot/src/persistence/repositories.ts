@@ -370,7 +370,10 @@ export async function resetSimulation(): Promise<void> {
     await supabase.from('arbitrage_opportunities').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     await supabase.from('simulated_trades').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     await supabase.from('engine_events').delete().neq('id', 'placeholder');
-    await supabase.from('pnl_snapshots').delete().neq('id', 'placeholder');
+    // pnl_snapshots.id is a BIGINT identity — comparing it to a text placeholder throws a
+    // Postgres type error (silently swallowed), which left the equity history unpurged and
+    // let stale curves resurrect on every reboot. Filter on the numeric domain instead.
+    await supabase.from('pnl_snapshots').delete().gte('id', 0);
     
     // Re-upsert default funding balances
     for (const [exchangeId, assets] of Object.entries(INITIAL_WALLET_BALANCES)) {
