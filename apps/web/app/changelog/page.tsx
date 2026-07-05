@@ -25,6 +25,107 @@ type ChangeGroup = {
   items: { en: string; es: string }[];
 };
 
+// Final-phase work (finalist extension window, Option B — deadline Sun 12 Jul 2026) shown
+// first, since it is the most recent and most heavily-weighted delta by the committee's own
+// stated criteria (parametrization depth is called out as the #1 differentiator).
+const FINAL_PHASE_GROUPS: ChangeGroup[] = [
+  {
+    tag: 'PARAMETRIZATION',
+    title: {
+      en: 'Deep runtime parametrization',
+      es: 'Parametrización profunda en tiempo real',
+    },
+    items: [
+      {
+        en: 'Every previously-hardcoded engine constant is now a live, schema-validated (Zod), hot-applied knob in EngineConfig: sizing step, per-pair execution cooldown, circuit-breaker multiple, leg-fill failure probability, volatility-breaker %, consecutive-loss limit, loss/volatility cooldown durations, inventory rebalancing thresholds, and the statistical-arbitrage z-score gate — all editable from the Risk page with no restart.',
+        es: 'Cada constante del motor que antes estaba fija en el código es ahora un parámetro en vivo, validado por esquema (Zod) y aplicado en caliente en EngineConfig: paso de sizing, cooldown de ejecución por par, multiplicador del circuit breaker, probabilidad de leg-fail, % del breaker de volatilidad, límite de pérdidas consecutivas, duración de cooldowns, umbrales de rebalanceo de inventario y el gate estadístico por z-score — todo editable desde la página de Riesgo sin reiniciar.',
+      },
+      {
+        en: 'Per-exchange taker-fee overrides with one-click Retail/VIP presets, so the operator can make the fee assumption explicit and adjustable instead of hidden.',
+        es: 'Overrides de comisión taker por exchange con presets de un clic Retail/VIP, para que la comisión asumida sea explícita y ajustable en vez de estar oculta.',
+      },
+    ],
+  },
+  {
+    tag: 'STRATEGY+',
+    title: {
+      en: 'Statistical-arbitrage gate wired to execution',
+      es: 'Gate de arbitraje estadístico conectado a la ejecución',
+    },
+    items: [
+      {
+        en: 'The rolling per-pair z-score (already computed for ranking) now optionally gates execution: when enabled, only windows more anomalous than a configurable threshold are executed, prioritising mean-reverting dislocations over merely-positive spreads.',
+        es: 'El z-score móvil por par (ya calculado para el ranking) ahora puede además condicionar la ejecución: si se activa, solo se ejecutan ventanas más anómalas que un umbral configurable, priorizando dislocaciones reversibles sobre spreads apenas positivos.',
+      },
+    ],
+  },
+  {
+    tag: 'ROBUSTNESS+',
+    title: {
+      en: 'Deterministic robustness coverage',
+      es: 'Cobertura determinística de robustez',
+    },
+    items: [
+      {
+        en: 'New unit tests exercise the configurable circuit breakers deterministically (volatility breaker trips at the configured %, consecutive-loss breaker trips at the configured limit and not before, and the loss streak resets after a win) — proving robustness rather than only asserting it.',
+        es: 'Nuevas pruebas unitarias ejercitan los circuit breakers configurables de forma determinística (el breaker de volatilidad dispara al % configurado, el de pérdidas consecutivas dispara en el límite configurado y no antes, y la racha se reinicia tras una ganancia) — demostrando la robustez en vez de solo afirmarla.',
+      },
+    ],
+  },
+  {
+    tag: 'REBALANCE+',
+    title: {
+      en: 'Rebalancing visibility',
+      es: 'Visibilidad del rebalanceo',
+    },
+    items: [
+      {
+        en: 'The Wallets page now surfaces the active (operator-configurable) rebalancing thresholds per asset plus recent REBALANCE settlement activity pulled straight from the engine event stream.',
+        es: 'La página de Wallets ahora muestra los umbrales de rebalanceo activos (configurables por el operador) por activo, más la actividad reciente de REBALANCE tomada directamente del stream de eventos del motor.',
+      },
+    ],
+  },
+  {
+    tag: 'ANALYTICS+',
+    title: {
+      en: 'Max-drawdown metric',
+      es: 'Métrica de drawdown máximo',
+    },
+    items: [
+      {
+        en: 'A max-drawdown figure (largest peak-to-trough equity decline) is computed client-side from the same equity history driving the P&L chart, alongside the existing win rate and honest Sharpe.',
+        es: 'Se calcula del lado del cliente un drawdown máximo (la mayor caída de pico a valle del equity) a partir del mismo historial que alimenta la gráfica de P&L, junto al win rate y el Sharpe honesto ya existentes.',
+      },
+    ],
+  },
+  {
+    tag: 'REAL EXECUTION',
+    title: {
+      en: 'Real order execution on exchange test/demo environments',
+      es: 'Ejecución real de órdenes en entornos de prueba/demo de exchanges',
+    },
+    items: [
+      {
+        en: 'An optional executionMode: "testnet" routes arbitrage legs to real signed IOC orders on venue test environments (Binance Spot Testnet verified live with a real filled order; Bybit Testnet and OKX Demo wired with the same signing/order-placement path) — fake balances, no real funds, real matching engines. Falls back to the internal simulator per-trade if a leg is unconfigured or fails, so the default demo experience never depends on it.',
+        es: 'Un modo opcional executionMode: "testnet" enruta las patas de arbitraje a órdenes IOC reales y firmadas en los entornos de prueba de los exchanges (Binance Spot Testnet verificado en vivo con una orden real llenada; Bybit Testnet y OKX Demo cableados con el mismo esquema de firma y colocación) — balances falsos, sin fondos reales, motores de matching reales. Si una pata no está configurada o falla, cae a la simulación interna para ese trade, así el modo demo por defecto nunca depende de esto.',
+      },
+    ],
+  },
+  {
+    tag: 'INFRASTRUCTURE',
+    title: {
+      en: 'Redeployed backend with durable cloud persistence',
+      es: 'Backend redesplegado con persistencia en la nube duradera',
+    },
+    items: [
+      {
+        en: 'The bot now runs on a new Fly.io app with Supabase Postgres persistence (trades, opportunities, balances, config and P&L survive machine restarts/redeploys — the previous state was ephemeral local storage), still in the Frankfurt region required to reach all 5 exchange feeds, on a single machine (the engine is a stateful singleton; a second machine would split state).',
+        es: 'El bot corre ahora en una nueva app de Fly.io con persistencia en Supabase Postgres (trades, oportunidades, balances, config y P&L sobreviven reinicios/redeploys de la máquina — antes el estado era almacenamiento local efímero), sigue en la región de Frankfurt necesaria para alcanzar los 5 feeds de exchanges, con una sola máquina (el motor es un singleton con estado; una segunda máquina dividiría el estado).',
+      },
+    ],
+  },
+];
+
 const GROUPS: ChangeGroup[] = [
   {
     tag: 'REALISM',
@@ -237,10 +338,55 @@ export default function ChangelogPage() {
               ? 'El objetivo es que el jurado pueda reconciliar ambos: lo que se evaluó es exactamente el commit congelado, y lo que está en vivo es ese commit más las extensiones detalladas en esta página.'
               : 'The goal is that reviewers can reconcile the two: what was judged is exactly the frozen commit, and what is live is that commit plus the extensions detailed on this page.'}
           </p>
+          <p>
+            {es
+              ? 'Los 17 finalistas votaron por la Opción B: una ventana de extensión oficial hasta el domingo 12 de julio de 2026 para ampliar el proyecto (branch final-phase). Lo listado en "Fase Final" abajo corresponde a ese trabajo oficial, ya fusionado a main y desplegado.'
+              : 'The 17 finalists voted for Option B: an official extension window through Sunday 12 Jul 2026 to expand the project (final-phase branch). Everything listed under "Final Phase" below is that official work, already merged to main and deployed.'}
+          </p>
         </div>
       </div>
 
-      {/* CHANGE GROUPS */}
+      {/* FINAL-PHASE GROUPS (shown first — most recent, highest-weighted delta) */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2.5 pl-1">
+          <span className="text-[10px] font-mono uppercase tracking-wider font-extrabold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/25">
+            {es ? 'Fase Final · Ventana de Extensión' : 'Final Phase · Extension Window'}
+          </span>
+        </div>
+        <div className="grid grid-cols-1 gap-4">
+          {FINAL_PHASE_GROUPS.map((group) => (
+            <div
+              key={group.tag}
+              className="p-5 rounded-xl bg-emerald-500/[0.02] border border-emerald-500/10 hover:border-emerald-500/20 hover:bg-emerald-500/[0.04] transition-all duration-300"
+            >
+              <div className="flex items-center gap-2.5 mb-3">
+                <span className="text-[9px] font-mono uppercase tracking-wider font-extrabold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 shrink-0">
+                  {group.tag}
+                </span>
+                <h3 className="text-sm font-semibold text-slate-100 font-mono uppercase tracking-wide">
+                  {es ? group.title.es : group.title.en}
+                </h3>
+              </div>
+              <ul className="space-y-2 pl-1">
+                {group.items.map((item, i) => (
+                  <li key={i} className="flex gap-2.5 text-[13px] text-slate-400 font-sans leading-relaxed">
+                    <span className="text-emerald-500/60 mt-1 shrink-0 text-[10px]">▸</span>
+                    <span>{es ? item.es : item.en}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* PRE-FINAL-PHASE CHANGE GROUPS (original post-48h public-deploy delta) */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2.5 pl-1">
+          <span className="text-[10px] font-mono uppercase tracking-wider font-extrabold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/25">
+            {es ? 'Pre-Fase Final · Delta del Despliegue Público' : 'Pre-Final-Phase · Public Deploy Delta'}
+          </span>
+        </div>
       <div className="grid grid-cols-1 gap-4">
         {GROUPS.map((group) => (
           <div
@@ -265,6 +411,7 @@ export default function ChangelogPage() {
             </ul>
           </div>
         ))}
+      </div>
       </div>
 
       {/* FOOTER NOTE */}
