@@ -30,6 +30,9 @@ interface LocalDBState {
   config: EngineConfig;
   pnlHistory: { timestamp: number; value: number }[];
   copilotAudits: AuditLogEntry[];
+  // True cumulative count of executed trades. The `trades` ledger above is capped at the
+  // last 500 for display/memory, so its length must NOT be used as the trade count.
+  totalTradesExecuted: number;
 }
 
 let dbState: LocalDBState = {
@@ -40,6 +43,7 @@ let dbState: LocalDBState = {
   config: DEFAULT_ENGINE_CONFIG,
   pnlHistory: [{ timestamp: Date.now(), value: 100000 }], // Starting with 100,000 USD portfolio value
   copilotAudits: [],
+  totalTradesExecuted: 0,
 };
 
 // Asynchronously flushes local database state to disk (db.json)
@@ -66,6 +70,9 @@ export async function initializeDatabase() {
       config: parsed.config || DEFAULT_ENGINE_CONFIG,
       pnlHistory: parsed.pnlHistory || [{ timestamp: Date.now(), value: 100000 }],
       copilotAudits: parsed.copilotAudits || [],
+      // Restore the cumulative counter; seed it from the retained ledger length for older
+      // db.json files that predate this field (a floor, never an over-count).
+      totalTradesExecuted: parsed.totalTradesExecuted ?? (parsed.trades?.length || 0),
     };
 
     logger.info('💾 Loaded local persistent database from disk.');
@@ -149,6 +156,13 @@ async function hydrateFromSupabase(): Promise<void> {
         dbState.pnlHistory = history;
       }
 
+      // The ledger above is capped at the last 500 rows; the true cumulative count is the
+      // exact table count so totalTrades and avg/trade reflect the full executed history.
+      const { count } = await supabase
+        .from('simulated_trades')
+        .select('id', { count: 'exact', head: true });
+      dbState.totalTradesExecuted = count ?? dbState.trades.length;
+
       logger.info(`💾 Hydrated ${dbState.trades.length} trades from Supabase (ledger + P&L restored).`);
     }
   } catch (err) {
@@ -182,6 +196,7 @@ export async function saveOpportunity(opp: ArbitrageOpportunity): Promise<void> 
 export async function saveTrade(trade: SimulatedTrade): Promise<void> {
   dbState.trades.unshift(trade);
   if (dbState.trades.length > 500) dbState.trades.pop();
+  dbState.totalTradesExecuted += 1;
   await flushToDisk();
 
   if (supabase) {
@@ -356,6 +371,11 @@ export async function getPnlSnapshots(): Promise<{ timestamp: number; value: num
   return dbState.pnlHistory;
 }
 
+// True cumulative number of executed trades (survives the 500-row ledger/snapshot caps).
+export function getTotalTradesExecuted(): number {
+  return dbState.totalTradesExecuted;
+}
+
 export async function resetSimulation(): Promise<void> {
   dbState.opportunities = [];
   dbState.trades = [];
@@ -364,6 +384,7 @@ export async function resetSimulation(): Promise<void> {
   // shared seed constant.
   dbState.balances = JSON.parse(JSON.stringify(INITIAL_WALLET_BALANCES));
   dbState.pnlHistory = [{ timestamp: Date.now(), value: 100000 }];
+  dbState.totalTradesExecuted = 0;
   await flushToDisk();
 
   if (supabase) {

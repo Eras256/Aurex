@@ -7,7 +7,8 @@ import {
   getBlendedOpportunities,
   getTrades,
   getEvents,
-  getPnlSnapshots
+  getPnlSnapshots,
+  getTotalTradesExecuted
 } from '../persistence/repositories.js';
 
 const startTime = Date.now();
@@ -28,6 +29,10 @@ export async function buildStatePayload(
   ]);
 
   const pnlMetrics = engine.pnlTracker.calculateMetrics(trades);
+  // `calculateMetrics` derives totalTrades from the trade array it is given, and the array
+  // above is the last-50 display slice — so left alone the count freezes at 50 and avg
+  // profit/trade inflates. Report the true cumulative counter instead (never understate).
+  const cumulativeTrades = Math.max(getTotalTradesExecuted(), pnlMetrics.totalTrades);
 
   // Construct connection telemetry dynamically for every wired venue.
   const connections: StatePayload['connections'] = {};
@@ -63,6 +68,7 @@ export async function buildStatePayload(
     trades,
     pnl: {
       ...pnlMetrics,
+      totalTrades: cumulativeTrades,
       equityHistory: pnlHistory,
     },
     risk,
