@@ -659,9 +659,10 @@ export class ArbitrageEngine {
   /**
    * Real testnet/demo execution path. Returns null (→ fall back to the simulator for this
    * trade) unless executionMode is 'testnet' AND both legs are on a configured, testnet-capable
-   * venue (Binance Spot Testnet / OKX Demo). Places both legs as real IOC orders and books the
-   * actual fills — real partials and non-crosses surface as genuine leg risk, settled on the
-   * exchange testnet account (local sim wallets are left untouched).
+   * venue (Binance Spot Testnet / OKX Demo / Bybit Testnet / Coinbase Exchange Sandbox). Places
+   * both legs as real IOC orders and books the actual fills — real partials and non-crosses
+   * surface as genuine leg risk, settled on the exchange testnet account (local sim wallets are
+   * left untouched). Kraken is excluded here (no spot testnet; validate-only, see testnetExecutor).
    */
   private async tryTestnetExecution(c: ArbitrageCandidate): Promise<{
     executed: boolean;
@@ -675,7 +676,7 @@ export class ArbitrageEngine {
   } | null> {
     if (this.config.executionMode !== 'testnet') return null;
     const isExec = (v: string): v is ExecVenue =>
-      (v === 'binance' || v === 'okx' || v === 'bybit') && isExecutionConfigured(v);
+      (v === 'binance' || v === 'okx' || v === 'bybit' || v === 'coinbase') && isExecutionConfigured(v);
     if (!isExec(c.buyExchangeId) || !isExec(c.sellExchangeId)) return null;
 
     const buyVenue = c.buyExchangeId as ExecVenue;

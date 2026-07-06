@@ -61,6 +61,17 @@ export const EnvSchema = z.object({
   BYBIT_TESTNET_REST_URL: z.string().url().default('https://api-testnet.bybit.com'),
   BYBIT_TESTNET_API_KEY: z.preprocess((val) => (val === '' ? undefined : val), z.string().optional()),
   BYBIT_TESTNET_API_SECRET: z.preprocess((val) => (val === '' ? undefined : val), z.string().optional()),
+  // Coinbase Exchange Sandbox (https://api-public.sandbox.exchange.coinbase.com) — real
+  // matching engine, test funds, no real money. Real IOC fills, like Binance/OKX/Bybit.
+  COINBASE_SANDBOX_REST_URL: z.string().url().default('https://api-public.sandbox.exchange.coinbase.com'),
+  COINBASE_SANDBOX_API_KEY: z.preprocess((val) => (val === '' ? undefined : val), z.string().optional()),
+  COINBASE_SANDBOX_API_SECRET: z.preprocess((val) => (val === '' ? undefined : val), z.string().optional()),
+  COINBASE_SANDBOX_PASSPHRASE: z.preprocess((val) => (val === '' ? undefined : val), z.string().optional()),
+  // Kraken has NO spot testnet. These real keys are used ONLY for `validate=true` dry-run
+  // order validation (balance/lot/price checked by Kraken's real engine, never executed,
+  // never returns a txid). validate=true moves no funds, so live keys are safe here.
+  KRAKEN_API_KEY: z.preprocess((val) => (val === '' ? undefined : val), z.string().optional()),
+  KRAKEN_API_SECRET: z.preprocess((val) => (val === '' ? undefined : val), z.string().optional()),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
@@ -104,6 +115,12 @@ const getEnv = (): Env => {
     BYBIT_TESTNET_REST_URL: typeof process !== 'undefined' ? process.env.BYBIT_TESTNET_REST_URL : undefined,
     BYBIT_TESTNET_API_KEY: typeof process !== 'undefined' ? process.env.BYBIT_TESTNET_API_KEY : undefined,
     BYBIT_TESTNET_API_SECRET: typeof process !== 'undefined' ? process.env.BYBIT_TESTNET_API_SECRET : undefined,
+    COINBASE_SANDBOX_REST_URL: typeof process !== 'undefined' ? process.env.COINBASE_SANDBOX_REST_URL : undefined,
+    COINBASE_SANDBOX_API_KEY: typeof process !== 'undefined' ? process.env.COINBASE_SANDBOX_API_KEY : undefined,
+    COINBASE_SANDBOX_API_SECRET: typeof process !== 'undefined' ? process.env.COINBASE_SANDBOX_API_SECRET : undefined,
+    COINBASE_SANDBOX_PASSPHRASE: typeof process !== 'undefined' ? process.env.COINBASE_SANDBOX_PASSPHRASE : undefined,
+    KRAKEN_API_KEY: typeof process !== 'undefined' ? process.env.KRAKEN_API_KEY : undefined,
+    KRAKEN_API_SECRET: typeof process !== 'undefined' ? process.env.KRAKEN_API_SECRET : undefined,
   };
 
   try {
