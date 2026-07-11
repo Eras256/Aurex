@@ -78,3 +78,41 @@ export async function buildStatePayload(
     triangular: engine.getTriangularState(),
   };
 }
+
+export async function buildStateSummaryPayload(
+  engine: ArbitrageEngine,
+  exchanges: Record<string, ExchangeAdapter>
+): Promise<any> {
+  const [opportunities, trades] = await Promise.all([
+    getBlendedOpportunities(50),
+    getTrades(50),
+  ]);
+
+  const pnlMetrics = engine.pnlTracker.calculateMetrics(trades);
+  const cumulativeTrades = Math.max(getTotalTradesExecuted(), pnlMetrics.totalTrades);
+
+  const connections: Record<string, { connected: boolean }> = {};
+  for (const [id, adapter] of Object.entries(exchanges)) {
+    connections[id] = {
+      connected: adapter.isConnected(),
+    };
+  }
+
+  const wallets = engine.getWallets();
+  const risk = engine.riskManager.getRiskStatus(wallets);
+
+  return {
+    config: engine.getConfig(),
+    connections,
+    wallets,
+    opportunities,
+    trades,
+    pnl: {
+      ...pnlMetrics,
+      totalTrades: cumulativeTrades,
+    },
+    risk,
+    metrics: engine.getMetrics(),
+  };
+}
+

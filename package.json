@@ -1,5 +1,5 @@
 {
-  "name": "aurex",
+  "name": "aurex-terminal",
   "version": "1.0.0",
   "private": true,
   "description": "Bitcoin Cross-Exchange Arbitrage Simulator",

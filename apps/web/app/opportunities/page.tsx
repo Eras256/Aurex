@@ -85,13 +85,15 @@ export default function OpportunitiesPage() {
       setAiLoading(true);
       try {
         const grossVal = selectedOpp.grossSpread || 0;
+        const volume = selectedOpp.executableVolume || 0.05;
+        const grossUSD = grossVal * volume;
         const netVal = selectedOpp.expectedNetProfitUSD || selectedOpp.netSpread || 0;
         const res = await RealAiAgent.explainOpportunity({
           opportunityId: selectedOpp.id,
           buyVenue: selectedOpp.buyExchange,
           sellVenue: selectedOpp.sellExchange,
-          grossSpreadUSD: grossVal,
-          estimatedCostUSD: Math.max(0.5, grossVal - netVal),
+          grossSpreadUSD: grossUSD,
+          estimatedCostUSD: Math.max(0.1, grossUSD - netVal),
         });
         setAiExplain(res);
       } catch (err) {

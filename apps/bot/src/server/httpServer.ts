@@ -11,7 +11,7 @@ import { ArbitrageEngine } from '../engine/ArbitrageEngine.js';
 import { ExchangeAdapter } from '../exchanges/index.js';
 import { logger } from '../logging.js';
 import { getTrades, resetSimulation, saveCopilotAuditLog, getCopilotAuditLogs, saveConfig } from '../persistence/repositories.js';
-import { buildStatePayload } from '../state/stateAggregator.js';
+import { buildStatePayload, buildStateSummaryPayload } from '../state/stateAggregator.js';
 
 
 function jsonToCSV(items: Record<string, unknown>[]): string {
@@ -90,6 +90,16 @@ export function createHttpServer(
       res.json(payload);
     } catch (error) {
       res.status(500).json({ error: 'Failed to aggregate state payload' });
+    }
+  });
+
+  // 2b. STATE SUMMARY SNAPSHOT (lightweight for LLM grounding / chat)
+  app.get('/state/summary', async (req: Request, res: Response) => {
+    try {
+      const payload = await buildStateSummaryPayload(engine, exchanges);
+      res.json(payload);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to aggregate state summary payload' });
     }
   });
 

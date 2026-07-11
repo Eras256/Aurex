@@ -11,9 +11,12 @@ import { RealAiAgent } from '@/lib/ai/realAiAgent';
 import { AuditLogEntry, ToolInvocation, RiskParams } from '@/lib/ai/types';
 
 import { useLanguage } from '../LanguageContext';
+import { useWebSocket } from '../WebSocketContext';
+
 
 export default function CopilotWorkspace() {
   const { t, language } = useLanguage();
+  const { state } = useWebSocket();
   const [mounted, setMounted] = useState(false);
   
   // Model Configuration State
@@ -108,7 +111,8 @@ export default function CopilotWorkspace() {
           setChatStatus(status);
         },
         handleToolInvocation,
-        language
+        language,
+        state
       );
 
       setConfidence(meta.confidence);

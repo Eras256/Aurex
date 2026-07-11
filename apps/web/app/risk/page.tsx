@@ -83,8 +83,7 @@ export default function RiskSettingsPage() {
   const [executionLatencyMs, setExecutionLatencyMs] = useState(75);
   const [isPaused, setIsPaused] = useState(false);
 
-  // Advanced parametrization (deep engine knobs) — the differentiator the committee
-  // flagged as most important for this final phase.
+  // Advanced parametrization (deep engine knobs)
   const [adv, setAdv] = useState<AdvParams>(ADV_DEFAULTS);
   const [advSaving, setAdvSaving] = useState(false);
   const [advStatus, setAdvStatus] = useState<string | null>(null);
@@ -92,14 +91,11 @@ export default function RiskSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
-
-  // Dialog state for simulation reset confirmation modal
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
-
-  // AI Calibration State (Phase 1)
   const [aiCalibration, setAiCalibration] = useState<RiskAIOutput | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiStatusMessage, setAiStatusMessage] = useState<string | null>(null);
+  const [prevServerConfig, setPrevServerConfig] = useState<string | null>(null);
 
   useEffect(() => {
     if (!state?.config) return;
@@ -143,33 +139,37 @@ export default function RiskSettingsPage() {
   // Sync inputs with active backend config on message loads
   useEffect(() => {
     if (state?.config) {
-      setMinNetProfitUSD(state.config.minNetProfitUSD);
-      setMaxPositionBTC(state.config.maxPositionBTCPerExchange);
-      setLatencySafetyBps(state.config.latencySafetyBps);
-      setSlippageSafetyBps(state.config.slippageSafetyBps);
-      setExecutionLatencyMs(state.config.executionLatencyMs);
-      setIsPaused(state.config.isPaused);
-      const c = state.config as unknown as Partial<AdvParams>;
-      setAdv({
-        sizingStepBTC: c.sizingStepBTC ?? ADV_DEFAULTS.sizingStepBTC,
-        executionCooldownMs: c.executionCooldownMs ?? ADV_DEFAULTS.executionCooldownMs,
-        circuitBreakerMult: c.circuitBreakerMult ?? ADV_DEFAULTS.circuitBreakerMult,
-        legFillFailureProb: c.legFillFailureProb ?? ADV_DEFAULTS.legFillFailureProb,
-        volatilityBreakerPct: c.volatilityBreakerPct ?? ADV_DEFAULTS.volatilityBreakerPct,
-        consecutiveLossLimit: c.consecutiveLossLimit ?? ADV_DEFAULTS.consecutiveLossLimit,
-        lossCooldownSeconds: c.lossCooldownSeconds ?? ADV_DEFAULTS.lossCooldownSeconds,
-        volatilityCooldownSeconds: c.volatilityCooldownSeconds ?? ADV_DEFAULTS.volatilityCooldownSeconds,
-        rebalanceLowBTC: c.rebalanceLowBTC ?? ADV_DEFAULTS.rebalanceLowBTC,
-        rebalanceLowQuote: c.rebalanceLowQuote ?? ADV_DEFAULTS.rebalanceLowQuote,
-        rebalanceMinTransferBTC: c.rebalanceMinTransferBTC ?? ADV_DEFAULTS.rebalanceMinTransferBTC,
-        rebalanceMinTransferQuote: c.rebalanceMinTransferQuote ?? ADV_DEFAULTS.rebalanceMinTransferQuote,
-        zScoreGateEnabled: c.zScoreGateEnabled ?? ADV_DEFAULTS.zScoreGateEnabled,
-        zScoreGateThreshold: c.zScoreGateThreshold ?? ADV_DEFAULTS.zScoreGateThreshold,
-        takerFeeBpsOverrides: c.takerFeeBpsOverrides ?? {},
-        executionMode: c.executionMode ?? ADV_DEFAULTS.executionMode,
-      });
+      const configStr = JSON.stringify(state.config);
+      if (configStr !== prevServerConfig) {
+        setMinNetProfitUSD(state.config.minNetProfitUSD);
+        setMaxPositionBTC(state.config.maxPositionBTCPerExchange);
+        setLatencySafetyBps(state.config.latencySafetyBps);
+        setSlippageSafetyBps(state.config.slippageSafetyBps);
+        setExecutionLatencyMs(state.config.executionLatencyMs);
+        setIsPaused(state.config.isPaused);
+        const c = state.config as unknown as Partial<AdvParams>;
+        setAdv({
+          sizingStepBTC: c.sizingStepBTC ?? ADV_DEFAULTS.sizingStepBTC,
+          executionCooldownMs: c.executionCooldownMs ?? ADV_DEFAULTS.executionCooldownMs,
+          circuitBreakerMult: c.circuitBreakerMult ?? ADV_DEFAULTS.circuitBreakerMult,
+          legFillFailureProb: c.legFillFailureProb ?? ADV_DEFAULTS.legFillFailureProb,
+          volatilityBreakerPct: c.volatilityBreakerPct ?? ADV_DEFAULTS.volatilityBreakerPct,
+          consecutiveLossLimit: c.consecutiveLossLimit ?? ADV_DEFAULTS.consecutiveLossLimit,
+          lossCooldownSeconds: c.lossCooldownSeconds ?? ADV_DEFAULTS.lossCooldownSeconds,
+          volatilityCooldownSeconds: c.volatilityCooldownSeconds ?? ADV_DEFAULTS.volatilityCooldownSeconds,
+          rebalanceLowBTC: c.rebalanceLowBTC ?? ADV_DEFAULTS.rebalanceLowBTC,
+          rebalanceLowQuote: c.rebalanceLowQuote ?? ADV_DEFAULTS.rebalanceLowQuote,
+          rebalanceMinTransferBTC: c.rebalanceMinTransferBTC ?? ADV_DEFAULTS.rebalanceMinTransferBTC,
+          rebalanceMinTransferQuote: c.rebalanceMinTransferQuote ?? ADV_DEFAULTS.rebalanceMinTransferQuote,
+          zScoreGateEnabled: c.zScoreGateEnabled ?? ADV_DEFAULTS.zScoreGateEnabled,
+          zScoreGateThreshold: c.zScoreGateThreshold ?? ADV_DEFAULTS.zScoreGateThreshold,
+          takerFeeBpsOverrides: c.takerFeeBpsOverrides ?? {},
+          executionMode: c.executionMode ?? ADV_DEFAULTS.executionMode,
+        });
+        setPrevServerConfig(configStr);
+      }
     }
-  }, [state?.config]);
+  }, [state?.config, prevServerConfig]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

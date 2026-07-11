@@ -163,6 +163,39 @@ async function hydrateFromSupabase(): Promise<void> {
         .select('id', { count: 'exact', head: true });
       dbState.totalTradesExecuted = count ?? dbState.trades.length;
 
+      // Rehydrate historical EXECUTED opportunities from Supabase so the tab has historical data
+      const { data: opps } = await supabase
+        .from('arbitrage_opportunities')
+        .select('*')
+        .eq('status', 'EXECUTED')
+        .order('detected_at', { ascending: false })
+        .limit(200);
+
+      if (opps && opps.length > 0) {
+        dbState.opportunities = opps.map((r: any) => {
+          const gross = Number(r.gross_spread ?? 0);
+          const buyAsk = Number(r.buy_ask ?? 64000);
+          const sellBid = Number(r.sell_bid ?? (buyAsk + gross));
+          return {
+            id: r.id,
+            timestamp: new Date(r.detected_at || r.timestamp || Date.now()).getTime(),
+            buyExchange: r.buy_exchange,
+            sellExchange: r.sell_exchange,
+            symbol: r.symbol,
+            buyAsk,
+            sellBid,
+            grossSpread: gross,
+            netSpread: Number(r.net_spread ?? 0),
+            executableVolume: Number(r.volume ?? 0),
+            expectedNetProfitUSD: Number(r.estimated_profit_usd ?? 0),
+            status: r.status,
+            reason: r.reason || undefined,
+            zScore: 0,
+          };
+        });
+        logger.info(`💾 Hydrated ${dbState.opportunities.length} executed opportunities from Supabase.`);
+      }
+
       logger.info(`💾 Hydrated ${dbState.trades.length} trades from Supabase (ledger + P&L restored).`);
     }
   } catch (err) {

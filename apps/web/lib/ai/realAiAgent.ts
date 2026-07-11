@@ -78,16 +78,37 @@ export class RealAiAgent {
     onToken: (token: string) => void,
     onStatus: (status: Status) => void,
     onToolInvocation: ToolCb,
-    language: 'en' | 'es' = 'en'
+    language: 'en' | 'es' = 'en',
+    statePayload?: any
   ): Promise<StreamMeta> {
     onStatus('thinking');
+
+    let provider = 'OpenAI';
+    let model = 'gpt-4o-mini';
+    let key = '';
+    let baseUrl = '';
+
+    if (typeof window !== 'undefined') {
+      provider = localStorage.getItem('aurex_ai_provider') || 'OpenAI';
+      model = localStorage.getItem('aurex_ai_model') || 'gpt-4o-mini';
+      key = localStorage.getItem('aurex_ai_key') || '';
+      baseUrl = localStorage.getItem('aurex_ai_base_url') || '';
+    }
 
     let res: Response;
     try {
       res = await fetch('/api/copilot/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, language }),
+        body: JSON.stringify({
+          query,
+          language,
+          statePayload,
+          aiProvider: provider,
+          aiModel: model,
+          customApiKey: key,
+          customBaseUrl: baseUrl
+        }),
       });
     } catch {
       onToolInvocation({ name: 'ai_mode', status: 'success', durationMs: 0, result: FALLBACK_NOTE });

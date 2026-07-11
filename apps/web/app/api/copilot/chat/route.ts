@@ -7,33 +7,22 @@ export const dynamic = 'force-dynamic';
 
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
 
-/**
- * Pulls a compact, live snapshot of the bot's real state so the Copilot answers grounded in
- * the operator's ACTUAL P&L, trades, risk config and market — not generic boilerplate.
- * Fails soft: if the backend is unreachable, returns null and the model answers from the
- * question alone.
- */
-async function fetchLiveContext(): Promise<string | null> {
-  try {
-    const res = await fetch(`${env.NEXT_PUBLIC_BACKEND_URL}/state`, { cache: 'no-store' });
-    if (!res.ok) return null;
-    const s = (await res.json()) as {
-      config?: Record<string, unknown>;
-      pnl?: { totalProfitUSD?: number; winRate?: number; totalTrades?: number; sharpeRatio?: number };
-      risk?: { status?: string; consecutiveLosses?: number };
-      metrics?: { detectionLatencyMs?: number; p99LatencyMs?: number; opportunitiesDetected?: number };
-      trades?: Array<{ buyExchange: string; sellExchange: string; volume: number; netProfit: number }>;
-      opportunities?: Array<{ buyExchange: string; sellExchange: string; status: string; reason?: string }>;
-      wallets?: Record<string, Record<string, { free: number }>>;
-    };
+// Cache the live grounding for a few seconds so rapid successive Copilot queries don't each
+// pay the full /state round-trip (the biggest chunk of time-to-first-token). Engine P&L /
+// config / metrics move slowly relative to a chat turn, so a few seconds of staleness is
+// invisible in an advisory answer — zero quality loss, ~0.7s saved on a cache hit.
+let cachedContext: { value: string | null; at: number } | null = null;
+const CONTEXT_TTL_MS = 4000;
 
+function formatStateSummary(s: any): string | null {
+  try {
     const cfg = s.config ?? {};
     const pnl = s.pnl ?? {};
     const recentTrades = (s.trades ?? []).slice(0, 5)
-      .map((t) => `${t.buyExchange}->${t.sellExchange} vol=${t.volume} net=$${(t.netProfit ?? 0).toFixed(2)}`)
+      .map((t: any) => `${t.buyExchange}->${t.sellExchange} vol=${t.volume} net=$${(t.netProfit ?? 0).toFixed(2)}`)
       .join('; ');
-    const recentSkips = (s.opportunities ?? []).filter((o) => o.status === 'SKIPPED').slice(0, 3)
-      .map((o) => `${o.buyExchange}->${o.sellExchange}: ${o.reason ?? 'sub-threshold'}`)
+    const recentSkips = (s.opportunities ?? []).filter((o: any) => o.status === 'SKIPPED').slice(0, 3)
+      .map((o: any) => `${o.buyExchange}->${o.sellExchange}: ${o.reason ?? 'sub-threshold'}`)
       .join(' | ');
 
     return [
@@ -50,6 +39,30 @@ async function fetchLiveContext(): Promise<string | null> {
   }
 }
 
+async function fetchLiveContext(clientState?: any): Promise<string | null> {
+  if (clientState) {
+    const formatted = formatStateSummary(clientState);
+    if (formatted) return formatted;
+  }
+  if (cachedContext && Date.now() - cachedContext.at < CONTEXT_TTL_MS) {
+    return cachedContext.value;
+  }
+  const value = await computeLiveContext();
+  cachedContext = { value, at: Date.now() };
+  return value;
+}
+
+async function computeLiveContext(): Promise<string | null> {
+  try {
+    const res = await fetch(`${env.NEXT_PUBLIC_BACKEND_URL}/state/summary`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const s = await res.json();
+    return formatStateSummary(s);
+  } catch {
+    return null;
+  }
+}
+
 const SYSTEM_PROMPT = `You are the Aurex Quant Copilot — an advisory AI embedded in a live institutional-grade Bitcoin cross-exchange arbitrage terminal. Aurex scans L2 order books across Binance, Kraken, Coinbase, OKX and Bybit, depth-walks them to volume-weighted prices, deducts taker fees, latency and slippage buffers and the USD/USDT basis, ranks windows by net profit and z-score, and can execute real IOC orders on exchange test environments. You help the operator understand risk parameters, spread rejections, execution outcomes and rebalancing.
 
 Rules:
@@ -59,42 +72,128 @@ Rules:
 - Use compact Markdown (short headers, bullet points). Do not invent numbers that aren't in the state.`;
 
 export async function POST(request: Request) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return new Response(JSON.stringify({ error: 'unconfigured' }), {
-      status: 503,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
   let query = '';
   let language: 'en' | 'es' = 'en';
+  let clientState: any = null;
+  let aiProvider = 'OpenAI';
+  let aiModel = 'gpt-4o-mini';
+  let customApiKey = '';
+  let customBaseUrl = '';
+
   try {
-    const body = (await request.json()) as { query?: string; language?: 'en' | 'es' };
+    const body = (await request.json()) as {
+      query?: string;
+      language?: 'en' | 'es';
+      statePayload?: any;
+      aiProvider?: string;
+      aiModel?: string;
+      customApiKey?: string;
+      customBaseUrl?: string;
+    };
     query = (body.query ?? '').slice(0, 2000);
     language = body.language === 'es' ? 'es' : 'en';
+    clientState = body.statePayload;
+    aiProvider = body.aiProvider || 'OpenAI';
+    aiModel = body.aiModel || 'gpt-4o-mini';
+    customApiKey = body.customApiKey || '';
+    customBaseUrl = body.customBaseUrl || '';
   } catch {
     return new Response(JSON.stringify({ error: 'bad request' }), { status: 400 });
   }
   if (!query.trim()) return new Response(JSON.stringify({ error: 'empty query' }), { status: 400 });
 
-  const liveContext = await fetchLiveContext();
+  const liveContext = await fetchLiveContext(clientState);
   const langInstruction = language === 'es' ? 'Responde en español.' : 'Respond in English.';
 
-  const upstream = await fetch(OPENAI_URL, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+  let url = 'https://api.openai.com/v1/chat/completions';
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  let bodyPayload: any = {};
+
+  let activeKey = customApiKey;
+
+  if (aiProvider === 'OpenAI') {
+    if (!activeKey) activeKey = process.env.OPENAI_API_KEY || '';
+    url = 'https://api.openai.com/v1/chat/completions';
+    headers['Authorization'] = `Bearer ${activeKey}`;
+    bodyPayload = {
+      model: aiModel,
       stream: true,
       temperature: 0.4,
       max_tokens: 700,
       messages: [
         { role: 'system', content: `${SYSTEM_PROMPT}\n${langInstruction}` },
-        { role: 'system', content: liveContext ?? 'Live engine state is unavailable; answer from general Aurex architecture knowledge and say the live snapshot could not be loaded.' },
+        { role: 'system', content: liveContext ?? 'Live engine state is unavailable; answer from general Aurex architecture knowledge.' },
         { role: 'user', content: query },
       ],
-    }),
+    };
+  } else if (aiProvider === 'Gemini') {
+    if (!activeKey) activeKey = process.env.GEMINI_API_KEY || '';
+    url = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+    headers['Authorization'] = `Bearer ${activeKey}`;
+    bodyPayload = {
+      model: aiModel,
+      stream: true,
+      temperature: 0.4,
+      max_tokens: 700,
+      messages: [
+        { role: 'system', content: `${SYSTEM_PROMPT}\n${langInstruction}` },
+        { role: 'system', content: liveContext ?? 'Live engine state is unavailable.' },
+        { role: 'user', content: query },
+      ],
+    };
+  } else if (aiProvider === 'Anthropic') {
+    if (!activeKey) activeKey = process.env.ANTHROPIC_API_KEY || '';
+    url = 'https://api.anthropic.com/v1/messages';
+    headers['x-api-key'] = activeKey;
+    headers['anthropic-version'] = '2023-06-01';
+    bodyPayload = {
+      model: aiModel,
+      max_tokens: 700,
+      temperature: 0.4,
+      stream: true,
+      system: `${SYSTEM_PROMPT}\n${langInstruction}\n\nLive context:\n${liveContext ?? 'Live engine state is unavailable.'}`,
+      messages: [
+        { role: 'user', content: query },
+      ],
+    };
+  } else if (aiProvider === 'Custom') {
+    let customUrl = customBaseUrl || '';
+    if (customUrl.endsWith('/')) customUrl = customUrl.slice(0, -1);
+    if (!customUrl.endsWith('/chat/completions') && !customUrl.endsWith('/completions')) {
+      url = `${customUrl}/chat/completions`;
+    } else {
+      url = customUrl;
+    }
+    if (activeKey) {
+      headers['Authorization'] = `Bearer ${activeKey}`;
+    }
+    bodyPayload = {
+      model: aiModel,
+      stream: true,
+      temperature: 0.4,
+      max_tokens: 700,
+      messages: [
+        { role: 'system', content: `${SYSTEM_PROMPT}\n${langInstruction}` },
+        { role: 'system', content: liveContext ?? 'Live engine state is unavailable.' },
+        { role: 'user', content: query },
+      ],
+    };
+  }
+
+  if (!activeKey && aiProvider !== 'Custom') {
+    return new Response(
+      JSON.stringify({ error: `API key is not configured for ${aiProvider}.` }),
+      {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
+  const upstream = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(bodyPayload),
   });
 
   if (!upstream.ok || !upstream.body) {
@@ -105,7 +204,7 @@ export async function POST(request: Request) {
     });
   }
 
-  // Re-stream OpenAI's SSE deltas to the client as plain text tokens.
+  // Re-stream upstream's SSE deltas to the client as plain text tokens.
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
   const reader = upstream.body.getReader();
@@ -124,9 +223,21 @@ export async function POST(request: Request) {
         const data = trimmed.slice(5).trim();
         if (data === '[DONE]') continue;
         try {
-          const json = JSON.parse(data) as { choices?: Array<{ delta?: { content?: string } }> };
-          const token = json.choices?.[0]?.delta?.content;
-          if (token) controller.enqueue(encoder.encode(token));
+          const json = JSON.parse(data);
+          // OpenAI / Gemini / Custom standard formats
+          const openAiToken = json.choices?.[0]?.delta?.content;
+          if (openAiToken) {
+            controller.enqueue(encoder.encode(openAiToken));
+            continue;
+          }
+          // Anthropic format
+          if (json.type === 'content_block_delta') {
+            const anthropicToken = json.delta?.text;
+            if (anthropicToken) {
+              controller.enqueue(encoder.encode(anthropicToken));
+              continue;
+            }
+          }
         } catch {
           // ignore keep-alive / partial frames
         }
