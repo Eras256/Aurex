@@ -162,6 +162,117 @@ describe('🤖 BinanceClient Local Order Book Integration', () => {
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(mockFetch).toHaveBeenCalledTimes(2);
   });
+
+  it('should drop stale overlapping diffs silently and apply straddling diffs (no resync storm)', async () => {
+    const mockSnapshot = {
+      lastUpdateId: 300,
+      bids: [['60000.00', '1.0']],
+      asks: [['60100.00', '1.0']]
+    };
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => mockSnapshot
+    });
+
+    let lastBook: NormalizedOrderBook | null = null;
+    client.subscribeOrderBook('BTCUSDT', (book) => {
+      lastBook = book;
+    });
+    const connectPromise = client.connect();
+    const wsInstance = (client as any).ws;
+    wsInstance.emit('open');
+    await connectPromise;
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    // Stale replay: entirely before the snapshot (u <= lastUpdateId). Binance re-delivers
+    // these for a few hundred ms after every (re)sync; misreading them as a gap is what
+    // previously caused an infinite resync/reconnect storm.
+    wsInstance.emit('message', JSON.stringify({
+      e: 'depthUpdate', s: 'BTCUSDT', U: 280, u: 295,
+      b: [['59000.00', '9.0']], a: []
+    }));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(mockFetch).toHaveBeenCalledTimes(1); // no resync fetch dispatched
+    expect(lastBook!.lastUpdateId).toBe('300'); // book untouched by the stale diff
+    expect(lastBook!.bids.find((b) => b.price === 59000)).toBeUndefined();
+
+    // Straddling event (U <= lastUpdateId + 1 <= u): must be applied, not gap-flagged.
+    wsInstance.emit('message', JSON.stringify({
+      e: 'depthUpdate', s: 'BTCUSDT', U: 290, u: 310,
+      b: [['60000.00', '2.5']], a: []
+    }));
+
+    expect(lastBook!.lastUpdateId).toBe('310');
+    expect(lastBook!.bids.find((b) => b.price === 60000)!.amount).toBe(2.5);
+    expect(mockFetch).toHaveBeenCalledTimes(1); // still no resync
+  });
+
+  it('should replay buffered events across the snapshot boundary, dropping the stale prefix', async () => {
+    const mockSnapshot = {
+      lastUpdateId: 300,
+      bids: [['60000.00', '1.0']],
+      asks: [['60100.00', '1.0']]
+    };
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => mockSnapshot
+    });
+
+    let lastBook: NormalizedOrderBook | null = null;
+    client.subscribeOrderBook('BTCUSDT', (book) => {
+      lastBook = book;
+    });
+    const connectPromise = client.connect();
+    const wsInstance = (client as any).ws;
+    wsInstance.emit('open');
+    // Both frames arrive while the snapshot fetch is in flight, so they are buffered:
+    wsInstance.emit('message', JSON.stringify({
+      e: 'depthUpdate', s: 'BTCUSDT', U: 290, u: 295, b: [['59000.00', '9.0']], a: []
+    })); // stale — predates the snapshot entirely
+    wsInstance.emit('message', JSON.stringify({
+      e: 'depthUpdate', s: 'BTCUSDT', U: 296, u: 305, b: [['60050.00', '1.1']], a: []
+    })); // straddles the snapshot boundary — must apply
+    await connectPromise;
+
+    expect(mockFetch).toHaveBeenCalledTimes(1); // replay reconciled without any resync
+    expect(lastBook!.lastUpdateId).toBe('305');
+    expect(lastBook!.bids.find((b) => b.price === 59000)).toBeUndefined();
+    expect(lastBook!.bids.find((b) => b.price === 60050)!.amount).toBe(1.1);
+  });
+
+  it('should recycle the socket when a resync snapshot fetch fails', async () => {
+    const mockSnapshot = {
+      lastUpdateId: 400,
+      bids: [['60000.00', '1.0']],
+      asks: [['60100.00', '1.0']]
+    };
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockSnapshot
+    });
+
+    client.subscribeOrderBook('BTCUSDT', () => {});
+    const connectPromise = client.connect();
+    const wsInstance = (client as any).ws;
+    wsInstance.emit('open');
+    await connectPromise;
+
+    // The resync snapshot fails (e.g. REST rate limit). The client must hand recovery to
+    // the reconnect cycle instead of silently buffering diffs forever.
+    mockFetch.mockRejectedValueOnce(new Error('429 rate limited'));
+    const closeSpy = vi.spyOn(wsInstance, 'close');
+
+    wsInstance.emit('message', JSON.stringify({
+      e: 'depthUpdate', s: 'BTCUSDT', U: 405, u: 406, b: [], a: []
+    })); // true forward gap → resync → snapshot fetch rejects
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(closeSpy).toHaveBeenCalled();
+  });
 });
 
 describe('🦈 KrakenClient REST Fallback snapshot recovery', () => {

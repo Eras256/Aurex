@@ -24,9 +24,13 @@ export class BinanceClient implements ExchangeAdapter {
   private eventBuffer: any[] = [];
   private isSyncing = false;
   private snapshotReceived = false;
-  // Resync-storm guard: count snapshot resyncs within a rolling window. A lagging WS diff
-  // stream sits permanently behind the real-time REST snapshot sequence space, so re-fetching
-  // snapshots can never reconcile — only a fresh socket realigns the stream to now.
+  // Cap the sync buffer: if a snapshot fetch stalls (rate limit, network), the diff stream
+  // keeps pushing every 100ms and the buffer must not grow unboundedly.
+  private static readonly MAX_BUFFERED_EVENTS = 2000;
+  // Resync-storm guard: count true sequence-gap resyncs within a rolling window. Stale
+  // overlapping events (normal right after a snapshot) are dropped and never count here;
+  // only genuine forward gaps do, so hitting the limit means the stream itself is unhealthy
+  // and only a fresh socket realigns it.
   private resyncCount = 0;
   private resyncWindowStart = 0;
   // Exchange-stamped event time (ms) from the most recent diff frame's `E` field.
@@ -83,8 +87,11 @@ export class BinanceClient implements ExchangeAdapter {
         this.fetchSnapshot()
           .then(() => resolve())
           .catch((error) => {
-            this.logger.error({ eventType: 'ERROR', error }, 'Failed to initialize Binance depth snapshot');
-            resolve(); // Resolve to avoid stalling bootstrap, reconnect cycle will recover
+            this.logger.error({ eventType: 'ERROR', error }, 'Failed to initialize Binance depth snapshot; recycling socket.');
+            // Without a snapshot the client would buffer diffs forever; closing the socket
+            // hands recovery to the backoff reconnect cycle driven by the 'close' handler.
+            this.ws?.close();
+            resolve(); // Resolve to avoid stalling bootstrap
           });
       });
 
@@ -115,12 +122,20 @@ export class BinanceClient implements ExchangeAdapter {
 
   private handleDepthMessage(payload: any) {
     if (this.isSyncing) {
+      if (this.eventBuffer.length >= BinanceClient.MAX_BUFFERED_EVENTS) {
+        this.logger.warn(
+          { eventType: 'WARNING', buffered: this.eventBuffer.length },
+          '⚠️ Diff buffer overflow while awaiting snapshot; recycling socket.'
+        );
+        this.ws?.close();
+        return;
+      }
       this.eventBuffer.push(payload);
       return;
     }
 
-    // Official verification: U must equal previous_u + 1 (i.e. lastUpdateId + 1)
-    if (payload.U !== this.lastUpdateId + 1) {
+    const result = this.applySequencedEvent(payload);
+    if (result === 'gap') {
       this.logger.warn(
         { eventType: 'WARNING', expectedU: this.lastUpdateId + 1, receivedU: payload.U },
         '⚠️ Binance sequence gap detected. Triggering resync...'
@@ -128,14 +143,34 @@ export class BinanceClient implements ExchangeAdapter {
       this.triggerResync();
       return;
     }
+    if (result === 'applied') {
+      // A clean in-sequence diff means the stream is healthy again; clear the desync streak.
+      this.resyncCount = 0;
+      this.notifyListeners();
+    }
+    // 'stale' events — replays of updates already covered by the snapshot, normal for a few
+    // hundred ms after each (re)sync — are dropped silently. Treating them as desync is what
+    // previously caused an infinite resync/reconnect storm.
+  }
+
+  /**
+   * Applies one diff event under the official Spot local-order-book sequence rules:
+   * - `u <= lastUpdateId`              → stale replay of already-applied updates: drop.
+   * - `U > lastUpdateId + 1`           → true forward gap (missed updates): caller resyncs.
+   * - `U <= lastUpdateId + 1 <= u`     → apply. Levels carry absolute amounts, so an event
+   *                                      partially overlapping our state applies idempotently.
+   * The strict `U === lastUpdateId + 1` continuity is the healthy steady-state subcase of
+   * the third rule.
+   */
+  private applySequencedEvent(payload: any): 'applied' | 'stale' | 'gap' {
+    if (payload.u <= this.lastUpdateId) return 'stale';
+    if (payload.U > this.lastUpdateId + 1) return 'gap';
 
     this.applyDiffs(payload.b, payload.a);
     this.lastUpdateId = payload.u;
-    // A clean in-sequence diff means the stream is healthy again; clear the desync streak.
-    this.resyncCount = 0;
     // `E` is Binance's event time in ms (per Spot WS diff-depth spec).
     if (typeof payload.E === 'number') this.lastEventTime = payload.E;
-    this.notifyListeners();
+    return 'applied';
   }
 
   private async fetchSnapshot() {
@@ -165,35 +200,22 @@ export class BinanceClient implements ExchangeAdapter {
       `📥 Binance depth snapshot received. Processing ${this.eventBuffer.length} buffered diff events...`
     );
 
-    // Apply buffered events
-    // 1. Drop any event where u < lastUpdateId
-    const relevantEvents = this.eventBuffer.filter((ev) => ev.u >= this.lastUpdateId);
-
-    if (relevantEvents.length > 0) {
-      // 2. The first processed event must have U <= lastUpdateId + 1 AND u >= lastUpdateId + 1
-      const firstEvent = relevantEvents[0];
-      if (firstEvent.U > this.lastUpdateId + 1) {
-        this.logger.warn({ eventType: 'WARNING' }, '⚠️ First buffered event has U > lastUpdateId + 1. Triggering resync...');
+    // Replay buffered events through the same sequence rules as live events: stale ones
+    // (u <= snapshot lastUpdateId) are dropped, a genuine forward gap forces a resync.
+    const buffered = this.eventBuffer;
+    this.eventBuffer = [];
+    for (const ev of buffered) {
+      if (this.applySequencedEvent(ev) === 'gap') {
+        this.logger.warn(
+          { eventType: 'WARNING', expectedU: this.lastUpdateId + 1, receivedU: ev.U },
+          '⚠️ Buffered events sequence gap detected. Triggering resync...'
+        );
         this.triggerResync();
         return;
-      }
-
-      // 3. Apply relevant events sequentially
-      for (const ev of relevantEvents) {
-        // Validate sequential ordering for subsequent events
-        if (ev !== firstEvent && ev.U !== this.lastUpdateId + 1) {
-          this.logger.warn({ eventType: 'WARNING' }, '⚠️ Buffered events sequence gap detected. Triggering resync...');
-          this.triggerResync();
-          return;
-        }
-
-        this.applyDiffs(ev.b, ev.a);
-        this.lastUpdateId = ev.u;
       }
     }
 
     this.isSyncing = false;
-    this.eventBuffer = [];
     this.snapshotReceived = true;
     this.notifyListeners();
   }
@@ -276,7 +298,10 @@ export class BinanceClient implements ExchangeAdapter {
     }
 
     this.fetchSnapshot().catch((err) => {
-      this.logger.error({ eventType: 'ERROR', error: err }, 'Failed to resync Binance local order book');
+      this.logger.error({ eventType: 'ERROR', error: err }, 'Failed to resync Binance local order book; recycling socket.');
+      // A failed resync snapshot would leave the client buffering forever (isSyncing stays
+      // true). Close the socket so the backoff reconnect cycle owns recovery.
+      this.ws?.close();
     });
   }
 
