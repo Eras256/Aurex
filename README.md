@@ -63,7 +63,7 @@ La mayoría de los simuladores calculan spreads de forma ingenua usando precios 
 - **Multi-Exchange L2 Feed:** Concurrent WebSocket connections to Binance, Kraken, Coinbase Advanced, OKX, and Bybit.
 - **Wire vs. Compute Telemetry:** Separates network transit time (measured from exchange matching engine timestamp) from core engine execution time (microsecond scale), with a p99 detection-latency metric in the header ticker.
 - **Dual-Strategy Engine:** Scans and ranks both Directed Cross-Exchange spreads (5x5 matrix with rolling z-score statistical-arbitrage confidence) and Binance Triangular Arbitrage (USDT→BTC→ETH→USDT) net of triple fees.
-- **Execution Realism:** Stochastic two-sided fill drift (Box–Muller) around the modeled adverse cost; cross-venue leg-execution risk; a 60s per-pair execution cooldown so cumulative returns are realistic; and transparently-surfaced SKIPPED windows.
+- **Execution Realism:** Stochastic two-sided fill drift (Box–Muller) around the modeled adverse cost; cross-venue leg-execution risk; a configurable per-pair execution cooldown (default 60s) so cumulative returns are realistic; and transparently-surfaced SKIPPED windows.
 - **Dynamic Risk Circuit Breakers & In-Memory Calibration:** Real-time exposure caps, volatility circuit breakers, consecutive-loss cooldown, and dynamic risk override parameter execution (`POST /api/v1/bot/calibrate`) without container restarts.
 - **AI Quant Copilot Layer:** A Copilot workspace plus an engine settings modal with provider/model selection, backed by a real model (OpenAI `gpt-4o-mini`) grounded on live engine state, with a transparent fallback to a deterministic mock when unconfigured. Advisory only (it never executes trades), surfacing spread explainability and execution-cost attribution from live telemetry.
 - **Real WebSocket Telemetry Stream:** A secondary dedicated WebSocket feed (`/api/v1/telemetry/logs?token=...`) streaming exact network delays, server processing latency, and skipped opportunities.
@@ -79,7 +79,7 @@ La mayoría de los simuladores calculan spreads de forma ingenua usando precios 
 - **Feeds L2 Multi-Exchange:** Conexiones WebSocket concurrentes a Binance, Kraken, Coinbase Advanced, OKX y Bybit.
 - **Telemetría de Red vs. Cómputo:** Separa el tiempo de tránsito de red (medido desde el timestamp del motor del exchange) del tiempo de cómputo del motor (escala de microsegundos), con métrica p99 de latencia de detección en el ticker de cabecera.
 - **Motor de Doble Estrategia:** Escanea y clasifica tanto spreads Cross-Exchange Directos (matriz 5x5 con z-score móvil de arbitraje estadístico) como Arbitraje Triangular en Binance (USDT→BTC→ETH→USDT) neto de tres comisiones.
-- **Realismo de Ejecución:** Deriva de llenado estocástica de dos colas (Box–Muller) alrededor del coste adverso modelado; riesgo de ejecución por pata cross-venue; cooldown de ejecución por par de 60s para que los retornos acumulados sean realistas; y ventanas SKIPPED expuestas con transparencia.
+- **Realismo de Ejecución:** Deriva de llenado estocástica de dos colas (Box–Muller) alrededor del coste adverso modelado; riesgo de ejecución por pata cross-venue; cooldown de ejecución por par configurable (60s por defecto) para que los retornos acumulados sean realistas; y ventanas SKIPPED expuestas con transparencia.
 - **Circuit Breakers y Calibración Dinámica en Memoria:** Límites de exposición, breakers de volatilidad, cooldown por pérdidas consecutivas y aplicación dinámica de anulaciones de riesgo (`POST /api/v1/bot/calibrate`) sin reinicios.
 - **Capa de AI Quant Copilot:** Espacio de trabajo del Copiloto más un modal de ajustes del motor con selección de proveedor/modelo, respaldado por un modelo real (OpenAI `gpt-4o-mini`) anclado al estado del motor en vivo, con fallback transparente a un mock determinístico si no está configurado. Solo consultivo (nunca ejecuta trades), que expone explicabilidad del spread y atribución de costes de ejecución desde telemetría en vivo.
 - **Transmisión de Telemetría Real por WebSocket:** Canal WebSocket secundario (`/api/v1/telemetry/logs?token=...`) que transmite demoras exactas de red, latencia de motor y trades omitidos.
@@ -147,7 +147,7 @@ flowchart LR
 4.  **Size Position:** An optimization loop increments trade volume to maximize net arbitrage yield.
 5.  **Statistical Ranking:** Spreads are ranked by net profit; rolling z-scores break near-ties by prioritizing anomalies.
 6.  **Drift & Leg-Risk Assessment:** The execution engine models adverse price movement over delay intervals using realized volatility, and applies cross-venue leg-execution risk where a hedge can miss.
-7.  **Commit or Abort:** The trade is executed at post-drift prices if the edge survives; otherwise, it is logged as ABORTED/SKIPPED. A 60s per-pair cooldown prevents re-firing the same dislocation every tick.
+7.  **Commit or Abort:** The trade is executed at post-drift prices if the edge survives; otherwise, it is logged as ABORTED/SKIPPED. A configurable per-pair cooldown (default 60s) prevents re-firing the same dislocation every tick.
 8.  **Inventory Rebalancing:** A background loop redistributes funds across venues when assets fall below thresholds, paying simulated network fees.
 
 ### ES
@@ -158,7 +158,7 @@ flowchart LR
 4.  **Dimensionamiento de Posición:** Un bucle de optimización incrementa el volumen para maximizar el rendimiento neto.
 5.  **Clasificación Estadística:** Los spreads se ordenan por beneficio neto; z-scores históricos priorizan anomalías estadísticas.
 6.  **Evaluación de Deriva y Riesgo de Pata:** El motor calcula el movimiento de precio adverso durante la latencia usando la volatilidad realizada, y aplica riesgo de ejecución por pata cross-venue donde una cobertura puede fallar.
-7.  **Ejecución o Aborto:** La orden se ejecuta a precios post-deriva si el margen sobrevive; de lo contrario, se aborta/SKIPPED. Un cooldown de 60s por par evita re-disparar la misma dislocación en cada tick.
+7.  **Ejecución o Aborto:** La orden se ejecuta a precios post-deriva si el margen sobrevive; de lo contrario, se aborta/SKIPPED. Un cooldown por par configurable (60s por defecto) evita re-disparar la misma dislocación en cada tick.
 8.  **Rebalanceo de Inventario:** Un proceso en segundo plano redistribuye fondos entre exchanges cuando caen de los límites, pagando tarifas de red simuladas.
 
 ---

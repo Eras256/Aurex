@@ -323,8 +323,15 @@ export class ArbitrageEngine {
   private recordLatency(ms: number) {
     this.latencySamples.push(ms);
     if (this.latencySamples.length > 300) this.latencySamples.shift();
+  }
+
+  /** Marks one evaluation cycle: throughput telemetry plus the watchdog liveness heartbeat. */
+  private recordEvaluation() {
     const now = Date.now();
     this.evalTimestamps.push(now);
+    // Amortised prune keeps the array bounded even between getMetrics() polls.
+    const cutoff = now - 1000;
+    while (this.evalTimestamps.length && this.evalTimestamps[0] < cutoff) this.evalTimestamps.shift();
     // Liveness heartbeat: the watchdog uses this to detect a stalled engine.
     this.lastActivityAt = now;
   }
@@ -359,6 +366,7 @@ export class ArbitrageEngine {
       while (symbol) {
         this.pendingSymbol = null;
         this.booksProcessed++;
+        this.recordEvaluation();
         await this.evaluateArbitrage(symbol);
         symbol = this.pendingSymbol;
       }
@@ -546,7 +554,13 @@ export class ArbitrageEngine {
     let finalMathResult: NetSpreadResult | null = null;
     let refMathResult: NetSpreadResult | null = null;
 
-    for (let testVol = stepSize; testVol <= Math.max(maxBtcCap, stepSize); testVol += stepSize) {
+    // The increment is re-rounded each step so binary float accumulation (0.1 + 0.05 →
+    // 0.15000000000000002) never leaks into reported volumes or the persisted ledger.
+    for (
+      let testVol = stepSize;
+      testVol <= Math.max(maxBtcCap, stepSize);
+      testVol = Number((testVol + stepSize).toFixed(8))
+    ) {
       const walkBuy = walkOrderBook(buyBook.asks, testVol);
       const walkSell = walkOrderBook(sellBook.bids, testVol);
 
@@ -945,14 +959,14 @@ export class ArbitrageEngine {
           buyExchange: c.buyExchangeId,
           sellExchange: c.sellExchangeId,
           symbol: c.symbol,
-          volume: c.optimalVolume,
+          volume: bookedVolume,
           buyPrice: realizedBuyPrice,
           sellPrice: realizedSellPrice,
           adverseBps: Number(adverseBps.toFixed(2)),
           netProfitUSD: realizedNetUSD,
           outcome,
         },
-        `${isWin ? '💰' : '📉'} ARBITRAGE ${execLabel}! Size: ${c.optimalVolume.toFixed(2)} BTC. Net (realized): ${netLabel} USD after ${adverseBps.toFixed(1)}bps fill drift. Buy ${c.buyExchangeId} ($${realizedBuyPrice.toFixed(2)}) -> Sell ${c.sellExchangeId} ($${realizedSellPrice.toFixed(2)})`
+        `${isWin ? '💰' : '📉'} ARBITRAGE ${execLabel}! Size: ${bookedVolume.toFixed(4)} BTC. Net (realized): ${netLabel} USD after ${adverseBps.toFixed(1)}bps fill drift. Buy ${c.buyExchangeId} ($${realizedBuyPrice.toFixed(2)}) -> Sell ${c.sellExchangeId} ($${realizedSellPrice.toFixed(2)})`
       );
 
       const event: EngineEvent = {
@@ -960,8 +974,8 @@ export class ArbitrageEngine {
         timestamp: Date.now(),
         type: 'TRADE_EXECUTION',
         message: legFailed
-          ? `${realExecuted ? '[TESTNET] ' : ''}Leg miss on ${sellMeta.name}: ${c.optimalVolume.toFixed(4)} BTC bought on ${buyMeta.name} unwound at a ${netLabel} loss.`
-          : `${realExecuted ? '[TESTNET] ' : ''}Arbitrage Executed: Bought ${c.optimalVolume.toFixed(4)} BTC on ${buyMeta.name} and sold on ${sellMeta.name} for ${netLabel} net${realExecuted ? ' (real testnet fill)' : ` (after ${adverseBps.toFixed(1)}bps fill drift)`}.`,
+          ? `${realExecuted ? '[TESTNET] ' : ''}Leg miss on ${sellMeta.name}: ${bookedVolume.toFixed(4)} BTC bought on ${buyMeta.name} unwound at a ${netLabel} loss.`
+          : `${realExecuted ? '[TESTNET] ' : ''}Arbitrage Executed: Bought ${bookedVolume.toFixed(4)} BTC on ${buyMeta.name} and sold on ${sellMeta.name} for ${netLabel} net${realExecuted ? ' (real testnet fill)' : ` (after ${adverseBps.toFixed(1)}bps fill drift)`}.`,
       };
       await saveEvent(event);
 
@@ -1056,7 +1070,9 @@ export class ArbitrageEngine {
       return;
     }
 
-    const takerFeeBps = EXCHANGES_METADATA[venue]?.takerFeeBps ?? 4;
+    // Honour the per-exchange taker-fee override so the triangular loop obeys the same
+    // runtime fee parametrization as the directed cross-exchange scanner.
+    const takerFeeBps = this.takerBps(venue, EXCHANGES_METADATA[venue]?.takerFeeBps ?? 4);
     const usdtFree = this.wallets[venue]?.USDT?.free ?? 0;
     const notionalUSD = Math.max(0, Math.min(NOTIONAL_CAP_USD, usdtFree));
 

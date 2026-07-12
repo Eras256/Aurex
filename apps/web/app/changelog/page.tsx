@@ -30,6 +30,53 @@ type ChangeGroup = {
 // stated criteria (parametrization depth is called out as the #1 differentiator).
 const FINAL_PHASE_GROUPS: ChangeGroup[] = [
   {
+    tag: 'FEED-SYNC FIX',
+    title: {
+      en: 'Binance L2 sync rewritten to the official sequence rules (resync-storm fix)',
+      es: 'Sincronización L2 de Binance reescrita según las reglas oficiales de secuencia (fix del resync-storm)',
+    },
+    items: [
+      {
+        en: 'The Binance diff-depth client treated stale overlapping events (normal replays for a few hundred ms after every snapshot) as sequence gaps, causing an infinite resync/reconnect storm that could keep the venue offline for hours while hammering the REST snapshot endpoint. Events are now classified per the official Spot rules — stale replays are dropped silently, snapshot-straddling events apply idempotently, and only true forward gaps resync. Covered by new deterministic unit tests.',
+        es: 'El cliente diff-depth de Binance trataba eventos viejos superpuestos (replays normales durante unos cientos de ms tras cada snapshot) como huecos de secuencia, causando una tormenta infinita de resync/reconexión que podía dejar el venue caído por horas mientras martillaba el endpoint REST de snapshots. Ahora los eventos se clasifican según las reglas oficiales de Spot — los replays viejos se descartan en silencio, los eventos que cruzan el snapshot se aplican de forma idempotente, y solo un hueco real hacia adelante dispara resync. Cubierto por nuevas pruebas unitarias determinísticas.',
+      },
+      {
+        en: 'A failed snapshot fetch (e.g. a REST rate limit) previously left the client buffering diffs forever with no recovery path; it now recycles the socket so the backoff reconnect cycle owns recovery, and the sync buffer is capped so a stalled fetch can never grow memory unboundedly.',
+        es: 'Un snapshot fallido (p. ej. por rate limit REST) dejaba antes al cliente bufferizando diffs para siempre sin ruta de recuperación; ahora recicla el socket para que el ciclo de reconexión con backoff sea dueño de la recuperación, y el buffer de sincronización tiene tope para que un fetch atascado nunca crezca sin límite en memoria.',
+      },
+    ],
+  },
+  {
+    tag: 'RISK ENFORCEMENT',
+    title: {
+      en: 'Every advertised risk knob is now actually enforced',
+      es: 'Cada parámetro de riesgo anunciado ahora se aplica de verdad',
+    },
+    items: [
+      {
+        en: 'maxTradesPerMinute was exposed in the schema and Risk page but never enforced; the RiskManager now applies it as a rolling 60-second booked-trade limiter (triangular fills consume the same budget), with deterministic unit tests.',
+        es: 'maxTradesPerMinute estaba expuesto en el esquema y la página de Riesgo pero nunca se aplicaba; el RiskManager ahora lo impone como límite móvil de operaciones registradas por 60 segundos (los fills triangulares consumen el mismo presupuesto), con pruebas unitarias determinísticas.',
+      },
+      {
+        en: 'maxPositionQuotePerExchange was likewise unenforced; a trade whose quote notional would commit more than the cap to a single venue is now rejected with an explicit reason.',
+        es: 'maxPositionQuotePerExchange tampoco se aplicaba; una operación cuyo nocional en quote comprometa más que el tope en un solo venue ahora se rechaza con una razón explícita.',
+      },
+    ],
+  },
+  {
+    tag: 'TELEMETRY HONESTY',
+    title: {
+      en: 'Telemetry and ledger honesty fixes',
+      es: 'Correcciones de honestidad en telemetría y ledger',
+    },
+    items: [
+      {
+        en: 'evals/sec now counts every evaluation cycle (including coalesced re-runs) instead of only the first book of a burst; trade events report the actually-filled volume (a 0.001 BTC testnet clamp is no longer narrated as the full theoretical size); the triangular loop honours per-exchange taker-fee overrides; sizing volumes are float-rounded so ledger rows never show 0.44999999999999996-style artifacts; and shutdown now disconnects all five venues.',
+        es: 'evals/seg ahora cuenta cada ciclo de evaluación (incluyendo re-ejecuciones coalescidas) en vez de solo el primer libro de una ráfaga; los eventos de trade reportan el volumen realmente llenado (un clamp testnet de 0.001 BTC ya no se narra como el tamaño teórico completo); el ciclo triangular respeta los overrides de comisión taker por exchange; los volúmenes de sizing se redondean para que el ledger nunca muestre artefactos tipo 0.44999999999999996; y el apagado ahora desconecta los cinco venues.',
+      },
+    ],
+  },
+  {
     tag: 'PARAMETRIZATION',
     title: {
       en: 'Deep runtime parametrization',

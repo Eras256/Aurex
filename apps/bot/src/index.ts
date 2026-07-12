@@ -199,11 +199,9 @@ async function bootstrap() {
     // Close servers
     httpServer.close();
     
-    // Disconnect sockets
+    // Disconnect every venue socket plus the Binance triangular legs
     await Promise.all([
-      exchanges.binance.disconnect(),
-      exchanges.kraken.disconnect(),
-      exchanges.coinbase.disconnect(),
+      ...Object.values(exchanges).map((e) => e.disconnect()),
       ...triangularFeeds.map((f) => f.disconnect()),
     ]);
 
