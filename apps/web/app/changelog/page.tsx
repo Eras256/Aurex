@@ -71,6 +71,14 @@ const FINAL_PHASE_GROUPS: ChangeGroup[] = [
     },
     items: [
       {
+        en: 'Trade provenance is now explicit end-to-end: every ledger row records whether it was a real testnet fill (signed IOC orders matched on an exchange test environment) or a simulator fill. TESTNET rows carry a badge in the Trade Ledger, the CSV export gained an execution column and was renamed from simulated_trades_*.csv to aurex_trades_*.csv (with testnet mode active, calling every row "simulated" was inaccurate), and the tag survives restarts via the persistence layer.',
+        es: 'La procedencia de cada operación ahora es explícita de punta a punta: cada fila del ledger registra si fue un fill real de testnet (órdenes IOC firmadas y cruzadas en un entorno de prueba del exchange) o un fill del simulador. Las filas TESTNET llevan un badge en el Libro de Operaciones, el export CSV ganó una columna execution y se renombró de simulated_trades_*.csv a aurex_trades_*.csv (con el modo testnet activo, llamar "simulada" a cada fila era impreciso), y la etiqueta sobrevive reinicios vía la capa de persistencia.',
+      },
+      {
+        en: 'The Trade Ledger net-P&L cell hardcoded a green "+$" prefix, so a realised loss would have rendered as a glowing green "+$-3.21"; it now renders sign-aware amounts in green or red.',
+        es: 'La celda de P&L neto del Libro de Operaciones fijaba un prefijo verde "+$", por lo que una pérdida realizada se habría mostrado como un "+$-3.21" brillando en verde; ahora renderiza montos con signo correcto en verde o rojo.',
+      },
+      {
         en: 'evals/sec now counts every evaluation cycle (including coalesced re-runs) instead of only the first book of a burst; trade events report the actually-filled volume (a 0.001 BTC testnet clamp is no longer narrated as the full theoretical size); the triangular loop honours per-exchange taker-fee overrides; sizing volumes are float-rounded so ledger rows never show 0.44999999999999996-style artifacts; and shutdown now disconnects all five venues.',
         es: 'evals/seg ahora cuenta cada ciclo de evaluación (incluyendo re-ejecuciones coalescidas) en vez de solo el primer libro de una ráfaga; los eventos de trade reportan el volumen realmente llenado (un clamp testnet de 0.001 BTC ya no se narra como el tamaño teórico completo); el ciclo triangular respeta los overrides de comisión taker por exchange; los volúmenes de sizing se redondean para que el ledger nunca muestre artefactos tipo 0.44999999999999996; y el apagado ahora desconecta los cinco venues.',
       },
@@ -176,6 +184,27 @@ const FINAL_PHASE_GROUPS: ChangeGroup[] = [
       {
         en: 'An optional executionMode: "testnet" routes arbitrage legs to real signed IOC orders on venue test environments — Binance Spot Testnet, OKX Demo and Bybit Testnet, all three verified live with real filled orders (six real-executable directed routes) — fake balances, no real funds, real matching engines. Falls back to the internal simulator per-trade if a leg is unconfigured or fails, so the default demo experience never depends on it.',
         es: 'Un modo opcional executionMode: "testnet" enruta las patas de arbitraje a órdenes IOC reales y firmadas en los entornos de prueba de los exchanges — Binance Spot Testnet, OKX Demo y Bybit Testnet, los tres verificados en vivo con órdenes reales llenadas (seis rutas dirigidas ejecutables en real) — balances falsos, sin fondos reales, motores de matching reales. Si una pata no está configurada o falla, cae a la simulación interna para ese trade, así el modo demo por defecto nunca depende de esto.',
+      },
+      {
+        en: 'The execution layer also gained a Coinbase Exchange sandbox real-fill leg (active when sandbox credentials are configured) and an honest Kraken dry-run: Kraken offers no public spot testnet, so its leg calls the real order-validation endpoint (validate-only) and the fill is transparently booked by the simulator — never presented as a real fill.',
+        es: 'La capa de ejecución también ganó una pata de fills reales en el sandbox de Coinbase Exchange (activa cuando hay credenciales de sandbox configuradas) y un dry-run honesto de Kraken: Kraken no ofrece testnet spot público, así que su pata llama al endpoint real de validación de órdenes (validate-only) y el fill se registra transparentemente vía el simulador — nunca se presenta como un fill real.',
+      },
+    ],
+  },
+  {
+    tag: 'UI & METRICS FIXES',
+    title: {
+      en: 'Dashboard coherence and Copilot accuracy fixes',
+      es: 'Correcciones de coherencia del dashboard y precisión del Copiloto',
+    },
+    items: [
+      {
+        en: 'Portfolio Equity is now starting allocation + realised net P&L; it previously summed the seeded per-venue wallet reserves, showing an incoherent multi-million figure that contradicted the initial-allocation label and the Live Net P&L card. KPI cards also gained responsive font sizing.',
+        es: 'El Equity del Portafolio ahora es asignación inicial + P&L neto realizado; antes sumaba las reservas sembradas de cada venue, mostrando una cifra multimillonaria incoherente que contradecía la etiqueta de asignación inicial y la tarjeta de P&L Neto en Vivo. Las tarjetas KPI además ganaron tipografía responsiva.',
+      },
+      {
+        en: 'The cumulative trade count reports the true executed total instead of freezing at the 50-row display slice (which also inflated average profit per trade); the AI Copilot’s execution-cost figures were corrected for a scale mismatch against the engine’s cost model; and a Risk-page bug where sliders reset while being edited was fixed.',
+        es: 'El conteo acumulado de operaciones reporta el total real ejecutado en vez de congelarse en la rebanada de 50 filas del display (lo que además inflaba el beneficio promedio por operación); las cifras de costes de ejecución del Copiloto IA se corrigieron por un desfase de escala contra el modelo de costos del motor; y se corrigió un bug de la página de Riesgo donde los sliders se reseteaban mientras se editaban.',
       },
     ],
   },

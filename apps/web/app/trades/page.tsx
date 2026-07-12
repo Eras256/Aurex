@@ -166,9 +166,16 @@ export default function TradesPage() {
                           {new Date(tr.timestamp).toLocaleTimeString()}
                         </TableCell>
                         <TableCell className="px-6 py-2.5">
-                          <Badge variant="secondary">
-                            {tr.buyExchange === tr.sellExchange ? tr.symbol : `${tr.buyExchange} → ${tr.sellExchange}`}
-                          </Badge>
+                          <div className="flex items-center gap-1.5">
+                            <Badge variant="secondary">
+                              {tr.buyExchange === tr.sellExchange ? tr.symbol : `${tr.buyExchange} → ${tr.sellExchange}`}
+                            </Badge>
+                            {tr.execution === 'testnet' && (
+                              <Badge variant="outline" className="text-[8px] font-mono text-sky-400 border-sky-500/30 py-0 px-1">
+                                TESTNET
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="px-6 py-2.5 text-right font-medium text-slate-200">
                           {tr.volume.toFixed(4)} BTC
@@ -181,8 +188,12 @@ export default function TradesPage() {
                         </TableCell>
                         <TableCell className="px-6 py-2.5 text-right text-slate-500">${tr.feesPaid.toFixed(2)}</TableCell>
                         <TableCell className="px-6 py-2.5 text-right text-slate-500">${tr.slippagePaid.toFixed(2)}</TableCell>
-                        <TableCell className="px-6 py-2.5 text-right text-emerald-400 font-bold glow-text-green">
-                          +${tr.netProfit.toFixed(2)}
+                        <TableCell
+                          className={`px-6 py-2.5 text-right font-bold ${
+                            tr.netProfit >= 0 ? 'text-emerald-400 glow-text-green' : 'text-rose-400'
+                          }`}
+                        >
+                          {tr.netProfit >= 0 ? '+' : '-'}${Math.abs(tr.netProfit).toFixed(2)}
                         </TableCell>
                       </TableRow>
                     ))

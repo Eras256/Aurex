@@ -64,6 +64,10 @@ export interface SimulatedTrade {
   netProfit: number;
   feesPaid: number; // Total taker fees paid across both sides
   slippagePaid: number; // Total slippage incurred compared to top-of-book prices
+  // How the fill was produced: 'testnet' = real signed IOC orders matched on an exchange
+  // test environment; 'sim' = internal simulator. Optional for backward compatibility —
+  // records persisted before this field existed are simulator fills.
+  execution?: 'sim' | 'testnet';
 }
 
 export interface EngineConfig {

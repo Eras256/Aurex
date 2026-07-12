@@ -935,6 +935,7 @@ export class ArbitrageEngine {
         netProfit: realizedNetUSD,
         feesPaid: realizedFeeUSD * bookedVolume,
         slippagePaid,
+        execution: realExecuted ? 'testnet' : 'sim',
       };
 
       await saveTrade(tradeRecord);
@@ -1144,6 +1145,7 @@ export class ArbitrageEngine {
       netProfit,
       feesPaid,
       slippagePaid: 0,
+      execution: 'sim',
     };
 
     await saveTrade(tradeRecord);

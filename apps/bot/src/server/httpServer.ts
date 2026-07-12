@@ -145,11 +145,15 @@ export function createHttpServer(
     try {
       const trades = await getTrades(1000);
       
-      // Flatten trades for CSV rows
+      // Flatten trades for CSV rows. The `execution` column keeps the ledger honest under
+      // executionMode 'testnet': TESTNET rows are real signed IOC fills matched on an
+      // exchange test environment; SIM rows come from the internal simulator. Records
+      // persisted before the field existed default to SIM.
       const flattened = trades.map((t) => ({
         id: t.id,
         opportunityId: t.opportunityId,
         timestamp: new Date(t.timestamp).toISOString(),
+        execution: (t.execution ?? 'sim').toUpperCase(),
         buyExchange: t.buyExchange,
         sellExchange: t.sellExchange,
         symbol: t.symbol,
@@ -165,7 +169,7 @@ export function createHttpServer(
       const csvContent = jsonToCSV(flattened);
 
       res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', `attachment; filename=simulated_trades_${Date.now()}.csv`);
+      res.setHeader('Content-Disposition', `attachment; filename=aurex_trades_${Date.now()}.csv`);
       res.send(csvContent);
     } catch (error) {
       res.status(500).json({ error: 'Failed to compile trade sheet CSV' });

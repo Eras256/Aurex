@@ -131,6 +131,8 @@ async function hydrateFromSupabase(): Promise<void> {
         netProfit: Number(r.net_profit_usd),
         feesPaid: Number(r.fees_paid_usd),
         slippagePaid: Number(r.slippage_paid_usd),
+        // Provenance survives restarts via the status column; legacy 'SUCCESS' rows are sim.
+        execution: r.status === 'TESTNET' ? ('testnet' as const) : ('sim' as const),
       }));
 
       // Prefer a persisted equity curve; otherwise reconstruct it from the trade series.
@@ -250,7 +252,10 @@ export async function saveTrade(trade: SimulatedTrade): Promise<void> {
       latency_cost_usd: 0,
       buy_fill_ratio: 1.0,
       sell_fill_ratio: 1.0,
-      status: 'SUCCESS',
+      // The status column carries execution provenance so the tag survives restarts:
+      // TESTNET = real signed IOC fills on an exchange test environment, SIM = simulator.
+      // (Legacy rows hold the old constant 'SUCCESS' and hydrate as SIM.)
+      status: trade.execution === 'testnet' ? 'TESTNET' : 'SIM',
       error_message: null,
     });
     if (error) logger.error('Supabase saveTrade error:', error.message);

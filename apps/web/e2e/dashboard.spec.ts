@@ -322,16 +322,17 @@ test.describe('📈 Bitcoin Arbitrage Simulator Visual Dashboard E2E Tests', () 
   });
 
   test('4. should trigger a CSV download for the export action on Trades page', async ({ page }) => {
-    // Mock the export endpoint to return static CSV data
-    const mockCsvContent = 'id,opportunityId,timestamp,buyExchange,sellExchange,symbol,buyPrice,sellPrice,volume,grossProfitUSD,netProfitUSD,feesPaidUSD,slippagePaidUSD\n' +
-      'trade-1,opp-1,2026-05-30T20:12:12.000Z,binance,kraken,BTCUSDT,68010,68005,0.5,10,5,3,2';
+    // Mock the export endpoint to return static CSV data (mirrors the real /trades/export
+    // shape, including the execution-provenance column)
+    const mockCsvContent = 'id,opportunityId,timestamp,execution,buyExchange,sellExchange,symbol,buyPrice,sellPrice,volume,grossProfitUSD,netProfitUSD,feesPaidUSD,slippagePaidUSD\n' +
+      'trade-1,opp-1,2026-05-30T20:12:12.000Z,SIM,binance,kraken,BTCUSDT,68010,68005,0.5,10,5,3,2';
 
     await page.route('**/trades/export', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'text/csv',
         headers: {
-          'Content-Disposition': 'attachment; filename=simulated_trades_e2e.csv',
+          'Content-Disposition': 'attachment; filename=aurex_trades_e2e.csv',
         },
         body: mockCsvContent,
       });
@@ -340,7 +341,7 @@ test.describe('📈 Bitcoin Arbitrage Simulator Visual Dashboard E2E Tests', () 
     await page.goto('/trades');
 
     // Make sure historical table header is visible (allow extra timeout for Next.js on-demand compilation)
-    await expect(page.locator('text=Simulated Trade Ledger')).toBeVisible({ timeout: 20000 });
+    await expect(page.locator('text=Trade Ledger').first()).toBeVisible({ timeout: 20000 });
 
     // Push mock trades state to let UI render ledger elements
     await pushMockState(page, mockStatePayload);
@@ -354,7 +355,7 @@ test.describe('📈 Bitcoin Arbitrage Simulator Visual Dashboard E2E Tests', () 
     const download = await downloadPromise;
 
     // Check download parameters
-    expect(download.suggestedFilename()).toBe('simulated_trades_e2e.csv');
+    expect(download.suggestedFilename()).toBe('aurex_trades_e2e.csv');
 
     // Verify we can read the file path locally and assert download was successful
     const path = await download.path();

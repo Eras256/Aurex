@@ -88,6 +88,8 @@ CREATE TABLE IF NOT EXISTS public.simulated_trades (
     latency_cost_usd NUMERIC(20, 8) DEFAULT 0,
     buy_fill_ratio NUMERIC(10, 6) DEFAULT 1,
     sell_fill_ratio NUMERIC(10, 6) DEFAULT 1,
+    -- Execution provenance: 'TESTNET' = real signed IOC fills matched on an exchange test
+    -- environment; 'SIM' = internal simulator fill. Legacy rows hold 'SUCCESS' (treated as SIM).
     status TEXT DEFAULT 'SUCCESS',
     error_message TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
