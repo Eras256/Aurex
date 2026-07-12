@@ -9,9 +9,9 @@ export class RiskManager {
   private cooldownUntil = 0;
   private globalBtcExposure = 0;
   private globalQuoteExposure = 0;
-  
-  // Track consecutive spreads to detect volatility anomalies
-  private lastSpreads: number[] = [];
+
+  // Rolling window of booked-trade timestamps enforcing the maxTradesPerMinute throttle.
+  private tradeTimestamps: number[] = [];
 
   // Custom structured child logger for RiskManager
   private logger = createChildLogger({ component: 'RiskManager' });
@@ -100,7 +100,17 @@ export class RiskManager {
       this.consecutiveLosses = 0;
     }
 
-    // 3. Volatility Spike Breaker
+    // 3. Trade-rate limiter: cap the number of booked trades in any rolling 60s window.
+    const now = Date.now();
+    this.tradeTimestamps = this.tradeTimestamps.filter((t) => now - t < 60000);
+    if (this.tradeTimestamps.length >= this.config.maxTradesPerMinute) {
+      return {
+        approved: false,
+        reason: `Trade-rate limiter: ${this.config.maxTradesPerMinute} trades/min cap reached; deferring execution`,
+      };
+    }
+
+    // 4. Volatility Spike Breaker
     // If the gross price difference is greater than 8% of the midprice, it represents a massive data lag or flash crash
     const midPrice = (buyPrice + sellPrice) / 2;
     const spreadPercentage = (grossSpread / midPrice) * 100;
@@ -117,7 +127,7 @@ export class RiskManager {
       return { approved: false, reason: `Spike Breaker: Spread of ${spreadPercentage.toFixed(2)}% exceeds ${this.config.volatilityBreakerPct}% limit` };
     }
 
-    // 4. Position & Exposure caps validation
+    // 5. Position & Exposure caps validation
     const buyQuoteBalance = wallets[buyExchange]?.USDT?.free || 0;
     const sellBtcBalance = wallets[sellExchange]?.BTC?.free || 0;
 
@@ -125,6 +135,15 @@ export class RiskManager {
     const requiredQuote = volume * buyPrice;
     if (requiredQuote > buyQuoteBalance) {
       return { approved: false, reason: `Insufficient USDT liquidity on cheaper exchange ${buyExchange} (needs ${requiredQuote.toFixed(2)}, has ${buyQuoteBalance.toFixed(2)})` };
+    }
+
+    // Cap the quote notional deployed into any single venue per position, so one trade can
+    // never commit more than maxPositionQuotePerExchange USDT to one exchange.
+    if (requiredQuote > this.config.maxPositionQuotePerExchange) {
+      return {
+        approved: false,
+        reason: `Trade notional $${requiredQuote.toFixed(0)} on ${buyExchange} exceeds the per-exchange quote cap of $${this.config.maxPositionQuotePerExchange}`,
+      };
     }
 
     // Check if sell exchange has enough BTC to sell
@@ -147,6 +166,8 @@ export class RiskManager {
    * If losses hit 3, triggers a 60 second cooling cooldown period.
    */
   recordTradeResult(netProfitUSD: number) {
+    // Every booked trade (directed or triangular) consumes trade-rate budget.
+    this.tradeTimestamps.push(Date.now());
     if (netProfitUSD < 0) {
       this.consecutiveLosses++;
       this.logger.warn({
@@ -176,6 +197,7 @@ export class RiskManager {
     this.consecutiveLosses = 0;
     this.isCoolingDown = false;
     this.cooldownUntil = 0;
+    this.tradeTimestamps = [];
     this.logger.info({ eventType: 'INFO' }, '🔄 RiskManager: Circuit breakers manually reset.');
   }
 }

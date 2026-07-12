@@ -228,4 +228,49 @@ describe('⚙️ Configurable Circuit Breakers (runtime parametrization)', () =>
     expect(rm.getRiskStatus(wallets).status).toBe('SAFE');
     expect(rm.getRiskStatus(wallets).consecutiveLosses).toBe(0);
   });
+
+  it('enforces the maxTradesPerMinute rolling cap and frees budget on reset', () => {
+    const rm = new RiskManager({
+      ...DEFAULT_ENGINE_CONFIG,
+      maxPositionBTCPerExchange: 2.0,
+      maxTradesPerMinute: 2,
+    });
+
+    // Two booked trades consume the full per-minute budget.
+    rm.recordTradeResult(1.0);
+    rm.recordTradeResult(1.0);
+
+    const res = rm.approveTrade({ ...spikeTrade, wallets });
+    expect(res.approved).toBe(false);
+    expect(res.reason).toContain('Trade-rate limiter');
+
+    // A breaker reset clears the window and trading resumes.
+    rm.resetBreakers();
+    expect(rm.approveTrade({ ...spikeTrade, wallets }).approved).toBe(true);
+  });
+
+  it('rejects a trade whose quote notional exceeds maxPositionQuotePerExchange', () => {
+    const richWallets = {
+      binance: { BTC: { free: 1.0, locked: 0 }, USDT: { free: 500000, locked: 0 } },
+      kraken: { BTC: { free: 5.0, locked: 0 }, USDT: { free: 500000, locked: 0 } },
+    };
+    const rm = new RiskManager({
+      ...DEFAULT_ENGINE_CONFIG,
+      maxPositionBTCPerExchange: 10,
+      maxPositionQuotePerExchange: 100000,
+    });
+
+    const res = rm.approveTrade({
+      buyExchange: 'binance',
+      sellExchange: 'kraken',
+      volume: 2.0, // 2 BTC × $60,000 = $120,000 notional > $100,000 cap
+      buyPrice: 60000,
+      sellPrice: 60500,
+      wallets: richWallets,
+      grossSpread: 500,
+    });
+
+    expect(res.approved).toBe(false);
+    expect(res.reason).toContain('per-exchange quote cap');
+  });
 });
